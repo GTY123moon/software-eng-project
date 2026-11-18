@@ -1,0 +1,871 @@
+/* accounts 模块专用样式：登录页 + 患者工作台（占位阶段） */
+
+/* ===== 登录页 ===== */
+.login-wrap {
+    min-height: calc(100vh - 60px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%);
+    padding: 24px 16px;
+}
+
+.login-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 32px 36px;
+    width: 420px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.login-card h1 {
+    font-size: 20px;
+    color: #0d47a1;
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+.login-card h2 {
+    font-size: 17px;
+    color: #0d47a1;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.form-row {
+    display: flex;
+    gap: 14px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.form-error {
+    background: #fdecea;
+    color: #c62828;
+    border: 1px solid #f5c6c6;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+
+.login-card .sub {
+    text-align: center;
+    color: #666;
+    font-size: 13px;
+    margin-bottom: 28px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 13px;
+    color: #555;
+    margin-bottom: 6px;
+}
+
+.form-group input,
+.form-group select,
+.form-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+
+.form-textarea {
+    resize: vertical;
+}
+
+.login-tip {
+    margin-top: 16px;
+    text-align: center;
+    font-size: 13px;
+    color: #666;
+}
+
+.login-tip a {
+    color: #1976d2;
+    text-decoration: none;
+}
+
+/* ===== 按钮（统一尺寸、圆角、间距） ===== */
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 120px;
+    padding: 11px 20px;
+    background: #1976d2;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    text-decoration: none;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: background 0.2s, box-shadow 0.2s;
+}
+
+.btn-primary:hover {
+    background: #1565c0;
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+}
+
+.btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 120px;
+    padding: 9px 18px;
+    background: #fff;
+    color: #1976d2;
+    border: 1px solid #1976d2;
+    border-radius: 8px;
+    font-size: 14px;
+    text-decoration: none;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: background 0.2s;
+}
+
+.btn-secondary:hover {
+    background: #e3f2fd;
+}
+
+.form-actions {
+    margin-top: 8px;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.login-card-narrow {
+    width: 380px;
+}
+
+.login-foot {
+    margin-top: 14px;
+    text-align: right;
+}
+
+.login-foot a {
+    color: #1976d2;
+    font-size: 13px;
+    text-decoration: none;
+}
+
+.login-foot a:hover {
+    text-decoration: underline;
+}
+
+.form-inline select {
+    max-width: 260px;
+}
+
+.empty-tip {
+    color: #888;
+    font-size: 14px;
+    padding: 12px 4px;
+}
+
+/* ===== 工作台布局 ===== */
+.dash-layout {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.side {
+    width: 200px;
+    background: #0d47a1;
+    border-radius: 12px;
+    padding: 16px 0;
+    flex-shrink: 0;
+}
+
+.side-title {
+    padding: 0 20px 16px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 8px;
+}
+
+.side-item {
+    display: block;
+    padding: 12px 20px;
+    color: #fff;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.side-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.side-item.active {
+    background: #1976d2;
+    border-left: 3px solid #fff;
+}
+
+.main {
+    flex: 1;
+    min-width: 0;
+}
+
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.topbar h2 {
+    font-size: 20px;
+    color: #333;
+    margin: 0 0 4px;
+}
+
+.user-info {
+    font-size: 13px;
+    color: #666;
+}
+
+/* ===== 统计卡片 ===== */
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.stat-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.stat-num {
+    font-size: 26px;
+    font-weight: 700;
+    color: #0d47a1;
+}
+
+.stat-label {
+    font-size: 13px;
+    color: #666;
+    margin-top: 4px;
+}
+
+/* ===== 快捷入口卡片 ===== */
+.entry-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.entry-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 22px 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.entry-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(13, 71, 161, 0.12);
+}
+
+.entry-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #e3f2fd;
+    color: #1976d2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.entry-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+}
+
+.entry-desc {
+    font-size: 13px;
+    color: #888;
+    margin-top: 4px;
+}
+
+/* ===== 卡片 ===== */
+.card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.card h3 {
+    font-size: 16px;
+    margin: 0 0 12px;
+    color: #0d47a1;
+}
+
+.card p {
+    font-size: 14px;
+    line-height: 1.8;
+}
+
+.info-row {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    font-size: 14px;
+    color: #555;
+}
+
+/* ===== 列表 ===== */
+.list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.list-item:hover {
+    background: #f5f5f5;
+}
+
+.item-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.time {
+    font-size: 12px;
+    color: #999;
+}
+
+/* ===== 选医生卡片 ===== */
+.doctor-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.doctor-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 14px;
+    cursor: pointer;
+}
+
+.doctor-card:has(input:checked) {
+    border-color: #1976d2;
+    background: #e3f2fd;
+}
+
+.doctor-card input {
+    accent-color: #1976d2;
+}
+
+.doctor-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+.doctor-dept {
+    font-size: 13px;
+    color: #888;
+    margin-top: 2px;
+}
+
+/* ===== 处方详情 ===== */
+.presc-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.presc-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+}
+
+.presc-meta {
+    font-size: 13px;
+    color: #888;
+    margin-top: 4px;
+}
+
+.presc-items {
+    font-size: 14px;
+    color: #555;
+    padding: 10px 0;
+    border-top: 1px solid #f0f0f0;
+    border-bottom: 1px solid #f0f0f0;
+    margin-bottom: 12px;
+}
+
+.presc-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: #666;
+}
+
+/* ===== 徽章 ===== */
+.badge {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.badge-blue {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.badge-green {
+    background: #e8f5e9;
+    color: #388e3c;
+}
+
+.badge-orange {
+    background: #fff3e0;
+    color: #f57c00;
+}
+
+.badge-red {
+    background: #ffebee;
+    color: #d32f2f;
+}
+
+.badge-gray {
+    background: #eeeeee;
+    color: #666666;
+}
+
+/* ===== 处方明细表 ===== */
+.presc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 10px;
+}
+
+.presc-table th,
+.presc-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #f0f0f0;
+    text-align: left;
+    color: #555;
+}
+
+.presc-table th {
+    color: #888;
+    font-weight: 600;
+}
+
+.presc-table tfoot td {
+    border-bottom: none;
+    font-weight: 600;
+    color: #333;
+}
+
+.align-right {
+    text-align: right;
+}
+
+/* ===== 消息记录 ===== */
+.msg-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.msg-row {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.msg-row.mine {
+    justify-content: flex-end;
+}
+
+.msg-bubble {
+    max-width: 70%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: #f1f5f9;
+    color: #333;
+}
+
+.msg-row.mine .msg-bubble {
+    background: #1976d2;
+    color: #fff;
+}
+
+.msg-role {
+    font-size: 12px;
+    opacity: 0.75;
+    margin-bottom: 4px;
+}
+
+.msg-content {
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.msg-time {
+    font-size: 11px;
+    opacity: 0.7;
+    margin-top: 6px;
+    text-align: right;
+}
+
+.msg-image {
+    max-width: 220px;
+    max-height: 220px;
+    border-radius: 8px;
+    display: block;
+    margin: 4px 0;
+    object-fit: cover;
+}
+
+/* ===== 头部操作区 ===== */
+.head-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.link-btn {
+    color: #1976d2;
+    font-size: 13px;
+    text-decoration: none;
+}
+
+.link-btn:hover {
+    text-decoration: underline;
+}
+
+/* ===== AI 评估卡片 ===== */
+.ai-card,
+.active-consult {
+    border-left: 4px solid #1976d2;
+}
+
+.ai-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #333;
+    margin: 8px 0;
+}
+
+.ai-summary {
+    font-size: 14px;
+    color: #555;
+    line-height: 1.6;
+    margin: 6px 0;
+}
+
+.ai-keyword {
+    font-size: 13px;
+    color: #d32f2f;
+    margin: 4px 0;
+}
+
+.ai-time {
+    font-size: 12px;
+    color: #999;
+    margin-top: 6px;
+}
+
+/* ===== 聊天输入 ===== */
+.chat-input {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.chat-input textarea {
+    flex: 1;
+    resize: vertical;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.img-upload {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    padding: 0 14px;
+    border: 1px solid #1976d2;
+    color: #1976d2;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    white-space: nowrap;
+    align-self: flex-end;
+}
+
+.img-upload:hover {
+    background: #f0f6ff;
+}
+
+.chat-finish {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
+/* ===== 会话列表（微信式条目） ===== */
+.thread-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.thread-item {
+    padding: 0;
+}
+
+.thread-link {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-decoration: none;
+    color: inherit;
+    padding: 16px;
+}
+
+.thread-avatar {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: #1976d2;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex: none;
+}
+
+.thread-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.thread-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.thread-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+}
+
+.thread-time {
+    font-size: 12px;
+    color: #999;
+    flex: none;
+}
+
+.thread-bottom {
+    margin-top: 4px;
+}
+
+.thread-preview {
+    font-size: 13px;
+    color: #777;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+}
+
+.thread-side {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: none;
+}
+
+.thread-enter {
+    text-decoration: none;
+}
+
+/* ===== 视频弹窗 ===== */
+.video-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.video-mask[hidden] {
+    display: none;
+}
+
+.video-modal {
+    width: 720px;
+    max-width: 92vw;
+    background: #fff;
+    border-radius: 14px;
+    padding: 16px;
+}
+
+.video-modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 12px;
+}
+
+.video-modal-head button {
+    border: none;
+    background: none;
+    font-size: 22px;
+    cursor: pointer;
+    color: #888;
+}
+
+.video-panels {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #111;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.video-panels #remoteVideo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-panels #localVideo {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    width: 112px;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 2px solid #fff;
+    background: #000;
+    z-index: 2;
+    display: none;
+}
+
+.video-panels.has-local #localVideo {
+    display: block;
+}
+
+.video-status {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    z-index: 1;
+    text-align: center;
+    padding: 0 16px;
+}
+
+.video-status.hidden {
+    display: none;
+}
+
+.video-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.video-tip {
+    font-size: 12px;
+    color: #999;
+    margin-top: 10px;
+    line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+    .dash-layout {
+        flex-direction: column;
+    }
+
+    .side {
+        width: 100%;
+    }
+
+    .card-grid,
+    .entry-grid,
+    .stat-grid,
+    .doctor-list {
+        grid-template-columns: 1fr;
+    }
+}

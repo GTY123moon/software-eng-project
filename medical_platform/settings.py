@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -25,7 +26,8 @@ SECRET_KEY = 'django-insecure-1103e!&9oxb4!%x=*4oij7s%ag_9-r%9hs(7&m&wl)1y5a!m0v
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# 课设本机演示：允许本机与测试客户端；部署时应收敛为正式域名
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -37,6 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # 业务表 ORM 映射集中层（managed=False，只映射已有表）
+    'core',
     # 本项目业务 app（按角色拆分）
     'accounts',
     'doctor',
@@ -77,30 +81,28 @@ WSGI_APPLICATION = 'medical_platform.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
-# 过渡阶段：MySQL 账号密码未就绪前，先用 SQLite 跑通页面骨架。
-# 待成员4 建好 MySQL 库、密码确定后，注释掉下面 SQLite 段，启用后面的 MySQL 段。
+# 业务表已由 docs/sql 脚本在 MySQL 建好；这里通过环境变量读取连接信息，
+# 本机真实密码写在不提交的 local_settings.py，避免明文进公开仓库。
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.environ.get('MYSQL_NAME', 'medical_platform'),
+        'USER': os.environ.get('MYSQL_USER', 'root'),
+        'PASSWORD': os.environ.get('MYSQL_PASSWORD', ''),
+        'HOST': os.environ.get('MYSQL_HOST', '127.0.0.1'),
+        'PORT': os.environ.get('MYSQL_PORT', '3306'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+        },
     }
 }
 
-# MySQL 配置（后期切到 MySQL 时启用）
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'medical_platform',
-#         'USER': 'root',
-#         'PASSWORD': '填真实MySQL密码',
-#         'HOST': '127.0.0.1',
-#         'PORT': '3306',
-#         'OPTIONS': {
-#             'charset': 'utf8mb4',
-#         },
-#     }
-# }
+# 本地覆盖配置（不提交到 Git）：放本机 MySQL 密码等私有信息
+try:
+    from .local_settings import DATABASES as _LOCAL_DATABASES
+    DATABASES['default'].update(_LOCAL_DATABASES.get('default', {}))
+except ImportError:
+    pass
 
 
 # Password validation
@@ -140,6 +142,10 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 STATICFILES_DIRS = [BASE_DIR / 'static']
+
+# 用户上传的聊天图片等媒体文件（不进 Git，media/ 已在 .gitignore）
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

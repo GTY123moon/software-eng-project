@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}发起问诊 · 患者工作台{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+
+<div class="dash-layout">
+    <aside class="side">
+        <div class="side-title">患者工作台</div>
+        <a class="side-item" href="{% url 'accounts:dashboard' %}">首页概览</a>
+        <a class="side-item active" href="{% url 'accounts:consult_create' %}">发起问诊</a>
+        <a class="side-item" href="{% url 'accounts:prescription_list' %}">我的处方</a>
+        <a class="side-item" href="{% url 'accounts:messages' %}">消息记录</a>
+    </aside>
+
+    <main class="main">
+        <div class="topbar">
+            <h2>发起问诊</h2>
+            <a class="btn-secondary" href="{% url 'accounts:dashboard' %}">返回工作台</a>
+        </div>
+
+        {% if error %}
+        <div class="form-error">{{ error }}</div>
+        {% endif %}
+
+        {% if active_consult %}
+        <div class="card">
+            <h3>当前进行中的挂号</h3>
+            <div class="presc-meta">医生：{{ active_doctor }} · {{ active_dept }} · {{ active_time }}</div>
+            <p class="empty-tip">同一时间仅可挂一个号。请先完成当前问诊，结束后再发起新挂号。</p>
+            <div class="form-actions">
+                <a class="btn-primary" href="{% url 'accounts:consult_chat' active_consult.consult_id %}">进入当前对话</a>
+            </div>
+        </div>
+        {% else %}
+
+        <div class="card">
+            <h3>第一步：选择科室</h3>
+            <form method="get" action="{% url 'accounts:consult_create' %}">
+                <div class="form-group form-inline">
+                    <select name="dept" onchange="this.form.submit()">
+                        <option value="">请选择科室</option>
+                        {% for d in departments %}
+                        <option value="{{ d }}" {% if d == current_dept %}selected{% endif %}>{{ d }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+
+        <form method="post" action="{% url 'accounts:consult_create' %}">
+            {% csrf_token %}
+        <div class="card">
+            <h3>第二步：选择接诊医生</h3>
+            {% if current_dept %}
+                {% if doctors %}
+                <div class="doctor-list">
+                    {% for d in doctors %}
+                    <label class="doctor-card">
+                        <input type="radio" name="doctor" value="{{ d.id }}" {% if forloop.first %}checked{% endif %}>
+                        <div>
+                            <div class="doctor-name">{{ d.name }} · {{ d.title }}</div>
+                            <div class="doctor-dept">{{ d.department }}</div>
+                        </div>
+                        <span class="badge badge-green">{{ d.status }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="empty-tip">该科室暂无在线医生，请选择其他科室。</p>
+                {% endif %}
+            {% else %}
+            <p class="empty-tip">请先在上方选择科室，再查看该科室医生。</p>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h3>第三步：AI 预问诊信息采集</h3>
+            <div class="form-group">
+                <label>主诉</label>
+                <input type="text" name="chief_complaint" placeholder="如：咳嗽、发热两天" required>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>起病时间</label>
+                    <input type="text" name="onset_time" placeholder="如：两天前、今天早晨">
+                </div>
+                <div class="form-group">
+                    <label>伴随症状</label>
+                    <input type="text" name="symptoms" placeholder="如：咳痰、咽痛、乏力">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>既往病史 / 用药 / 过敏史</label>
+                <textarea class="form-textarea" name="history" rows="3" placeholder="既往疾病、正在服用的药物、药物过敏情况等"></textarea>
+            </div>
+            <div class="form-actions">
+                <button class="btn-primary" type="submit">提交挂号并进入问诊</button>
+            </div>
+        </div>
+        </form>
+        {% endif %}
+    </main>
+</div>
+{% endblock %}

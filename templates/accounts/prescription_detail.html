@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}处方详情 · 患者工作台{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+
+<div class="dash-layout">
+    <aside class="side">
+        <div class="side-title">患者工作台</div>
+        <a class="side-item" href="{% url 'accounts:dashboard' %}">首页概览</a>
+        <a class="side-item" href="{% url 'accounts:consult_create' %}">发起问诊</a>
+        <a class="side-item active" href="{% url 'accounts:prescription_list' %}">我的处方</a>
+        <a class="side-item" href="{% url 'accounts:messages' %}">消息记录</a>
+    </aside>
+
+    <main class="main">
+        <div class="topbar">
+            <h2>处方详情</h2>
+            <a class="btn-secondary" href="{% url 'accounts:prescription_list' %}">返回处方列表</a>
+        </div>
+
+        {% if prescription %}
+        <div class="card">
+            <div class="presc-head">
+                <div>
+                    <div class="presc-title">处方号 {{ prescription.id }}</div>
+                    <div class="presc-meta">{{ prescription.doctor }} · {{ prescription.department }} · {{ prescription.time }}</div>
+                </div>
+                {% if prescription.status == '已完成' or prescription.status == '已通过' %}
+                <span class="badge badge-green">{{ prescription.status }}</span>
+                {% elif prescription.status == '已驳回' %}
+                <span class="badge badge-red">{{ prescription.status }}</span>
+                {% elif prescription.status == '草稿' %}
+                <span class="badge badge-blue">{{ prescription.status }}</span>
+                {% else %}
+                <span class="badge badge-orange">{{ prescription.status }}</span>
+                {% endif %}
+            </div>
+
+            <div class="info-row" style="margin-bottom:12px;">
+                <span>临床诊断：{{ prescription.diagnosis }}</span>
+            </div>
+
+            <table class="presc-table">
+                <thead>
+                    <tr>
+                        <th>药品名称</th>
+                        <th>规格</th>
+                        <th>数量</th>
+                        <th>用法用量</th>
+                        <th>单价(元)</th>
+                        <th>小计(元)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in prescription.items %}
+                    <tr>
+                        <td>{{ item.drug }}</td>
+                        <td>{{ item.spec }}</td>
+                        <td>{{ item.qty }} 盒</td>
+                        <td>{{ item.dosage }}</td>
+                        <td>{{ item.price }}</td>
+                        <td>{{ item.subtotal }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="5" class="align-right">合计</td>
+                        <td>{{ total }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <div class="presc-foot" style="margin-top:14px;">
+                <span>取药方式：{{ prescription.pickup }}</span>
+                <span>审核状态：{{ prescription.audit }}</span>
+            </div>
+        </div>
+        {% else %}
+        <div class="card">
+            <p>未找到该处方信息，可能处方编号有误或已过期。请返回处方列表查看。</p>
+        </div>
+        {% endif %}
+    </main>
+</div>
+{% endblock %}

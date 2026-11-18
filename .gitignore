@@ -15,6 +15,7 @@ env/
 # 密钥 / 本地配置（账号密码不要进公开仓库）
 .env
 *.local
+medical_platform/local_settings.py
 
 # IDE 个人配置
 .idea/

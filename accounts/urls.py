@@ -1,4 +1,23 @@
 from django.urls import path
+from . import views
 
 app_name = 'accounts'
-urlpatterns = []
+
+urlpatterns = [
+    # 登录 / 注册页
+    path('login/', views.login_view, name='login'),
+    path('register/', views.register_view, name='register'),
+    # 患者工作台
+    path('', views.dashboard_view, name='dashboard'),
+    path('dashboard/', views.dashboard_view, name='dashboard_alt'),
+    # 发起问诊
+    path('consult/create/', views.consult_create_view, name='consult_create'),
+    # 消息记录
+    path('messages/', views.messages_view, name='messages'),
+    # 问诊聊天
+    path('consult/<int:consult_id>/', views.consult_chat_view, name='consult_chat'),
+    # 我的处方
+    path('prescriptions/', views.prescription_list_view, name='prescription_list'),
+    # 处方详情
+    path('prescriptions/<int:presc_id>/', views.prescription_detail_view, name='prescription_detail'),
+]
