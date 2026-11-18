@@ -1,0 +1,40 @@
+/* 公共基础样式：各角色页面在此基础上扩展 */
+body {
+    margin: 0;
+    font-family: "Microsoft YaHei", Arial, sans-serif;
+    background-color: #f5f7fa;
+    color: #333;
+}
+
+.top-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 24px;
+    background-color: #1f6fb2;
+    color: #fff;
+}
+
+.brand {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.nav-links a {
+    color: #fff;
+    margin-left: 16px;
+    text-decoration: none;
+}
+
+.content {
+    max-width: 1080px;
+    margin: 24px auto;
+    padding: 0 16px;
+}
+
+.footer {
+    text-align: center;
+    padding: 16px;
+    color: #888;
+    font-size: 12px;
+}

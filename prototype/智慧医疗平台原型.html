@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智慧医疗在线问诊与处方流转平台 - 原型</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f4f8; color: #333; }
+
+/* 登录页 */
+.login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%); }
+.login-card { background: #fff; border-radius: 16px; padding: 48px 40px; width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+.login-card h1 { font-size: 22px; color: #0d47a1; text-align: center; margin-bottom: 8px; }
+.login-card .sub { text-align: center; color: #666; font-size: 13px; margin-bottom: 32px; }
+.role-select { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+.role-btn { padding: 20px 12px; border: 2px solid #e0e0e0; border-radius: 12px; text-align: center; cursor: pointer; transition: all 0.2s; background: #fafafa; }
+.role-btn:hover { border-color: #1976d2; background: #e3f2fd; }
+.role-btn.active { border-color: #1976d2; background: #e3f2fd; color: #1976d2; font-weight: 600; }
+.role-icon { font-size: 28px; margin-bottom: 8px; }
+.role-name { font-size: 14px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 13px; color: #555; margin-bottom: 6px; }
+.form-group input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+.btn-primary { width: 100%; padding: 12px; background: #1976d2; color: #fff; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; margin-top: 8px; }
+.btn-primary:hover { background: #1565c0; }
+.btn-secondary { padding: 8px 16px; background: #fff; color: #1976d2; border: 1px solid #1976d2; border-radius: 6px; font-size: 13px; cursor: pointer; }
+.btn-success { padding: 8px 16px; background: #4caf50; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
+.btn-danger { padding: 8px 16px; background: #f44336; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
+
+/* 主布局 */
+.app { display: none; min-height: 100vh; }
+.app.active { display: flex; }
+.sidebar { width: 220px; background: #0d47a1; color: #fff; padding: 20px 0; }
+.sidebar .logo { padding: 0 20px 20px; font-size: 16px; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 16px; }
+.menu-item { padding: 12px 20px; cursor: pointer; font-size: 14px; transition: background 0.2s; }
+.menu-item:hover { background: rgba(255,255,255,0.1); }
+.menu-item.active { background: #1976d2; border-left: 3px solid #fff; }
+.main { flex: 1; padding: 24px; background: #f0f4f8; }
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.topbar h2 { font-size: 20px; color: #333; }
+.user-info { font-size: 13px; color: #666; }
+
+/* 卡片 */
+.card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.card h3 { font-size: 16px; margin-bottom: 12px; color: #0d47a1; }
+
+/* 列表 */
+.list-item { display: flex; justify-content: space-between; align-items: center; padding: 14px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; }
+.list-item:hover { background: #f5f5f5; }
+.badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; }
+.badge-blue { background: #e3f2fd; color: #1976d2; }
+.badge-green { background: #e8f5e9; color: #388e3c; }
+.badge-red { background: #ffebee; color: #d32f2f; }
+.badge-orange { background: #fff3e0; color: #f57c00; }
+
+/* 弹窗 */
+.modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+.modal.show { display: flex; }
+.modal-content { background: #fff; border-radius: 12px; padding: 28px; width: 520px; max-height: 80vh; overflow-y: auto; }
+.modal-content h3 { margin-bottom: 16px; color: #0d47a1; }
+.form-row { margin-bottom: 12px; }
+.form-row label { display: block; font-size: 13px; color: #555; margin-bottom: 4px; }
+.form-row input, .form-row textarea, .form-row select { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+.modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
+
+/* AI摘要 */
+.ai-summary { background: #f3e5f5; border-left: 4px solid #9c27b0; padding: 14px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 13px; }
+.ai-summary .tag { color: #9c27b0; font-weight: 600; margin-bottom: 6px; }
+.risk-high { background: #ffebee; border: 1px solid #ef9a9a; border-radius: 8px; padding: 16px; margin: 12px 0; }
+.risk-high .title { color: #c62828; font-weight: 600; font-size: 15px; margin-bottom: 8px; }
+
+/* 聊天 */
+.chat-box { height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; padding: 12px; margin-bottom: 12px; background: #fafafa; }
+.chat-msg { margin-bottom: 10px; max-width: 70%; }
+.chat-msg.patient { margin-right: auto; }
+.chat-msg.doctor { margin-left: auto; text-align: right; }
+.chat-bubble { padding: 10px 14px; border-radius: 12px; font-size: 13px; display: inline-block; }
+.chat-msg.patient .chat-bubble { background: #e3f2fd; }
+.chat-msg.doctor .chat-bubble { background: #fff; border: 1px solid #e0e0e0; }
+.chat-time { font-size: 11px; color: #999; margin-top: 2px; }
+
+.page { display: none; }
+.page.active { display: block; }
+</style>
+</head>
+<body>
+
+<!-- ===== 登录页 ===== -->
+<div id="loginPage" class="login-wrap">
+  <div class="login-card">
+    <h1>智慧医疗在线问诊与处方流转平台</h1>
+    <p class="sub">请选择登录角色</p>
+    <div class="role-select">
+      <div class="role-btn active" data-role="patient" onclick="selectRole(this)">
+        <div class="role-icon">👤</div>
+        <div class="role-name">患者</div>
+      </div>
+      <div class="role-btn" data-role="doctor" onclick="selectRole(this)">
+        <div class="role-icon">👨‍⚕️</div>
+        <div class="role-name">医生</div>
+      </div>
+      <div class="role-btn" data-role="pharmacist" onclick="selectRole(this)">
+        <div class="role-icon">💊</div>
+        <div class="role-name">药师</div>
+      </div>
+      <div class="role-btn" data-role="admin" onclick="selectRole(this)">
+        <div class="role-icon">⚙️</div>
+        <div class="role-name">管理员</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>账号</label>
+      <input type="text" value="demo" id="loginUser">
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input type="password" value="123456">
+    </div>
+    <button class="btn-primary" onclick="doLogin()">登 录</button>
+  </div>
+</div>
+
+<!-- ===== 主应用 ===== -->
+<div id="app" class="app">
+  <div class="sidebar">
+    <div class="logo">🏥 智慧医疗平台</div>
+    <div id="menuArea"></div>
+    <div class="menu-item" onclick="logout()" style="margin-top:20px;color:#ffcdd2;">退出登录</div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <h2 id="pageTitle">工作台</h2>
+      <div class="user-info" id="userInfo"></div>
+    </div>
+    <div id="pageContent"></div>
+  </div>
+</div>
+
+<!-- ===== 弹窗 ===== -->
+<div id="modal" class="modal">
+  <div class="modal-content" id="modalContent"></div>
+</div>
+
+<script>
+// 模拟数据
+let currentRole = 'patient';
+let consultations = [
+  { id: 1, patient: '张三', symptom: '头疼三天，伴有低烧', status: '待接诊', time: '2026-11-05 14:30', summary: '患者主诉头痛3天，伴低热37.8℃。既往体健，无过敏史。初步判断：可能为上呼吸道感染，需进一步检查排除其他病因。', riskLevel: '中低危', doctor: '李医生' },
+  { id: 2, patient: '李四', symptom: '胸痛剧烈，呼吸困难', status: '已转诊', time: '2026-11-05 10:15', summary: '匹配高危关键词"胸痛""呼吸困难"，已引导线下急诊。', riskLevel: '高危', doctor: '-' },
+  { id: 3, patient: '王五', symptom: '慢性支气管炎复诊，咳嗽加重', status: '进行中', time: '2026-11-05 09:00', summary: '慢性支气管炎病史5年，近期咳嗽加重，无发热。建议复查胸片。', riskLevel: '中低危', doctor: '李医生' },
+];
+let prescriptions = [
+  { id: 1, consultId: 1, patient: '张三', doctor: '李医生', status: '待审核', items: [{name:'布洛芬缓释胶囊', dosage:'0.3g', usage:'每日2次，饭后服', qty:1}] },
+  { id: 2, consultId: 3, patient: '王五', doctor: '李医生', status: '已通过', items: [{name:'氨溴索口服溶液', dosage:'10ml', usage:'每日3次', qty:1}] },
+];
+let drugs = [
+  { id: 1, name: '布洛芬缓释胶囊', code:'YP001', spec:'0.3g×20粒', price:15.5, stock:120 },
+  { id: 2, name: '氨溴索口服溶液', code:'YP002', spec:'100ml', price:22.0, stock:85 },
+  { id: 3, name: '阿莫西林胶囊', code:'YP003', spec:'0.25g×24粒', price:12.8, stock:200 },
+];
+let schedule = [
+  { id: 1, doctor: '李医生', date: '2026-11-05', shift: '白班 8:00-22:00' },
+  { id: 2, doctor: '王医生', date: '2026-11-05', shift: '夜班 22:00-8:00' },
+];
+
+const roleNames = { patient:'患者', doctor:'医生', pharmacist:'药师', admin:'管理员' };
+const menuConfig = {
+  patient: [
+    { key:'home', name:'🏠 我的问诊' },
+    { key:'newConsult', name:'📝 发起问诊' },
+    { key:'myPresc', name:'💊 我的处方' },
+  ],
+  doctor: [
+    { key:'home', name:'🏠 待接诊列表' },
+    { key:'history', name:'📋 历史问诊' },
+  ],
+  pharmacist: [
+    { key:'home', name:'📋 待审核处方' },
+    { key:'processed', name:'📦 已处理处方' },
+  ],
+  admin: [
+    { key:'home', name:'🏠 工作台' },
+    { key:'drugs', name:'💊 药品目录管理' },
+    { key:'schedule', name:'🕐 值班排班管理' },
+    { key:'logs', name:'📜 操作日志' },
+  ],
+};
+
+function selectRole(el) {
+  document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  currentRole = el.dataset.role;
+}
+
+function doLogin() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+  document.getElementById('userInfo').textContent = roleNames[currentRole] + ' · demo';
+  renderMenu();
+  navigate('home');
+}
+
+function logout() {
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('loginPage').style.display = 'flex';
+}
+
+function renderMenu() {
+  const menu = menuConfig[currentRole];
+  document.getElementById('menuArea').innerHTML = menu.map(m =>
+    `<div class="menu-item" data-key="${m.key}" onclick="navigate('${m.key}')">${m.name}</div>`
+  ).join('');
+}
+
+function navigate(key) {
+  document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+  document.querySelector(`[data-key="${key}"]`).classList.add('active');
+  const titles = {
+    home:'工作台', newConsult:'发起问诊', myPresc:'我的处方', history:'历史问诊',
+    processed:'已处理处方', drugs:'药品目录管理', schedule:'值班排班管理', logs:'操作日志'
+  };
+  document.getElementById('pageTitle').textContent = titles[key] || '工作台';
+  const pages = {
+    home: renderHome, newConsult: renderNewConsult, myPresc: renderMyPresc,
+    history: renderHistory, processed: renderProcessed, drugs: renderDrugs,
+    schedule: renderSchedule, logs: renderLogs
+  };
+  pages[key]();
+}
+
+function renderHome() {
+  const c = document.getElementById('pageContent');
+  if (currentRole === 'patient') {
+    c.innerHTML = `
+      <div class="card"><h3>我的问诊</h3>
+        ${consultations.filter(x=>x.patient==='张三').length === 0 ? '<p style="color:#999">暂无问诊记录</p>' :
+          consultations.filter(x=>x.patient==='张三').map(x=>`
+            <div class="list-item">
+              <div><strong>${x.symptom.substring(0,20)}...</strong><br><small style="color:#999">${x.time}</small></div>
+              <span class="badge badge-${x.status==='进行中'?'blue':x.status==='已转诊'?'red':'green'}">${x.status}</span>
+            </div>`).join('')}
+      </div>`;
+  } else if (currentRole === 'doctor') {
+    c.innerHTML = `
+      <div class="card"><h3>待接诊问诊</h3>
+        ${consultations.filter(x=>x.status==='待接诊').map(x=>`
+          <div class="list-item">
+            <div><strong>${x.patient}</strong><br><small style="color:#999">${x.symptom} · ${x.time}</small></div>
+            <button class="btn-primary" style="width:auto;padding:6px 16px;margin:0" onclick="openConsult(${x.id})">接诊</button>
+          </div>`).join('') || '<p style="color:#999">暂无待接诊</p>'}
+      </div>
+      <div class="card"><h3>进行中问诊</h3>
+        ${consultations.filter(x=>x.status==='进行中').map(x=>`
+          <div class="list-item">
+            <div><strong>${x.patient}</strong><br><small style="color:#999">${x.symptom}</small></div>
+            <span class="badge badge-blue">进行中</span>
+          </div>`).join('')}
+      </div>`;
+  } else if (currentRole === 'pharmacist') {
+    c.innerHTML = `
+      <div class="card"><h3>待审核处方</h3>
+        ${prescriptions.filter(x=>x.status==='待审核').map(x=>`
+          <div class="list-item">
+            <div><strong>${x.patient}</strong> · ${x.doctor}<br><small style="color:#999">药品：${x.items.map(i=>i.name).join('、')}</small></div>
+            <div style="display:flex;gap:8px">
+              <button class="btn-success" onclick="auditPresc(${x.id}, true)">通过</button>
+              <button class="btn-danger" onclick="auditPresc(${x.id}, false)">驳回</button>
+            </div>
+          </div>`).join('') || '<p style="color:#999">暂无待审核处方</p>'}
+      </div>`;
+  } else {
+    c.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+        <div class="card" style="text-align:center"><h3 style="font-size:28px;color:#1976d2">${consultations.length}</h3><p>总问诊数</p></div>
+        <div class="card" style="text-align:center"><h3 style="font-size:28px;color:#4caf50">${prescriptions.filter(x=>x.status==='已通过').length}</h3><p>已通过处方</p></div>
+        <div class="card" style="text-align:center"><h3 style="font-size:28px;color:#f44336">${consultations.filter(x=>x.riskLevel==='高危').length}</h3><p>急症转诊</p></div>
+      </div>`;
+  }
+}
+
+function renderNewConsult() {
+  document.getElementById('pageContent').innerHTML = `
+    <div class="card">
+      <h3>发起问诊</h3>
+      <div class="form-row"><label>选择医生（白班）</label>
+        <select><option>李医生 - 呼吸内科</option><option>王医生 - 消化内科</option></select>
+      </div>
+      <div class="form-row"><label>主诉（症状描述）</label>
+        <textarea id="symptomInput" rows="3" placeholder="请描述您的症状..."></textarea>
+      </div>
+      <div class="form-row"><label>上传患处图片（可选）</label>
+        <input type="file">
+      </div>
+      <button class="btn-primary" onclick="submitConsult()">提交问诊</button>
+    </div>`;
+}
+
+function submitConsult() {
+  const sym = document.getElementById('symptomInput').value;
+  if (!sym) { alert('请填写症状描述'); return; }
+  // 模拟AI风险分级
+  const highRisk = ['胸痛','昏迷','高热','呼吸困难','呕血'].some(k => sym.includes(k));
+  if (highRisk) {
+    document.getElementById('modalContent').innerHTML = `
+      <div class="risk-high">
+        <div class="title">⚠️ 检测到高危症状</div>
+        <p>您描述的症状可能需要紧急医疗处理。请立即前往附近医院急诊科就诊，或拨打120急救电话。</p>
+        <p style="margin-top:12px;font-size:13px;color:#666">系统已为您记录转诊日志。</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-primary" onclick="closeModal()">我知道了</button>
+      </div>`;
+    document.getElementById('modal').classList.add('show');
+  } else {
+    document.getElementById('modalContent').innerHTML = `
+      <h3>AI预问诊摘要</h3>
+      <div class="ai-summary">
+        <div class="tag">🤖 AI生成，仅供参考</div>
+        <p>患者主诉：${sym}</p>
+        <p style="margin-top:8px">风险等级：中低危</p>
+        <p>已为您推送至坐诊医生，请等待接诊。</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-primary" onclick="closeModal();navigate('home')">完成</button>
+      </div>`;
+    document.getElementById('modal').classList.add('show');
+  }
+}
+
+function openConsult(id) {
+  const c = consultations.find(x=>x.id===id);
+  document.getElementById('modalContent').innerHTML = `
+    <h3>问诊详情 - ${c.patient}</h3>
+    <div class="ai-summary">
+      <div class="tag">🤖 AI预问诊摘要（${c.riskLevel}）</div>
+      <p>${c.summary}</p>
+    </div>
+    <div style="margin:12px 0">
+      <label style="font-size:13px;color:#555;margin-right:12px">AI摘要复核：</label>
+      <button class="btn-secondary" style="margin-right:8px">✓ 采纳</button>
+      <button class="btn-secondary" style="margin-right:8px">✎ 修正</button>
+      <button class="btn-secondary">✗ 否决</button>
+    </div>
+    <div class="chat-box">
+      <div class="chat-msg patient"><div class="chat-bubble">${c.symptom}</div><div class="chat-time">${c.time}</div></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <input style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px" placeholder="输入回复...">
+      <button class="btn-primary" style="width:auto;margin:0">发送</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">关闭</button>
+      <button class="btn-primary" onclick="openPrescriptionForm(${c.id})">开具处方</button>
+    </div>`;
+  document.getElementById('modal').classList.add('show');
+}
+
+function openPrescriptionForm(consultId) {
+  document.getElementById('modalContent').innerHTML = `
+    <h3>开具处方</h3>
+    <div class="form-row"><label>选择药品</label>
+      <select id="drugSelect">${drugs.map(d=>`<option value="${d.id}">${d.name}（${d.spec}）</option>`).join('')}</select>
+    </div>
+    <div class="form-row"><label>用法用量</label><input placeholder="如：每日2次，饭后服用"></div>
+    <div class="form-row"><label>数量</label><input type="number" value="1"></div>
+    <div class="ai-summary" style="margin-top:16px">
+      <div class="tag">🤖 AI药方校验</div>
+      <p>✓ 剂量在安全范围内</p>
+      <p>✓ 无配伍禁忌</p>
+      <p style="font-size:12px;color:#999;margin-top:4px">校验结果仅供参考，最终由医生确认</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">取消</button>
+      <button class="btn-primary" onclick="submitPrescription(${consultId})">提交药师审核</button>
+    </div>`;
+}
+
+function submitPrescription(consultId) {
+  alert('处方已提交药师审核');
+  closeModal();
+  navigate('home');
+}
+
+function auditPresc(id, pass) {
+  const p = prescriptions.find(x=>x.id===id);
+  if (pass) {
+    p.status = '已通过';
+    alert('处方已通过，患者可选择取药方式');
+  } else {
+    p.status = '已驳回';
+    alert('已驳回，通知医生修改');
+  }
+  renderHome();
+}
+
+function renderMyPresc() {
+  document.getElementById('pageContent').innerHTML = `
+    <div class="card"><h3>我的处方</h3>
+      ${prescriptions.filter(x=>x.patient==='张三').map(x=>`
+        <div class="list-item">
+          <div><strong>${x.items.map(i=>i.name).join('、')}</strong><br><small style="color:#999">开具医生：${x.doctor}</small></div>
+          <span class="badge badge-${x.status==='已通过'?'green':'orange'}">${x.status}</span>
+        </div>`).join('') || '<p style="color:#999">暂无处方</p>'}
+    </div>`;
+}
+
+function renderHistory() {
+  document.getElementById('pageContent').innerHTML = `
+    <div class="card"><h3>历史问诊</h3>
+      ${consultations.map(x=>`
+        <div class="list-item">
+          <div><strong>${x.patient}</strong> - ${x.symptom.substring(0,20)}<br><small style="color:#999">${x.time} · ${x.riskLevel}</small></div>
+          <span class="badge badge-${x.status==='已转诊'?'red':'green'}">${x.status}</span>
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderProcessed() {
+  document.getElementById('pageContent').innerHTML = `
+    <div class="card"><h3>已处理处方</h3>
+      ${prescriptions.filter(x=>x.status!=='待审核').map(x=>`
+        <div class="list-item">
+          <div><strong>${x.patient}</strong> - ${x.items.map(i=>i.name).join('、')}<br><small style="color:#999">医生：${x.doctor}</small></div>
+          <span class="badge badge-${x.status==='已通过'?'green':'red'}">${x.status}</span>
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderDrugs() {
+  document.getElementById('pageContent').innerHTML = `
+    <div class="card">
+      <h3>药品目录</h3>
+      ${drugs.map(d=>`
+        <div class="list-item">
+          <div><strong>${d.name}</strong><br><small style="color:#999">${d.spec} · ¥${d.price} · 库存${d.stock}</small></div>
+          <button class="btn-secondary">编辑</button>
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderSchedule() {
+  document.getElementById('pageContent').innerHTML = `
+    <div class="card">
+      <h3>值班排班表</h3>
+      ${schedule.map(s=>`
+        <div class="list-item">
+          <div><strong>${s.doctor}</strong><br><small style="color:#999">${s.date} · ${s.shift}</small></div>
+          <button class="btn-secondary">调整</button>
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderLogs() {
+  document.getElementById('pageContent').innerHTML = `
+    <div class="card"><h3>操作日志</h3>
+      <div class="list-item"><div><strong>AI风险分级</strong><br><small style="color:#999">问诊#2 匹配高危关键词"胸痛"，已转诊 · 2026-11-05 10:15</small></div><span class="badge badge-red">转诊</span></div>
+      <div class="list-item"><div><strong>医生开方</strong><br><small style="color:#999">李医生 为问诊#1 开具处方 · 2026-11-05 15:00</small></div><span class="badge badge-blue">开方</span></div>
+      <div class="list-item"><div><strong>药师审核</strong><br><small style="color:#999">张药师 审核通过处方#2 · 2026-11-05 11:30</small></div><span class="badge badge-green">审核</span></div>
+    </div>`;
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+</script>
+</body>
+</html>

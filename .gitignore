@@ -1,0 +1,36 @@
+# Python 缓存
+__pycache__/
+*.py[cod]
+*.pyo
+
+# 本地数据库
+db.sqlite3
+db.sqlite3-journal
+
+# 虚拟环境
+venv/
+.venv/
+env/
+
+# 密钥 / 本地配置（账号密码不要进公开仓库）
+.env
+*.local
+
+# IDE 个人配置
+.idea/
+.vscode/
+*.iml
+
+# 日志
+*.log
+
+# 运行时上传的媒体文件
+media/
+
+# 系统文件
+Thumbs.db
+.DS_Store
+
+# 临时截图（不进仓库）
+3ff57d74-*.png
+cee4917c-*.png
