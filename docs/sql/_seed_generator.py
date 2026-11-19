@@ -39,6 +39,7 @@ SKILLS = {
 PHARM_TYPES = ["主任药师","主管药师","药师"]
 AREAS = ["天津市南开区","天津市和平区","天津市河西区","天津市河北区","天津市红桥区","天津市河东区","天津市津南区","天津市北辰区"]
 ALLERGIES = ["无","青霉素过敏","花粉过敏","海鲜过敏","坚果过敏"]
+HISTORIES = ["无","高血压","慢性胃炎","过敏性鼻炎","哮喘病史","颈椎退行性病变","甲状腺结节","糖尿病家族史"]
 
 # 药品：名称, 规格, 单价, 是否处方药(1/0), 禁忌
 DRUGS = [
@@ -174,10 +175,11 @@ def gen_users_and_profiles():
         gender = "女" if k % 2 else "男"
         age = 18 + (k * 7) % 70
         allergy = ALLERGIES[k % len(ALLERGIES)]
+        history = HISTORIES[k % len(HISTORIES)]
         area = AREAS[k % len(AREAS)]
         idcard = f"130102{1960 + (k % 65):04d}{(k % 12) + 1:02d}{(k % 28) + 1:02d}{pid:04d}"
         medical = f"BL2026{pid - 2:04d}"
-        rows_patient.append((pid, idcard, gender, age, allergy, area, medical, "2026-10-20 10:00:00"))
+        rows_patient.append((pid, idcard, gender, age, allergy, area, history, medical, "2026-10-20 10:00:00"))
 
     # 医生：83..137
     for k, did in enumerate(DOC_IDS):
@@ -243,10 +245,10 @@ def build_seed_data():
 
     # 患者
     lines.append("-- 3. 患者 patient")
-    lines.append("INSERT INTO patient (patient_id, id_card_no, gender, age, allergy, address, medical_no, created_at) VALUES")
+    lines.append("INSERT INTO patient (patient_id, id_card_no, gender, age, allergy, address, medical_history, medical_no, created_at) VALUES")
     pvals = []
-    for pid, idc, g, age, al, addr, med, t in patient:
-        pvals.append(f"({pid}, '{idc}', '{g}', {age}, '{esc(al)}', '{addr}', '{med}', '{t}')")
+    for pid, idc, g, age, al, addr, hist, med, t in patient:
+        pvals.append(f"({pid}, '{idc}', '{g}', {age}, '{esc(al)}', '{addr}', '{esc(hist)}', '{med}', '{t}')")
     lines.append(",\n".join(pvals) + ";")
     lines.append("")
 

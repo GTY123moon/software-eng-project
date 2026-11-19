@@ -13,6 +13,7 @@
         <a class="side-item" href="{% url 'accounts:consult_create' %}">发起问诊</a>
         <a class="side-item" href="{% url 'accounts:prescription_list' %}">我的处方</a>
         <a class="side-item" href="{% url 'accounts:messages' %}">消息记录</a>
+        <a class="side-item" href="{% url 'accounts:profile' %}">个人中心</a>
     </aside>
 
     <main class="main">
@@ -70,11 +71,16 @@
         </div>
 
         <div class="card">
-            <h3>个人信息</h3>
+            <h3>个人信息 <a class="link-btn profile-edit" href="{% url 'accounts:profile' %}">编辑资料</a></h3>
             <div class="info-row">
                 <span>性别：{{ patient.gender }}</span>
                 <span>年龄：{{ patient.age }}</span>
+                <span>手机号：{{ patient.phone }}</span>
+            </div>
+            <div class="info-row">
                 <span>过敏史：{{ patient.allergy }}</span>
+                <span>既往病史：{{ patient.history }}</span>
+                <span>联系地址：{{ patient.address }}</span>
             </div>
         </div>
 

@@ -58,6 +58,7 @@ CREATE TABLE patient (
     age         INT          NULL COMMENT '年龄：0 ≤ age ≤ 200',
     allergy     VARCHAR(500) NULL COMMENT '过敏史',
     address     VARCHAR(200) NULL COMMENT '联系地址',
+    medical_history VARCHAR(500) NULL COMMENT '既往病史/慢性病症',
     medical_no  VARCHAR(30)  NOT NULL COMMENT '病历号',
     created_at  DATETIME     NOT NULL COMMENT '注册时间',
     PRIMARY KEY (patient_id),

@@ -1013,6 +1013,28 @@
 }
 
 /* ===== 响应式 ===== */
+/* ===== 未读会话 / 个人中心补充 ===== */
+.thread-name.unread {
+    font-weight: 700;
+    color: var(--text);
+}
+
+.card h3 .profile-edit {
+    float: right;
+    font-weight: 400;
+    font-size: 13px;
+}
+
+.form-success {
+    background: var(--green-light);
+    color: var(--green);
+    border: 1px solid #b7e8cd;
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+
 @media (max-width: 768px) {
     .dash-layout {
         flex-direction: column;

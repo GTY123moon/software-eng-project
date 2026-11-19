@@ -10,6 +10,8 @@ urlpatterns = [
     # 患者工作台
     path('', views.dashboard_view, name='dashboard'),
     path('dashboard/', views.dashboard_view, name='dashboard_alt'),
+    # 个人中心 / 健康档案
+    path('profile/', views.profile_view, name='profile'),
     # 发起问诊
     path('consult/create/', views.consult_create_view, name='consult_create'),
     # AI 引导式预问诊评估

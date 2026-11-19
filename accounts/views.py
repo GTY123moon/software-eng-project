@@ -11,6 +11,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Count
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.utils import timezone
 
 from core.models import (
@@ -237,15 +238,20 @@ def dashboard_view(request):
     prescriptions = [_presc_brief(p) for p in prescs]
 
     unread = ConsultationMessage.objects.filter(
-        consultation__patient_id=patient.patient_id, read_status=0).count()
+        consultation__patient_id=patient.patient_id,
+        sender_role='医生', read_status=0).count()
 
+    user = SysUser.objects.filter(user_id=patient.patient_id).first()
     context = {
         'patient': {
             'name': _user_name(patient.patient_id),
+            'phone': user.phone if user else '',
             'medical_no': patient.medical_no,
             'gender': patient.gender or '未填写',
             'age': patient.age if patient.age is not None else '未填写',
             'allergy': patient.allergy or '无记录',
+            'address': patient.address or '未填写',
+            'history': patient.medical_history or '无记录',
         },
         'consultations': consultations,
         'history': history,
@@ -255,6 +261,78 @@ def dashboard_view(request):
         'unread': unread,
     }
     return render(request, 'accounts/dashboard.html', context)
+
+
+# ---------------------------------------------------------------------------
+# 个人中心 / 健康档案
+# ---------------------------------------------------------------------------
+
+def profile_view(request):
+    """个人中心：查看并编辑本人基础信息与健康档案（病史、过敏史、住址等）。"""
+    patient = _current_patient(request)
+    if not patient:
+        return redirect('accounts:login')
+    user = SysUser.objects.filter(user_id=patient.patient_id).first()
+
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        gender = request.POST.get('gender', '').strip() or None
+        age_raw = request.POST.get('age', '').strip()
+        allergy = request.POST.get('allergy', '').strip() or None
+        address = request.POST.get('address', '').strip() or None
+        history = request.POST.get('medical_history', '').strip() or None
+
+        errors = []
+        if not name:
+            errors.append('姓名不能为空')
+        if not phone or len(phone) != 11:
+            errors.append('请输入 11 位手机号')
+        elif SysUser.objects.filter(phone=phone).exclude(user_id=patient.patient_id).exists():
+            errors.append('该手机号已被其他账号使用')
+
+        age = None
+        if age_raw:
+            try:
+                age = int(age_raw)
+                if not (0 <= age <= 200):
+                    errors.append('年龄需在 0–200 之间')
+            except ValueError:
+                errors.append('年龄须为整数')
+        if gender and gender not in ('男', '女', '其他'):
+            gender = None
+
+        if errors:
+            return render(request, 'accounts/profile.html', {
+                'form': request.POST, 'medical_no': patient.medical_no,
+                'errors': errors, 'saved': False,
+            })
+
+        with transaction.atomic():
+            if user:
+                user.name = name
+                user.phone = phone
+                user.save(update_fields=['name', 'phone'])
+            Patient.objects.filter(patient_id=patient.patient_id).update(
+                gender=gender, age=age, allergy=allergy,
+                address=address, medical_history=history)
+        write_log(patient.patient_id, '患者', '修改个人资料',
+                  target_type='patient', target_id=patient.patient_id)
+        return redirect(reverse('accounts:profile') + '?saved=1')
+
+    form = {
+        'name': user.name if user else '',
+        'phone': user.phone if user else '',
+        'gender': patient.gender or '',
+        'age': patient.age if patient.age is not None else '',
+        'allergy': patient.allergy or '',
+        'address': patient.address or '',
+        'medical_history': patient.medical_history or '',
+    }
+    return render(request, 'accounts/profile.html', {
+        'form': form, 'medical_no': patient.medical_no,
+        'saved': request.GET.get('saved') == '1',
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -446,6 +524,8 @@ def messages_view(request):
             preview = '[视频]'
         else:
             preview = (last.content or '').strip()[:30] or '暂无消息'
+        unread = ConsultationMessage.objects.filter(
+            consultation_id=c.consult_id, sender_role='医生', read_status=0).count()
         threads.append({
             'id': c.consult_id,
             'doctor': _user_name(c.doctor_id),
@@ -453,6 +533,7 @@ def messages_view(request):
             'status': c.status,
             'time': _format_time(c.start_time),
             'preview': preview,
+            'unread': unread,
         })
     return render(request, 'accounts/messages.html', {'threads': threads})
 
@@ -544,6 +625,11 @@ def consult_chat_view(request, consult_id):
 
     messages = ConsultationMessage.objects.filter(
         consultation_id=consult.consult_id).order_by('send_time')
+
+    # 进入会话即把医生发来的未读消息标记为已读，工作台未读数与列表未读角标随之清零
+    ConsultationMessage.objects.filter(
+        consultation_id=consult.consult_id, sender_role='医生', read_status=0
+    ).update(read_status=1)
 
     context = {
         'consult': {

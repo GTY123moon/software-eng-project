@@ -43,6 +43,8 @@ class Patient(models.Model):
     age = models.IntegerField(null=True, blank=True)
     allergy = models.CharField(max_length=200, null=True, blank=True)
     address = models.CharField(max_length=200, null=True, blank=True)
+    medical_history = models.CharField(max_length=500, null=True, blank=True,
+                                       help_text='既往病史/慢性病症')
     medical_no = models.CharField(max_length=30, unique=True)
     created_at = models.DateTimeField()
 

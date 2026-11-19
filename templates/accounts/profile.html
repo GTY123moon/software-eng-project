@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}个人中心 · 智慧医疗在线问诊与处方流转平台{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+
+<div class="dash-layout">
+    <aside class="side">
+        <div class="side-title">患者工作台</div>
+        <a class="side-item" href="{% url 'accounts:dashboard' %}">首页概览</a>
+        <a class="side-item" href="{% url 'accounts:consult_create' %}">发起问诊</a>
+        <a class="side-item" href="{% url 'accounts:prescription_list' %}">我的处方</a>
+        <a class="side-item" href="{% url 'accounts:messages' %}">消息记录</a>
+        <a class="side-item active" href="{% url 'accounts:profile' %}">个人中心</a>
+    </aside>
+
+    <main class="main">
+        <div class="topbar">
+            <div>
+                <h2>个人中心</h2>
+                <span class="user-info">病历号：{{ medical_no }}</span>
+            </div>
+        </div>
+
+        {% if saved %}
+        <div class="form-success">资料已保存，下次问诊医生可查看最新健康档案。</div>
+        {% endif %}
+
+        {% if errors %}
+        <div class="form-error">
+            {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'accounts:profile' %}">
+            {% csrf_token %}
+            <div class="card">
+                <h3>基础信息</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>姓名</label>
+                        <input type="text" name="name" placeholder="请输入真实姓名"
+                               value="{{ form.name|default:'' }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>手机号</label>
+                        <input type="text" name="phone" placeholder="11 位登录手机号"
+                               value="{{ form.phone|default:'' }}" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>性别</label>
+                        <select name="gender">
+                            <option value="男" {% if form.gender == '男' %}selected{% endif %}>男</option>
+                            <option value="女" {% if form.gender == '女' %}selected{% endif %}>女</option>
+                            <option value="其他" {% if form.gender == '其他' %}selected{% endif %}>其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>年龄</label>
+                        <input type="number" name="age" min="0" max="200" placeholder="如 28"
+                               value="{{ form.age|default:'' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>健康档案</h3>
+                <div class="form-group">
+                    <label>过敏史（无则填“无”）</label>
+                    <input type="text" name="allergy" placeholder="如：青霉素、花粉、海鲜过敏"
+                           value="{{ form.allergy|default:'' }}">
+                </div>
+                <div class="form-group">
+                    <label>联系地址</label>
+                    <input type="text" name="address" placeholder="省市区 + 详细地址"
+                           value="{{ form.address|default:'' }}">
+                </div>
+                <div class="form-group">
+                    <label>既往病史 / 慢性病症</label>
+                    <textarea class="form-textarea" name="medical_history" rows="3"
+                              placeholder="如：高血压、慢性胃炎、过敏性鼻炎；无则填“无”">{{ form.medical_history|default:'' }}</textarea>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-primary" type="submit">保存资料</button>
+                    <a class="btn-secondary" href="{% url 'accounts:dashboard' %}">返回工作台</a>
+                </div>
+            </div>
+        </form>
+    </main>
+</div>
+{% endblock %}

@@ -13,6 +13,7 @@
         <a class="side-item" href="{% url 'accounts:consult_create' %}">发起问诊</a>
         <a class="side-item" href="{% url 'accounts:prescription_list' %}">我的处方</a>
         <a class="side-item active" href="{% url 'accounts:messages' %}">消息记录</a>
+        <a class="side-item" href="{% url 'accounts:profile' %}">个人中心</a>
     </aside>
 
     <main class="main">
@@ -29,7 +30,7 @@
                     <div class="thread-avatar">{{ t.doctor|slice:":1" }}</div>
                     <div class="thread-main">
                         <div class="thread-top">
-                            <span class="thread-name">{{ t.doctor }} · {{ t.department }}</span>
+                            <span class="thread-name {% if t.unread > 0 %}unread{% endif %}">{{ t.doctor }} · {{ t.department }}</span>
                             <span class="thread-time">{{ t.time }}</span>
                         </div>
                         <div class="thread-bottom">
@@ -37,6 +38,9 @@
                         </div>
                     </div>
                     <div class="thread-side">
+                        {% if t.unread > 0 %}
+                        <span class="badge badge-red">未读 {{ t.unread }}</span>
+                        {% endif %}
                         {% if t.status == '进行中' %}
                         <span class="badge badge-blue">{{ t.status }}</span>
                         {% elif t.status == '已转诊' %}
