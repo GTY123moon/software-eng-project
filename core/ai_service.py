@@ -64,6 +64,18 @@ def _normalize_level(value) -> str | None:
     return None
 
 
+def _as_bool(value) -> bool:
+    """把模型返回的布尔值归一化；字符串 "false"/"0" 不能被当成 True。"""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, (int, float)):
+        return value != 0
+    v = str(value).strip().lower()
+    return v in ('true', '1', 'yes', 'y', '是')
+
+
 def _remote_assess(symptom: str, timeout: int = 30) -> dict | None:
     """调用方舟豆包大模型；未配置凭据或失败时返回 None。"""
     api_key = os.environ.get('ARK_API_KEY')
@@ -138,12 +150,21 @@ def assess_risk(symptom: str) -> dict:
 
 # 兜底追问维度：主题、识别关键词、问题（远程模型不可用时按序逐项问）
 GUIDE_TOPICS = [
-    ('部位', ['哪里', '部位', '位置', '哪个', '哪儿'], '您主要是哪个部位不舒服？请说一下具体位置。'),
-    ('时长', ['多久', '几天', '小时', '持续', '起病', '时间'], '这个症状出现多久了？是突然发作还是时好时坏？'),
-    ('性质', ['钝痛', '刺痛', '胀痛', '绞痛', '灼痛', '性质', '感觉', '疼'], '不适是什么性质？比如钝痛、刺痛、胀痛、绞痛或灼痛。'),
-    ('诱因饮食', ['吃', '饮食', '诱因', '劳累', '饭', '食物', '饮酒'], '发病前后吃过什么、有无劳累或其他诱发因素？'),
-    ('外伤', ['外伤', '伤', '磕碰', '撞到', '运动', '扭'], '近期该部位有无受过外伤、磕碰或剧烈运动？'),
-    ('作息既往', ['作息', '睡眠', '病史', '既往', '过敏', '药'], '最近作息如何？既往有无相关疾病、用药或药物过敏？'),
+    ('部位', ['哪里', '部位', '位置', '哪个', '哪儿', '肺', '头', '腹', '胃', '肚子',
+             '胸口', '胸', '腰', '背', '肩', '颈', '腿', '膝', '腕', '手', '关节', '四肢',
+             '喉', '咽', '咽喉', '鼻', '牙', '眼', '耳', '皮肤', '心', '便', '口腔', '舌'],
+     '您主要是哪个部位不舒服？请说一下具体位置。'),
+    ('时长', ['多久', '几天', '小时', '持续', '起病', '时间', '发作', '开始', '昨夜', '今天', '昨天'],
+     '这个症状出现多久了？是突然发作还是时好时坏？'),
+    ('性质', ['钝痛', '刺痛', '胀痛', '绞痛', '灼痛', '性质', '感觉', '疼', '痛', '麻', '胀',
+             '酸', '痒', '晕', '咳', '喘', '痰', '恶心', '乏力', '麻木', '腹泻', '呕吐'],
+     '不适是什么性质？比如钝痛、刺痛、胀痛、绞痛或灼痛。'),
+    ('诱因饮食', ['吃', '饮食', '诱因', '劳累', '饭', '食物', '饮酒', '喝酒', '受凉', '运动', '熬夜', '加班'],
+     '发病前后吃过什么、有无劳累、受凉或其他诱发因素？'),
+    ('外伤', ['外伤', '伤', '磕碰', '撞到', '运动', '扭', '摔', '碰', '砸', '拉伤'],
+     '近期该部位有无受过外伤、磕碰或剧烈运动？'),
+    ('作息既往', ['作息', '睡眠', '病史', '既往', '过敏', '药', '熬夜', '慢性病', '高血压', '糖尿病'],
+     '最近作息如何？既往有无相关疾病、用药或药物过敏？'),
 ]
 
 
@@ -157,15 +178,24 @@ def guide_history_text(qa: list[dict]) -> str:
 
 
 def _local_guide_next(qa: list[dict]) -> dict:
-    """本地兜底：按固定维度清单，找到患者尚未覆盖的一项追问。"""
+    """本地兜底：按固定维度清单顺序推进，跳过患者已答、AI 已问过的维度。
+
+    - 患者答案命中该维度关键词 → 视为已答，跳过；
+    - AI 历史里已经问过该题 → 视为已问，跳过，避免卡在首题反复重复；
+    - 都没有剩余维度时收尾。
+    """
     patient_text = ' '.join(i.get('text', '') for i in qa if i.get('role') == '患者')
+    ai_text = ' '.join(i.get('text', '') for i in qa if i.get('role') == 'AI')
     for _topic, keywords, question in GUIDE_TOPICS:
-        if not any(k in patient_text for k in keywords):
-            return {'question': question, 'done': False, 'source': '本地清单兜底'}
+        if any(k in patient_text for k in keywords):
+            continue  # 该维度患者已答
+        if question in ai_text:
+            continue  # 该题 AI 已问过，不再重复
+        return {'question': question, 'done': False, 'source': '本地清单兜底'}
     return {'question': '', 'done': True, 'source': '本地清单兜底'}
 
 
-def _remote_guide_next(qa: list[dict], timeout: int = 30) -> dict | None:
+def _remote_guide_next(qa: list[dict], timeout: int = 10) -> dict | None:
     """远程模型动态判断下一问；失败/解析异常返回 None。"""
     api_key = os.environ.get('ARK_API_KEY')
     model = os.environ.get('ARK_MODEL')
@@ -204,7 +234,7 @@ def _remote_guide_next(qa: list[dict], timeout: int = 30) -> dict | None:
     parsed = _parse_model_json(content)
     if not parsed:
         return None
-    done = bool(parsed.get('done'))
+    done = _as_bool(parsed.get('done'))
     question = str(parsed.get('question') or '').strip()
     if not done and not question:
         return None

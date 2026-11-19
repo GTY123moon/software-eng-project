@@ -18,7 +18,7 @@ from core.models import (
     SysUser, Patient, Doctor, Pharmacist, Admin, Consultation,
     ConsultationMessage, Prescription, PrescriptionItem, AiPreAssessment,
 )
-from core.ai_service import assess_risk, next_guide_question, guide_history_text, GUIDE_TOPICS
+from core.ai_service import assess_risk, next_guide_question, guide_history_text, GUIDE_TOPICS, _local_guide_next
 from core.log_service import write_log
 
 
@@ -584,7 +584,10 @@ def consult_assess_view(request, consult_id):
             return _finish_assessment()
 
         nxt = next_guide_question(qa)
-        if nxt['done']:
+        # 远程返回了空问题时回退本地清单，避免落库空气泡或卡住无下文
+        if not nxt.get('done') and not nxt.get('question'):
+            nxt = _local_guide_next(qa)
+        if nxt['done'] or not nxt.get('question'):
             return _finish_assessment()
 
         ConsultationMessage.objects.create(
