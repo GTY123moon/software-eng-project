@@ -123,9 +123,11 @@ python -m pip install -r requirements.txt
 
 2. 初始化数据库：在本机 MySQL 按顺序执行 `docs/sql/` 下脚本（`create_tables.sql` → `seed_data.sql` → `seed_business_extra.sql`），创建 `medical_platform` 库与 14 张表并灌入演示数据（管理员 2 / 患者 80 / 医生 55 / 药师 50 / 药品 95，及排班、问诊、处方等业务数据）。`seed_data.sql` 与 `seed_business_extra.sql` 可重复执行（先清空再灌入）。
 
-3. 填写本机私有配置：在 `medical_platform/` 下新建 `local_settings.py`，填写本机 MySQL 密码（该文件已被 `.gitignore` 排除，不提交）。业务表由 SQL 直接创建，无需执行 `makemigrations` / `migrate`。
+3. 填写本机私有配置：在 `medical_platform/` 下新建 `local_settings.py`，填写本机 MySQL 密码（该文件已被 `.gitignore` 排除，不提交）。
 
-4. 启动开发服务器：
+4. 初始化 Django 内置框架表：业务 14 张表由 SQL 直建（`managed=False`），**不要**执行 `makemigrations`；首次启动前执行一次 `python manage.py migrate`，创建 session / auth / admin 等内置框架表（登录态依赖 session 表），该操作不会改动业务表。
+
+5. 启动开发服务器：
 
 ```
 python manage.py runserver
