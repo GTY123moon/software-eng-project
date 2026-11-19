@@ -4,9 +4,15 @@ from . import views
 app_name = 'accounts'
 
 urlpatterns = [
-    # 登录 / 注册页
+    # 平台入口：身份选择
+    path('role/', views.role_select_view, name='role_select'),
+    # 患者登录 / 注册页
     path('login/', views.login_view, name='login'),
     path('register/', views.register_view, name='register'),
+    # 职工（医生/药师/管理员）内部密钥登录
+    path('staff/<str:role>/', views.staff_login_view, name='staff_login'),
+    # 退出登录
+    path('logout/', views.logout_view, name='logout'),
     # 患者工作台
     path('', views.dashboard_view, name='dashboard'),
     path('dashboard/', views.dashboard_view, name='dashboard_alt'),

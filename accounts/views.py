@@ -15,14 +15,32 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.models import (
-    SysUser, Patient, Doctor, Consultation, ConsultationMessage,
-    Prescription, PrescriptionItem, AiPreAssessment,
+    SysUser, Patient, Doctor, Pharmacist, Admin, Consultation,
+    ConsultationMessage, Prescription, PrescriptionItem, AiPreAssessment,
 )
 from core.ai_service import assess_risk
 from core.log_service import write_log
 
 
 PICKUP_METHOD = {0: '院药房取药', 1: '社会药店购药'}
+
+# 职工角色（医生 / 药师 / 管理员）内部密钥登录口径：
+# 工作账号沿用手机号；内部密钥存 sys_user.password（课设演示明文比对）；
+# 登录后按角色跳转各自占位工作台。
+STAFF_ROLES = {
+    'doctor': {
+        'role_type': 2, 'role_cn': '医生', 'redirect': 'doctor:dashboard',
+        'profile': Doctor, 'profile_key': 'doctor_id',
+    },
+    'pharmacist': {
+        'role_type': 3, 'role_cn': '药师', 'redirect': 'pharmacist:dashboard',
+        'profile': Pharmacist, 'profile_key': 'pharmacist_id',
+    },
+    'admin': {
+        'role_type': 0, 'role_cn': '管理员', 'redirect': 'adminpanel:dashboard',
+        'profile': Admin, 'profile_key': 'admin_id',
+    },
+}
 
 
 def _current_patient(request):
@@ -137,8 +155,66 @@ def _presc_detail(p):
 
 
 # ---------------------------------------------------------------------------
-# 登录 / 注册
+# 身份选择 / 职工内部密钥登录 / 退出 / 患者登录注册
 # ---------------------------------------------------------------------------
+
+def role_select_view(request):
+    """平台入口：先选择身份（患者 / 医生 / 药师 / 管理员）。"""
+    return render(request, 'accounts/role_select.html')
+
+
+def staff_login_view(request, role):
+    """职工登录：工作手机号 + 内部密钥，按角色校验档案，不开放自助注册。"""
+    meta = STAFF_ROLES.get(role)
+    if meta is None:
+        return redirect('accounts:role_select')
+
+    if request.method == 'POST':
+        phone = request.POST.get('phone', '').strip()
+        secret = request.POST.get('secret', '')
+        user = SysUser.objects.filter(
+            phone=phone, role_type=meta['role_type']).first()
+
+        if not user or user.password != secret:
+            return render(request, 'accounts/staff_login.html', {
+                'role': role, 'role_cn': meta['role_cn'],
+                'error': '工作账号或内部密钥错误，请重试', 'form': request.POST,
+            })
+        if user.status != 1:
+            return render(request, 'accounts/staff_login.html', {
+                'role': role, 'role_cn': meta['role_cn'],
+                'error': '该账号已停用，请联系管理员开通', 'form': request.POST,
+            })
+        # 校验对应角色档案存在，防止跨角色登录
+        profile_exists = meta['profile'].objects.filter(
+            **{meta['profile_key']: user.user_id}).exists()
+        if not profile_exists:
+            return render(request, 'accounts/staff_login.html', {
+                'role': role, 'role_cn': meta['role_cn'],
+                'error': f'该账号不是{meta["role_cn"]}档案，请使用对应职工账号登录',
+                'form': request.POST,
+            })
+
+        request.session['user_id'] = user.user_id
+        request.session['name'] = user.name
+        request.session['role_type'] = user.role_type
+        request.session['staff_id'] = user.user_id
+        request.session['role_cn'] = meta['role_cn']
+        user.last_login = timezone.now()
+        user.save(update_fields=['last_login'])
+        write_log(user.user_id, meta['role_cn'], '登录',
+                  target_type='sys_user', target_id=user.user_id)
+        return redirect(reverse(meta['redirect']))
+
+    return render(request, 'accounts/staff_login.html',
+                  {'role': role, 'role_cn': meta['role_cn']})
+
+
+def logout_view(request):
+    """退出登录：清空会话并回到身份选择页。"""
+    request.session.flush()
+    return redirect('accounts:role_select')
+
 
 def login_view(request):
     """患者登录：校验手机号 + 密码，写入会话并记登录日志。仅患者角色可登录。"""

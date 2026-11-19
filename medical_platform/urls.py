@@ -10,8 +10,8 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    # 根路径默认跳转到患者登录页
-    path('', RedirectView.as_view(pattern_name='accounts:login')),
+    # 根路径默认跳转到身份选择页
+    path('', RedirectView.as_view(pattern_name='accounts:role_select')),
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls')),
     path('doctor/', include('doctor.urls')),
