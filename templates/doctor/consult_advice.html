@@ -1,0 +1,62 @@
+{% extends 'doctor/base.html' %}
+{% load static %}
+
+{% block title %}处置建议 · 医生工作台{% endblock %}
+
+{% block main %}
+<div class="topbar">
+    <div>
+        <h2>结束问诊 · 处置建议</h2>
+        <span class="user-info">{{ patient.name }} · {{ patient.gender }} · {{ patient.age }} 岁 · {{ consult.time }} 开始</span>
+    </div>
+    <div class="head-actions">
+        <span class="badge {{ consult.badge|default:'badge-gray' }}">{{ consult.status }}</span>
+        <a class="btn-secondary" href="{% url 'doctor:consult_chat' consult.id %}">返回沟通</a>
+    </div>
+</div>
+
+{% if draft %}
+<div class="flash-bar">
+    <div class="form-error flash-msg">该问诊已有处方草稿，可在提交前继续编辑。</div>
+</div>
+{% endif %}
+
+<form method="post" action="{% url 'doctor:consult_advice' consult.id %}">
+    {% csrf_token %}
+    <div class="card">
+        <h3>最终诊断</h3>
+        <div class="form-group">
+            <label>最终诊断（由医生出具，不由 AI 自动写入）</label>
+            <textarea class="form-textarea" name="final_diagnosis" rows="3"
+                      placeholder="例如：急性上呼吸道感染（病毒性），对症处理后随访">{{ form.final_diagnosis }}</textarea>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>处置建议</h3>
+        <p class="empty-tip">对话结束后，请根据病情选择后续处置；选择「需要开具处方」将进入开方环境。</p>
+        <div class="advice-options">
+            <label class="advice-option">
+                <input type="radio" name="advice" value="no_drug"
+                       {% if form.advice == 'no_drug' %}checked{% endif %}>
+                <div>
+                    <div class="advice-title">无需用药</div>
+                    <div class="advice-desc">病情以观察、护理或生活方式调整为主，不开具处方，问诊直接结束。</div>
+                </div>
+            </label>
+            <label class="advice-option">
+                <input type="radio" name="advice" value="need_drug"
+                       {% if form.advice == 'need_drug' %}checked{% endif %}>
+                <div>
+                    <div class="advice-title">需要开具处方</div>
+                    <div class="advice-desc">进入处方环境开具处方草稿，经 AI 预审后提交药师审核。</div>
+                </div>
+            </label>
+        </div>
+        <div class="form-actions">
+            <button class="btn-primary" type="submit">提交处置建议</button>
+            <a class="btn-secondary" href="{% url 'doctor:consult_chat' consult.id %}">取消，返回沟通</a>
+        </div>
+    </div>
+</form>
+{% endblock %}

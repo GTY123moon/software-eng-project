@@ -4,10 +4,11 @@
 直接按顺序执行生成好的 3 个 SQL 即可：
   create_tables.sql → seed_data.sql → seed_business_extra.sql
 需要调整数据规模时，修改本脚本后重跑，重新生成下面两个种子文件：
-  seed_data.sql          账号(管理员2/患者80/医生55/药师50) + 药品95
+  seed_data.sql          账号(管理员2/患者100/医生100/药师100) + 药品95
   seed_business_extra.sql 排班/问诊/AI评估/消息/转诊/处方/明细/操作日志
 编号分段：
-  admin 1-2；patient 3-82；doctor 83-137；pharmacist 138-187；drug 1-95
+  admin 1-2；patient 3-102；doctor 103-202；pharmacist 203-302；drug 1-95
+手机号号段（8 位）：患者 10000000 起、医生 20000000 起、药师 30000000 起、管理员 40000000 起
 """
 import os
 import random
@@ -142,11 +143,13 @@ DRUGS = [
 assert len(DRUGS) == 95, len(DRUGS)
 
 # ---------- 编号分段 ----------
+# user_id 主键分段；手机号按角色 8 位号段：患者 10000000 起、医生 20000000 起、
+# 药师 30000000 起、管理员 40000000 起。
 ADMIN_IDS = [1, 2]
-PAT_IDS = list(range(3, 83))      # 80
-DOC_IDS = list(range(83, 138))   # 55
-PHARM_IDS = list(range(138, 188)) # 50
-assert len(PAT_IDS) == 80 and len(DOC_IDS) == 55 and len(PHARM_IDS) == 50
+PAT_IDS = list(range(3, 103))      # 100
+DOC_IDS = list(range(103, 203))    # 100
+PHARM_IDS = list(range(203, 303))  # 100
+assert len(PAT_IDS) == 100 and len(DOC_IDS) == 100 and len(PHARM_IDS) == 100
 
 PWD = "demo123456"
 
@@ -159,18 +162,17 @@ def gen_users_and_profiles():
 
     # 管理员
     admin_names = ["系统管理员", "后台管理员"]
-    admin_phones = ["13800000001", "13800000003"]
     for i, uid in enumerate(ADMIN_IDS):
-        phone = admin_phones[i]
+        phone = f"{40000000 + i}"
         rows_user.append((uid, admin_names[i], phone, PWD, 0, 1, "2026-11-18 08:00:00"))
         rows_admin.append((uid, f"admin{i+1}" if i else "admin", "2026-11-01 09:00:00"))
 
-    # 患者：user_id 3..82；user_id=3 兼容旧演示号 13800000002
+    # 患者：user_id 3..102；手机号 10000000 起连续号段
     for k, pid in enumerate(PAT_IDS):
         sur = SURNAMES[k % len(SURNAMES)]
         giv = GIVEN[k % len(GIVEN)]
         name = sur + giv
-        phone = "13800000002" if pid == 3 else f"139{pid:08d}"
+        phone = f"{10000000 + k}"
         rows_user.append((pid, name, phone, PWD, 1, 1, "2026-11-18 10:00:00" if k % 3 else None))
         gender = "女" if k % 2 else "男"
         age = 18 + (k * 7) % 70
@@ -190,7 +192,7 @@ def gen_users_and_profiles():
         # 默认在线(1)，少量离线(0)；忙碌(2)由业务脚本按进行中问诊回填
         status = 1 if k % 5 else 0
         name = f"{SURNAMES[k % len(SURNAMES)]}医生"
-        phone = f"137{did:08d}"
+        phone = f"{20000000 + k}"
         rows_user.append((did, name, phone, PWD, 2, 1, "2026-11-18 08:30:00" if k % 4 else None))
         rows_doc.append((did, status, gender, dept, title, skill))
 
@@ -200,7 +202,7 @@ def gen_users_and_profiles():
         gender = "女" if k % 2 else "男"
         status = 1 if k % 3 else 0
         name = f"{SURNAMES[k % len(SURNAMES)]}药师"
-        phone = f"136{hid:08d}"
+        phone = f"{30000000 + k}"
         rows_user.append((hid, name, phone, PWD, 3, 1, "2026-11-18 08:15:00" if k % 3 else None))
         rows_pharm.append((hid, ptype, status, gender))
 
@@ -219,7 +221,7 @@ def build_seed_data():
     lines.append("-- =====================================================================")
     lines.append("-- 智慧医疗平台 · 基础种子数据（账号 + 档案 + 药品目录）")
     lines.append("-- 前置：先执行 create_tables.sql；本脚本可重复执行（先清空再灌入）")
-    lines.append("-- 规模：管理员 2 / 患者 80 / 医生 55 / 药师 50 / 药品 95；密码为演示占位串")
+    lines.append("-- 规模：管理员 2 / 患者 100 / 医生 100 / 药师 100 / 药品 95；密码为演示占位串")
     lines.append("-- =====================================================================")
     lines.append("")
     lines.append("USE medical_platform;")
@@ -332,7 +334,7 @@ def build_business():
         lines.append(f"TRUNCATE TABLE {t};")
     lines.append("")
 
-    # 1. 排班 55 条
+    # 1. 排班 100 条
     schedules = []
     duty_rows = []
     for k, doc in enumerate(DUTY_DOCTORS, start=1):
@@ -345,7 +347,7 @@ def build_business():
         status = "正常" if k % 9 else ("调班" if k % 3 else "停诊")
         duty_rows.append(f"({k}, {doc}, '{shift}', '{st}', '{et}', '{status}', '{_dt(12, 10, 0)}', 1)")
         schedules.append({"duty_code": k, "doctor_id": doc})
-    lines.append("-- 1. 值班排班 duty_schedule（55 条）")
+    lines.append("-- 1. 值班排班 duty_schedule（100 条）")
     lines.append("INSERT INTO duty_schedule (duty_code, doctor_id, shift_type, start_time, end_time, status, updated_at, created_by) VALUES")
     lines.append(",\n".join(duty_rows) + ";")
     lines.append("")

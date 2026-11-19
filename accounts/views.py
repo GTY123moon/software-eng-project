@@ -163,8 +163,64 @@ def role_select_view(request):
     return render(request, 'accounts/role_select.html')
 
 
+def _authenticate_staff(role, phone, secret):
+    """职工统一鉴权：按角色取档案校验工作账号与内部密钥。
+
+    返回 ((user, meta), None) 成功；否则 (None, 错误提示)。
+    """
+    meta = STAFF_ROLES.get(role)
+    if meta is None:
+        return None, '登录角色无效，请重新选择'
+    user = SysUser.objects.filter(
+        phone=phone, role_type=meta['role_type']).first()
+
+    if not user or user.password != secret:
+        return None, '工作账号或内部密钥错误，请重试'
+    if user.status != 1:
+        return None, '该账号已停用，请联系管理员开通'
+    # 校验对应角色档案存在，防止跨角色登录
+    profile_exists = meta['profile'].objects.filter(
+        **{meta['profile_key']: user.user_id}).exists()
+    if not profile_exists:
+        return None, f'该账号不是{meta["role_cn"]}档案，请使用对应职工账号登录'
+    return (user, meta), None
+
+
+def _login_staff_session(request, user, meta):
+    """职工鉴权通过后写入会话、记日志并跳转工作台。"""
+    request.session['user_id'] = user.user_id
+    request.session['name'] = user.name
+    request.session['role_type'] = user.role_type
+    request.session['staff_id'] = user.user_id
+    request.session['role_cn'] = meta['role_cn']
+    user.last_login = timezone.now()
+    user.save(update_fields=['last_login'])
+    write_log(user.user_id, meta['role_cn'], '登录',
+              target_type='sys_user', target_id=user.user_id)
+    return redirect(reverse(meta['redirect']))
+
+
+def staff_entry_view(request):
+    """职工统一入口：页内选择医生 / 药师 / 管理员角色后密钥登录。"""
+    if request.method == 'POST':
+        role = request.POST.get('role', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        secret = request.POST.get('secret', '')
+        (auth, error) = _authenticate_staff(role, phone, secret)
+        if error:
+            return render(request, 'accounts/staff_login.html', {
+                'role': role, 'role_cn': STAFF_ROLES.get(role, {}).get('role_cn', '职工'),
+                'error': error, 'form': request.POST,
+            })
+        user, meta = auth
+        return _login_staff_session(request, user, meta)
+
+    return render(request, 'accounts/staff_login.html',
+                  {'role': None, 'role_cn': '职工'})
+
+
 def staff_login_view(request, role):
-    """职工登录：工作手机号 + 内部密钥，按角色校验档案，不开放自助注册。"""
+    """职工登录（按角色固定入口，兼容旧链接）：工作手机号 + 内部密钥。"""
     meta = STAFF_ROLES.get(role)
     if meta is None:
         return redirect('accounts:role_select')
@@ -172,39 +228,14 @@ def staff_login_view(request, role):
     if request.method == 'POST':
         phone = request.POST.get('phone', '').strip()
         secret = request.POST.get('secret', '')
-        user = SysUser.objects.filter(
-            phone=phone, role_type=meta['role_type']).first()
-
-        if not user or user.password != secret:
+        (auth, error) = _authenticate_staff(role, phone, secret)
+        if error:
             return render(request, 'accounts/staff_login.html', {
                 'role': role, 'role_cn': meta['role_cn'],
-                'error': '工作账号或内部密钥错误，请重试', 'form': request.POST,
+                'error': error, 'form': request.POST,
             })
-        if user.status != 1:
-            return render(request, 'accounts/staff_login.html', {
-                'role': role, 'role_cn': meta['role_cn'],
-                'error': '该账号已停用，请联系管理员开通', 'form': request.POST,
-            })
-        # 校验对应角色档案存在，防止跨角色登录
-        profile_exists = meta['profile'].objects.filter(
-            **{meta['profile_key']: user.user_id}).exists()
-        if not profile_exists:
-            return render(request, 'accounts/staff_login.html', {
-                'role': role, 'role_cn': meta['role_cn'],
-                'error': f'该账号不是{meta["role_cn"]}档案，请使用对应职工账号登录',
-                'form': request.POST,
-            })
-
-        request.session['user_id'] = user.user_id
-        request.session['name'] = user.name
-        request.session['role_type'] = user.role_type
-        request.session['staff_id'] = user.user_id
-        request.session['role_cn'] = meta['role_cn']
-        user.last_login = timezone.now()
-        user.save(update_fields=['last_login'])
-        write_log(user.user_id, meta['role_cn'], '登录',
-                  target_type='sys_user', target_id=user.user_id)
-        return redirect(reverse(meta['redirect']))
+        user, meta = auth
+        return _login_staff_session(request, user, meta)
 
     return render(request, 'accounts/staff_login.html',
                   {'role': role, 'role_cn': meta['role_cn']})
@@ -256,6 +287,9 @@ def register_view(request):
     allergy = request.POST.get('allergy', '').strip() or None
     address = request.POST.get('address', '').strip() or None
 
+    if not name or not phone or len(phone) != 8:
+        return render(request, 'accounts/register.html',
+                      {'register_error': '请填写姓名并输入 8 位手机号', 'form': request.POST})
     if SysUser.objects.filter(phone=phone).exists():
         return render(request, 'accounts/register.html',
                       {'register_error': '该手机号已注册', 'form': request.POST})
@@ -362,8 +396,8 @@ def profile_view(request):
         errors = []
         if not name:
             errors.append('姓名不能为空')
-        if not phone or len(phone) != 11:
-            errors.append('请输入 11 位手机号')
+        if not phone or len(phone) != 8:
+            errors.append('请输入 8 位手机号')
         elif SysUser.objects.filter(phone=phone).exclude(user_id=patient.patient_id).exists():
             errors.append('该手机号已被其他账号使用')
 

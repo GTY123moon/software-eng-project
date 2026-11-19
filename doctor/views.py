@@ -15,7 +15,7 @@ from functools import wraps
 from django.conf import settings
 from django.contrib import messages as flash
 from django.db import transaction
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, reverse
 from django.utils import timezone
 
 from core.log_service import write_log
@@ -504,37 +504,82 @@ def send_message(request, cid):
 
 
 @doctor_required
-def end_consult(request, cid):
-    """结束问诊：写入最终诊断（可选）并置状态为「已结束」。"""
-    if request.method != 'POST':
-        return redirect('doctor:consult_chat', cid=cid)
+def consult_advice(request, cid):
+    """结束问诊建议分流：填写诊断后选择「无需用药」或「需要开具处方」。
 
+    - 无需用药：直接结束问诊，不生成处方；
+    - 需要开具处方：保留问诊为进行中，跳转处方页进入开方环境。
+    """
     doctor = _current_doctor(request)
-    consult = Consultation.objects.filter(consult_id=cid, doctor_id=doctor.doctor_id).first()
+    consult = Consultation.objects.filter(
+        consult_id=cid, doctor_id=doctor.doctor_id) \
+        .select_related('patient').first()
     if not consult:
-        flash.error(request, '无权结束该问诊。')
+        flash.error(request, '无权处理该问诊。')
         return redirect('doctor:dashboard')
     if consult.status != '进行中':
         flash.error(request, '该问诊当前状态为「%s」，无需重复结束。' % consult.status)
         return redirect('doctor:consult_chat', cid=cid)
 
-    diagnosis = request.POST.get('final_diagnosis', '').strip()
-    if not diagnosis:
-        flash.error(request, '结束问诊前请填写最终诊断，诊断由医生出具、不由 AI 直接写入。')
-        return redirect('doctor:consult_chat', cid=cid)
+    draft = Prescription.objects.filter(
+        consultation_id=consult.consult_id, doctor_id=doctor.doctor_id,
+        status='草稿').first()
 
-    with transaction.atomic():
-        consult.status = '已结束'
-        consult.final_diagnosis = diagnosis
-        consult.end_time = timezone.now()
-        consult.save(update_fields=['status', 'final_diagnosis', 'end_time'])
-        # 一医一患：问诊结束释放占号，医生回到在线，患者可再次挂号
-        Doctor.objects.filter(doctor_id=doctor.doctor_id, work_status=2).update(work_status=1)
-        write_log(doctor.doctor_id, '医生', '结束问诊',
-                  target_type='consultation', target_id=consult.consult_id)
+    if request.method == 'POST':
+        diagnosis = request.POST.get('final_diagnosis', '').strip()
+        advice = request.POST.get('advice', '').strip()
 
-    flash.success(request, '问诊已结束，最终诊断已记录。')
-    return redirect('doctor:consult_chat', cid=cid)
+        if not diagnosis:
+            flash.error(request, '结束问诊前请填写最终诊断，诊断由医生出具、不由 AI 直接写入。')
+            return render(request, 'doctor/consult_advice.html', {
+                'consult': {'id': consult.consult_id, 'status': consult.status,
+                            'time': _fmt_time(consult.start_time)},
+                'patient': _patient_card(consult.patient),
+                'form': {'final_diagnosis': diagnosis, 'advice': advice},
+                'draft': {'id': draft.presc_id} if draft else None,
+            })
+        if advice not in ('no_drug', 'need_drug'):
+            flash.error(request, '请选择本次处置建议：无需用药，或需要开具处方。')
+            return render(request, 'doctor/consult_advice.html', {
+                'consult': {'id': consult.consult_id, 'status': consult.status,
+                            'time': _fmt_time(consult.start_time)},
+                'patient': _patient_card(consult.patient),
+                'form': {'final_diagnosis': diagnosis, 'advice': advice},
+                'draft': {'id': draft.presc_id} if draft else None,
+            })
+
+        with transaction.atomic():
+            consult.final_diagnosis = diagnosis
+            if advice == 'no_drug':
+                consult.advice_type = '无需用药'
+                consult.status = '已结束'
+                consult.end_time = timezone.now()
+                consult.save(update_fields=['status', 'final_diagnosis',
+                                            'advice_type', 'end_time'])
+                # 一医一患：问诊结束释放占号，医生回到在线
+                Doctor.objects.filter(
+                    doctor_id=doctor.doctor_id, work_status=2).update(work_status=1)
+                write_log(doctor.doctor_id, '医生', '结束问诊',
+                          target_type='consultation', target_id=consult.consult_id)
+                flash.success(request, '问诊已结束，本次处置建议：无需用药。')
+                return redirect('doctor:consult_chat', cid=cid)
+
+            # 需要开具处方：保留进行中，进入开方环境，待处方提交后收尾
+            consult.advice_type = '需开处方'
+            consult.save(update_fields=['final_diagnosis', 'advice_type'])
+            write_log(doctor.doctor_id, '医生', '确认需开具处方',
+                      target_type='consultation', target_id=consult.consult_id)
+
+        flash.success(request, '诊断已记录，可继续开具处方。')
+        return redirect('doctor:prescription_new', cid=cid)
+
+    return render(request, 'doctor/consult_advice.html', {
+        'consult': {'id': consult.consult_id, 'status': consult.status,
+                    'time': _fmt_time(consult.start_time)},
+        'patient': _patient_card(consult.patient),
+        'form': {'final_diagnosis': consult.final_diagnosis or '', 'advice': ''},
+        'draft': {'id': draft.presc_id} if draft else None,
+    })
 
 
 # --------------------------------------------------------------------------
@@ -562,6 +607,10 @@ def _prescription_form(request, cid=None, presc_id=None):
         if not consult:
             flash.error(request, '无权为该问诊开具处方。')
             return redirect('doctor:dashboard')
+        # 处方只能在线上问诊进行中环节开具；已结束/转诊/取消的问诊不可再写方
+        if consult.status != '进行中':
+            flash.error(request, '仅线上问诊进行中可开具处方，该问诊当前状态为「%s」。' % consult.status)
+            return redirect('doctor:consult_chat', cid=cid)
         presc = Prescription.objects.filter(consultation_id=consult.consult_id,
                                             doctor_id=doctor.doctor_id,
                                             status='草稿').first()
@@ -571,10 +620,7 @@ def _prescription_form(request, cid=None, presc_id=None):
         if not presc:
             flash.error(request, '处方不存在或不属于当前医生。')
             return redirect('doctor:prescription_list')
-        # 只有草稿可编辑；已提交（待审核及以后）的处方由药师端接手
-        if presc.status != '草稿':
-            flash.error(request, '该处方当前状态为「%s」，只有草稿可以编辑。' % presc.status)
-            return redirect('doctor:prescription_list')
+        # 草稿可编辑；已提交（待审核及以后）的处方只读查看，由药师端接手后续流程
         consult = presc.consultation
 
     patient = consult.patient if consult else (presc.patient if presc else None)
@@ -590,6 +636,9 @@ def _prescription_form(request, cid=None, presc_id=None):
     } for d in drugs]
 
     if request.method == 'POST':
+        if presc and presc.status != '草稿':
+            flash.error(request, '该处方已提交审核，不可再修改。')
+            return redirect('doctor:prescription_edit', presc_id=presc.presc_id)
         rows, errors = parse_rows(request.POST)
         if not rows:
             errors.append('处方至少需要一行有效药品明细。')
@@ -711,6 +760,7 @@ def _render_form(request, doctor, consult, presc, patient, drugs_json, rows=None
         'row_count': max(len(rows), 1),
         'drugs': drugs_json,
         'total': round(items_total, 2),
+        'editable': presc.status == '草稿' if presc else True,
     }
     return render(request, 'doctor/prescription_form.html', context)
 
@@ -777,8 +827,84 @@ def prescription_submit(request, presc_id):
         presc.doctor_confirm = 1
         presc.updated_at = timezone.now()
         presc.save(update_fields=['status', 'doctor_confirm', 'updated_at'])
+        # 处方提交药师审核后，收尾仍在进行中的线上问诊并释放医生占号
+        consult = presc.consultation
+        if consult and consult.status == '进行中':
+            consult.status = '已结束'
+            consult.end_time = timezone.now()
+            consult.save(update_fields=['status', 'end_time'])
+            Doctor.objects.filter(
+                doctor_id=doctor.doctor_id, work_status=2).update(work_status=1)
         write_log(doctor.doctor_id, '医生', '提交处方审核',
                   target_type='prescription', target_id=presc.presc_id)
 
     flash.success(request, '处方已提交药师审核，可在处方列表查看流转状态。')
     return redirect('doctor:prescription_list')
+
+
+# --------------------------------------------------------------------------
+# 个人中心
+# --------------------------------------------------------------------------
+@doctor_required
+def profile(request):
+    """医生个人中心：查看并维护本人基础信息与执业档案（科室/职称/擅长）。"""
+    doctor = _current_doctor(request)
+    if not doctor:
+        return redirect('accounts:staff_login', role='doctor')
+    user = SysUser.objects.filter(user_id=doctor.doctor_id).first()
+
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        gender = request.POST.get('gender', '').strip() or None
+        department = request.POST.get('department', '').strip()
+        title = request.POST.get('title', '').strip() or None
+        skill = request.POST.get('skill', '').strip() or None
+
+        errors = []
+        if not name:
+            errors.append('姓名不能为空')
+        if not phone or len(phone) != 8:
+            errors.append('请输入 8 位手机号')
+        elif SysUser.objects.filter(phone=phone).exclude(user_id=doctor.doctor_id).exists():
+            errors.append('该手机号已被其他账号使用')
+        if not department:
+            errors.append('科室不能为空')
+        if gender and gender not in ('男', '女', '其他'):
+            gender = None
+
+        if errors:
+            return render(request, 'doctor/profile.html', {
+                'nav': 'profile',
+                'form': request.POST, 'errors': errors,
+                'doctor': {'name': name, 'department': department,
+                           'title': title or '', 'skill': skill or '',
+                           'gender': gender or ''},
+            })
+
+        with transaction.atomic():
+            if user:
+                user.name = name
+                user.phone = phone
+                user.save(update_fields=['name', 'phone'])
+            Doctor.objects.filter(doctor_id=doctor.doctor_id).update(
+                gender=gender, department=department, title=title, skill=skill)
+        write_log(doctor.doctor_id, '医生', '修改个人资料',
+                  target_type='doctor', target_id=doctor.doctor_id)
+        return redirect(reverse('doctor:profile') + '?saved=1')
+
+    form = {
+        'name': user.name if user else '',
+        'phone': user.phone if user else '',
+        'gender': doctor.gender or '',
+        'department': doctor.department or '',
+        'title': doctor.title or '',
+        'skill': doctor.skill or '',
+    }
+    return render(request, 'doctor/profile.html', {
+        'nav': 'profile',
+        'form': form,
+        'doctor': {'name': form['name'], 'department': form['department'],
+                   'title': form['title'], 'skill': form['skill']},
+        'saved': request.GET.get('saved') == '1',
+    })

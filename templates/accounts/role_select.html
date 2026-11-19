@@ -16,31 +16,15 @@
                 <div class="entry-icon">患</div>
                 <div class="entry-body">
                     <div class="entry-title">患者</div>
-                    <div class="entry-desc">注册 / 手机号登录，发起问诊、查看处方</div>
+                    <div class="entry-desc">注册 / 手机号登录，发起线上问诊、查看处方</div>
                 </div>
             </a>
 
-            <a class="role-card" href="{% url 'accounts:staff_login' 'doctor' %}">
-                <div class="entry-icon">医</div>
+            <a class="role-card" href="{% url 'accounts:staff_entry' %}">
+                <div class="entry-icon">职</div>
                 <div class="entry-body">
-                    <div class="entry-title">医生</div>
-                    <div class="entry-desc">职工内部密钥登录，接诊与开具处方</div>
-                </div>
-            </a>
-
-            <a class="role-card" href="{% url 'accounts:staff_login' 'pharmacist' %}">
-                <div class="entry-icon">药</div>
-                <div class="entry-body">
-                    <div class="entry-title">药师</div>
-                    <div class="entry-desc">职工内部密钥登录，审核处方与配药发药</div>
-                </div>
-            </a>
-
-            <a class="role-card" href="{% url 'accounts:staff_login' 'admin' %}">
-                <div class="entry-icon">管</div>
-                <div class="entry-body">
-                    <div class="entry-title">管理员</div>
-                    <div class="entry-desc">内部密钥登录，账号、目录、排班与日志审计</div>
+                    <div class="entry-title">职工</div>
+                    <div class="entry-desc">医生 / 药师 / 管理员，内部密钥登录后台工作台</div>
                 </div>
             </a>
         </div>

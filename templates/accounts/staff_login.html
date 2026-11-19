@@ -15,8 +15,23 @@
         <div class="form-error">{{ error }}</div>
         {% endif %}
 
+        {% if role %}
         <form method="post" action="{% url 'accounts:staff_login' role %}">
+        {% else %}
+        <form method="post" action="{% url 'accounts:staff_entry' %}">
+        {% endif %}
             {% csrf_token %}
+            {% if not role %}
+            <div class="form-group">
+                <label>职工身份</label>
+                <select name="role" required>
+                    <option value="" {% if not form.role %}selected{% endif %} disabled>请选择职工身份</option>
+                    <option value="doctor" {% if form.role == 'doctor' %}selected{% endif %}>医生</option>
+                    <option value="pharmacist" {% if form.role == 'pharmacist' %}selected{% endif %}>药师</option>
+                    <option value="admin" {% if form.role == 'admin' %}selected{% endif %}>管理员</option>
+                </select>
+            </div>
+            {% endif %}
             <div class="form-group">
                 <label>工作手机号（工作账号）</label>
                 <input type="text" name="phone" placeholder="请输入登记的工作手机号"

@@ -162,6 +162,7 @@ CREATE TABLE consultation (
     doctor_review_status   VARCHAR(200) NOT NULL DEFAULT '待复核' COMMENT '医生复核状态：待复核/已采纳/已修正/已否决',
     doctor_review_opinion  TEXT         NULL COMMENT '医生复核意见',
     final_diagnosis        TEXT         NULL COMMENT '最终诊断（不能由 AI 直接写入）',
+    advice_type            VARCHAR(20)  NULL COMMENT '结束建议：无需用药/需开处方',
     start_time             DATETIME     NOT NULL COMMENT '问诊发起时间',
     end_time               DATETIME     NULL COMMENT '问诊结束时间',
     PRIMARY KEY (consult_id),

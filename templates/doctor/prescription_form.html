@@ -6,7 +6,7 @@
 {% block main %}
 <div class="topbar">
     <div>
-        <h2>{% if presc %}编辑处方 {{ presc.no }}{% else %}开具处方{% endif %}</h2>
+        <h2>{% if presc %}{% if presc.editable %}编辑处方 {{ presc.no }}{% else %}查看处方 {{ presc.no }}{% endif %}{% else %}开具处方{% endif %}</h2>
         <span class="user-info">
             {{ doctor.department }} · {{ doctor.name }}　患者：{{ patient.name }}（{{ patient.gender }} · {{ patient.age }} 岁）
         </span>
@@ -101,7 +101,7 @@
                            placeholder="剂数" class="decoction-num">
                 </td>
                 <td class="subtotal">￥0.00</td>
-                <td><button type="button" class="link-btn" onclick="removeRow(this)">删除</button></td>
+                <td>{% if editable %}<button type="button" class="link-btn" onclick="removeRow(this)">删除</button>{% else %}—{% endif %}</td>
             </tr>
             {% endfor %}
             </tbody>
@@ -113,12 +113,16 @@
             </tfoot>
         </table>
 
+        {% if editable %}
         <div class="form-actions">
             <button type="button" class="btn-secondary" onclick="addRow()">＋ 添加一行</button>
         </div>
+        {% endif %}
 
         <div class="form-actions">
+            {% if editable %}
             <button class="btn-primary" type="submit">保存草稿</button>
+            {% endif %}
             <a class="btn-secondary" href="{% url 'doctor:prescription_list' %}">我的处方列表</a>
         </div>
         <p class="ai-time">保存草稿时会先跑系统规则（重复用药、超库存、用法用量必填、单次超 30 盒、过敏史命中），再调 AI 做处方合理性预审；AI 超时或不可用会自动降级，结果标注为「超时降级」。</p>

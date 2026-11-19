@@ -95,3 +95,14 @@
 /* 沟通页底部结束问诊表单：与开方按钮区分，留足间距 */
 .end-form { margin-top: 16px; }
 .end-form .form-actions { justify-content: flex-end; }
+
+/* 处置建议单选卡片 */
+.advice-options { display: flex; flex-direction: column; gap: 12px; margin: 10px 0; }
+.advice-option {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 14px; border: 1px solid #dde5f0; border-radius: 10px; cursor: pointer;
+}
+.advice-option:has(input:checked) { border-color: #2254c5; background: #f5f9ff; }
+.advice-option input { width: auto; margin-top: 4px; }
+.advice-title { font-weight: 600; color: #22304a; margin-bottom: 4px; }
+.advice-desc { font-size: 13px; color: #5a6478; line-height: 1.6; }

@@ -20,6 +20,8 @@
            href="{% url 'doctor:dashboard' %}">首页概览</a>
         <a class="side-item {% if nav == 'prescriptions' %}active{% endif %}"
            href="{% url 'doctor:prescription_list' %}">我的处方</a>
+        <a class="side-item {% if nav == 'profile' %}active{% endif %}"
+           href="{% url 'doctor:profile' %}">个人中心</a>
         <a class="side-item" href="{% url 'accounts:logout' %}">退出登录</a>
     </aside>
 

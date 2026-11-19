@@ -83,18 +83,9 @@
         {% endif %}
     </div>
 
-    <form method="post" action="{% url 'doctor:end_consult' consult.id %}" class="end-form"
-          onsubmit="return confirm('确认结束本次问诊？结束后将不能再发送消息。');">
-        {% csrf_token %}
-        <div class="form-group">
-            <label>最终诊断（由医生出具，不由 AI 自动写入）</label>
-            <textarea class="form-textarea" name="final_diagnosis" rows="2"
-                      placeholder="例如：急性上呼吸道感染（病毒性）">{{ consult.final_diagnosis }}</textarea>
-        </div>
-        <div class="form-actions">
-            <button class="btn-secondary" type="submit">结束问诊</button>
-        </div>
-    </form>
+    <div class="form-actions">
+        <a class="btn-secondary" href="{% url 'doctor:consult_advice' consult.id %}">结束问诊并给出处置建议</a>
+    </div>
     {% else %}
     <div class="ai-row">当前诊断：<strong>{{ consult.final_diagnosis|default:'尚未填写' }}</strong></div>
     {% if draft %}

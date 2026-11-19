@@ -125,6 +125,8 @@ class Consultation(models.Model):
     doctor_review_status = models.CharField(max_length=20, default='待复核')
     doctor_review_opinion = models.TextField(null=True, blank=True)
     final_diagnosis = models.TextField(null=True, blank=True)
+    advice_type = models.CharField(max_length=20, null=True, blank=True,
+                                    help_text='结束建议：无需用药/需开处方')
     start_time = models.DateTimeField()
     end_time = models.DateTimeField(null=True, blank=True)
 

@@ -9,7 +9,8 @@ urlpatterns = [
     # 患者登录 / 注册页
     path('login/', views.login_view, name='login'),
     path('register/', views.register_view, name='register'),
-    # 职工（医生/药师/管理员）内部密钥登录
+    # 职工（医生/药师/管理员）内部密钥登录：统一入口 + 按角色固定入口（兼容旧链接）
+    path('staff/', views.staff_entry_view, name='staff_entry'),
     path('staff/<str:role>/', views.staff_login_view, name='staff_login'),
     # 退出登录
     path('logout/', views.logout_view, name='logout'),

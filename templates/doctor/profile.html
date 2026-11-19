@@ -1,0 +1,81 @@
+{% extends 'doctor/base.html' %}
+{% load static %}
+
+{% block title %}个人中心 · 智慧医疗在线问诊与处方流转平台{% endblock %}
+
+{% block main %}
+<div class="topbar">
+    <div>
+        <h2>个人中心</h2>
+        <span class="user-info">{{ doctor.department }} · {{ doctor.title }}</span>
+    </div>
+</div>
+
+{% if saved %}
+<div class="form-success">资料已保存。</div>
+{% endif %}
+
+{% if errors %}
+<div class="form-error">
+    {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+</div>
+{% endif %}
+
+<form method="post" action="{% url 'doctor:profile' %}">
+    {% csrf_token %}
+    <div class="card">
+        <h3>基础信息</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label>姓名</label>
+                <input type="text" name="name" placeholder="请输入真实姓名"
+                       value="{{ form.name|default:'' }}" required>
+            </div>
+            <div class="form-group">
+                <label>工作手机号（登录账号）</label>
+                <input type="text" name="phone" placeholder="8 位工作手机号"
+                       value="{{ form.phone|default:'' }}" required>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>性别</label>
+                <select name="gender">
+                    <option value="男" {% if form.gender == '男' %}selected{% endif %}>男</option>
+                    <option value="女" {% if form.gender == '女' %}selected{% endif %}>女</option>
+                    <option value="其他" {% if form.gender == '其他' %}selected{% endif %}>其他</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>执业档案</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label>所在科室</label>
+                <input type="text" name="department" placeholder="如：内科、呼吸科、心血管科"
+                       value="{{ form.department|default:'' }}" required>
+            </div>
+            <div class="form-group">
+                <label>职称</label>
+                <select name="title">
+                    <option value="主任医师" {% if form.title == '主任医师' %}selected{% endif %}>主任医师</option>
+                    <option value="副主任医师" {% if form.title == '副主任医师' %}selected{% endif %}>副主任医师</option>
+                    <option value="主治医师" {% if form.title == '主治医师' %}selected{% endif %}>主治医师</option>
+                    <option value="住院医师" {% if form.title == '住院医师' %}selected{% endif %}>住院医师</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>擅长简介</label>
+            <textarea class="form-textarea" name="skill" rows="3"
+                      placeholder="擅长的诊疗方向与常见病症">{{ form.skill|default:'' }}</textarea>
+        </div>
+        <div class="form-actions">
+            <button class="btn-primary" type="submit">保存资料</button>
+            <a class="btn-secondary" href="{% url 'doctor:dashboard' %}">返回工作台</a>
+        </div>
+    </div>
+</form>
+{% endblock %}
