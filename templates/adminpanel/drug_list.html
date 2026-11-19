@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}药品目录 · 管理后台{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+
+<div class="dash-layout">
+    <aside class="side">{% include 'adminpanel/_side.html' %}</aside>
+
+    <main class="main">
+        <div class="topbar">
+            <div>
+                <h2>药品目录</h2>
+                <span class="user-info">共 {{ total }} 种药品，其中 {{ low_count }} 种库存低于 {{ low_stock_threshold }}</span>
+            </div>
+            <div class="head-actions">
+                <a class="btn-primary" href="{% url 'adminpanel:drug_add' %}">新增药品</a>
+            </div>
+        </div>
+
+        {% if ok == 'saved' %}<div class="form-success">药品信息已保存，并已写入操作日志。</div>{% endif %}
+        {% if ok == 'deleted' %}<div class="form-success">药品已删除，并已写入操作日志。</div>{% endif %}
+        {% if err == 'used' %}<div class="form-error">删除失败：该药品已被处方明细引用，不能直接删除（可改为修改库存或下架说明）。</div>{% endif %}
+
+        <div class="card">
+            <form class="form-inline" method="get" action="">
+                <input type="text" name="q" value="{{ keyword }}" placeholder="药品名称 / 编码 / 规格">
+                <label><input type="checkbox" name="low" value="1" {% if low_only %}checked{% endif %}> 仅看低库存</label>
+                <select name="sort">
+                    <option value="">默认排序（编码升序）</option>
+                    <option value="stock_asc" {% if sort == 'stock_asc' %}selected{% endif %}>库存从低到高</option>
+                    <option value="stock_desc" {% if sort == 'stock_desc' %}selected{% endif %}>库存从高到低</option>
+                    <option value="price_asc" {% if sort == 'price_asc' %}selected{% endif %}>单价从低到高</option>
+                    <option value="price_desc" {% if sort == 'price_desc' %}selected{% endif %}>单价从高到低</option>
+                    <option value="name_asc" {% if sort == 'name_asc' %}selected{% endif %}>名称升序</option>
+                </select>
+                <button class="btn-primary" type="submit">筛选</button>
+                <a class="btn-secondary" href="{% url 'adminpanel:drug_list' %}">重置</a>
+            </form>
+
+            {% if drugs %}
+            <table class="presc-table">
+                <thead>
+                    <tr>
+                        <th>编码</th><th>名称</th><th>规格</th><th>单价（元）</th>
+                        <th>库存</th><th>处方药</th><th>禁忌说明</th><th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in drugs %}
+                    <tr>
+                        <td>{{ d.drug_code }}</td>
+                        <td>{{ d.name }}</td>
+                        <td>{{ d.specification }}</td>
+                        <td>{{ d.unit_price }}</td>
+                        <td>
+                            {% if d.stock_qty < low_stock_threshold %}
+                            <span class="badge badge-red">{{ d.stock_qty }}</span>
+                            {% else %}
+                            {{ d.stock_qty }}
+                            {% endif %}
+                        </td>
+                        <td>{% if d.is_prescription == 1 %}<span class="badge badge-orange">处方药</span>{% else %}<span class="badge badge-gray">非处方</span>{% endif %}</td>
+                        <td>{{ d.contraindication|default:"—" }}</td>
+                        <td>
+                            <a class="link-btn" href="{% url 'adminpanel:drug_edit' d.drug_id %}">编辑</a>
+                            <form method="post" action="{% url 'adminpanel:drug_delete' d.drug_id %}" style="display:inline"
+                                  onsubmit="return confirm('确定删除药品 {{ d.name }} 吗？删除后不可恢复。');">
+                                {% csrf_token %}
+                                <button class="link-btn" type="submit">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if shown >= 300 %}<p class="empty-tip">结果超过 300 条，仅显示前 300 条，请用关键词缩小范围。</p>{% endif %}
+            {% else %}
+            <p class="empty-tip">没有符合条件的药品。</p>
+            {% endif %}
+        </div>
+    </main>
+</div>
+{% endblock %}

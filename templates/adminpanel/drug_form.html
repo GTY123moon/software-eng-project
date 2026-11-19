@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if drug %}编辑药品{% else %}新增药品{% endif %} · 管理后台{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+
+<div class="dash-layout">
+    <aside class="side">{% include 'adminpanel/_side.html' %}</aside>
+
+    <main class="main">
+        <div class="topbar">
+            <h2>{% if drug %}编辑药品 #{{ drug.drug_id }}{% else %}新增药品{% endif %}</h2>
+            <a class="btn-secondary" href="{% url 'adminpanel:drug_list' %}">返回目录</a>
+        </div>
+
+        {% if errors %}
+        <div class="form-error">
+            {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <form method="post" action="">
+                {% csrf_token %}
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>药品编码</label>
+                        <input type="text" name="drug_code" value="{{ form.drug_code }}" placeholder="如 YP0001" required>
+                    </div>
+                    <div class="form-group">
+                        <label>药品名称</label>
+                        <input type="text" name="name" value="{{ form.name }}" placeholder="如 阿莫西林胶囊" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>规格 / 剂型</label>
+                    <input type="text" name="specification" value="{{ form.specification }}" placeholder="如 0.25g×24粒/盒" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>单价（元）</label>
+                        <input type="number" name="unit_price" value="{{ form.unit_price }}" step="0.01" min="0" placeholder="如 12.50">
+                    </div>
+                    <div class="form-group">
+                        <label>库存数量</label>
+                        <input type="number" name="stock_qty" value="{{ form.stock_qty }}" min="0" placeholder="如 300">
+                    </div>
+                    <div class="form-group">
+                        <label>是否处方药</label>
+                        <select name="is_prescription">
+                            <option value="0" {% if form.is_prescription != '1' %}selected{% endif %}>非处方药</option>
+                            <option value="1" {% if form.is_prescription == '1' %}selected{% endif %}>处方药</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>禁忌说明</label>
+                    <textarea class="form-textarea" name="contraindication" rows="3"
+                              placeholder="如：青霉素过敏者禁用；与华法林合用需减量">{{ form.contraindication }}</textarea>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-primary" type="submit">保存</button>
+                    <a class="btn-secondary" href="{% url 'adminpanel:drug_list' %}">取消</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="card">
+            <h3>字段约束提示</h3>
+            <p class="empty-tip">编码全库唯一；单价、库存均不能为负数（数据库 CHECK 约束）。保存动作会写入 operation_log，可在"操作日志"按日志号回溯。</p>
+        </div>
+    </main>
+</div>
+{% endblock %}

@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}账号管理 · 管理后台{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+
+<div class="dash-layout">
+    <aside class="side">{% include 'adminpanel/_side.html' %}</aside>
+
+    <main class="main">
+        <div class="topbar">
+            <div>
+                <h2>账号管理</h2>
+                <span class="user-info">医生 / 药师账号由后台统一开通，不支持自助注册</span>
+            </div>
+            <div class="head-actions">
+                <a class="btn-primary" href="{% url 'adminpanel:account_add' %}">开通账号</a>
+            </div>
+        </div>
+
+        {% if ok == 'created' %}<div class="form-success">账号已开通，档案已建立，并已写入操作日志。</div>{% endif %}
+        {% if ok == 'toggled' %}<div class="form-success">账号状态已更新，并已写入操作日志。</div>{% endif %}
+
+        <div class="card">
+            <form class="form-inline" method="get" action="">
+                <select name="role">
+                    <option value="">全部角色</option>
+                    <option value="2" {% if role == '2' %}selected{% endif %}>医生</option>
+                    <option value="3" {% if role == '3' %}selected{% endif %}>药师</option>
+                </select>
+                <select name="status">
+                    <option value="">全部状态</option>
+                    <option value="1" {% if status == '1' %}selected{% endif %}>启用</option>
+                    <option value="0" {% if status == '0' %}selected{% endif %}>停用</option>
+                </select>
+                <input type="text" name="q" value="{{ keyword }}" placeholder="姓名 / 手机号">
+                <button class="btn-primary" type="submit">筛选</button>
+                <a class="btn-secondary" href="{% url 'adminpanel:account_list' %}">重置</a>
+            </form>
+
+            {% if rows %}
+            <table class="presc-table">
+                <thead>
+                    <tr><th>用户ID</th><th>姓名</th><th>手机号</th><th>角色</th><th>科室 / 药师类型</th><th>状态</th><th>操作</th></tr>
+                </thead>
+                <tbody>
+                    {% for u in rows %}
+                    <tr>
+                        <td>{{ u.user_id }}</td>
+                        <td>{{ u.name }}</td>
+                        <td>{{ u.phone }}</td>
+                        <td>{{ u.role_cn }}</td>
+                        <td>{{ u.extra }}</td>
+                        <td>
+                            {% if u.status == 1 %}<span class="badge badge-green">启用</span>
+                            {% else %}<span class="badge badge-gray">停用</span>{% endif %}
+                        </td>
+                        <td>
+                            <form method="post" action="{% url 'adminpanel:account_toggle' u.user_id %}" style="display:inline"
+                                  onsubmit="return confirm('确定{% if u.status == 1 %}停用{% else %}启用{% endif %}账号 {{ u.name }} 吗？');">
+                                {% csrf_token %}
+                                <button class="link-btn" type="submit">{% if u.status == 1 %}停用{% else %}启用{% endif %}</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-tip">没有符合条件的账号。</p>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h3>说明</h3>
+            <p class="empty-tip">账号状态对应 sys_user.status：0=停用，1=启用。停用后该职工无法通过内部密钥登录；档案表 doctor / pharmacist 与 sys_user 共用主键，开通时一次性写入。</p>
+        </div>
+    </main>
+</div>
+{% endblock %}

@@ -1,0 +1,38 @@
+{# 日期时间输入控件：保留浏览器原生选择器，文字统一显示为「年/月/日 时:分」或 YYYY-MM-DD HH:MM #}
+<div class="date-field">
+    <input type="datetime-local" name="{{ field_name }}" value="{{ field_value }}" required>
+    <span class="date-ghost" data-fmt="datetime">年/月/日 时:分</span>
+</div>
+<style>
+    .date-field { position: relative; display: inline-block; }
+    .date-field input[type="datetime-local"] { width: 215px; }
+    .date-field input::-webkit-datetime-edit { color: transparent; }
+    .date-field .date-ghost {
+        position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+        font-size: 13px; color: #94a3b8; pointer-events: none; white-space: nowrap;
+    }
+    .date-field.has-value .date-ghost { color: #334155; }
+</style>
+<script>
+    (function () {
+        document.querySelectorAll('.date-field').forEach(function (wrap) {
+            var el = wrap.querySelector('input');
+            var ghost = wrap.querySelector('.date-ghost');
+            if (!el || !ghost) { return; }
+            function sync() {
+                var v = el.value;
+                if (!v) {
+                    ghost.textContent = '年/月/日 时:分';
+                    wrap.classList.remove('has-value');
+                    return;
+                }
+                wrap.classList.add('has-value');
+                ghost.textContent = v.replace('T', ' ');
+            }
+            ['change', 'input', 'blur', 'focus'].forEach(function (ev) {
+                el.addEventListener(ev, sync);
+            });
+            sync();
+        });
+    })();
+</script>
