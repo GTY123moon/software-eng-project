@@ -25,6 +25,37 @@ HIGH_RISK_KEYWORDS = [
 ARK_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions'
 
 
+def _request_chat(payload: dict, timeout: int) -> dict:
+    """发一次 chat/completions。
+
+    优先走低延迟（Fast）档位；若账号未开通 fast（404 ModelNotOpen），
+    自动去掉 service_tier 重试常规档位，避免远程调用整体失效。
+    """
+    api_key = os.environ.get('ARK_API_KEY')
+
+    def _open(pl: dict) -> dict:
+        body = json.dumps(pl, ensure_ascii=False).encode('utf-8')
+        request = urllib.request.Request(
+            ARK_BASE_URL, data=body,
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json',
+            },
+            method='POST',
+        )
+        with urllib.request.urlopen(request, timeout=timeout) as resp:
+            return json.loads(resp.read().decode('utf-8'))
+
+    try:
+        return _open(payload)
+    except urllib.error.HTTPError as e:
+        if e.code == 404 and 'service_tier' in payload:
+            fallback = {k: v for k, v in payload.items() if k != 'service_tier'}
+            return _open(fallback)
+        raise
+
+
+
 def _local_assess(symptom: str) -> dict:
     """本地关键词规则分级（无外部依赖，离线可用）。"""
     hits = [kw for kw in HIGH_RISK_KEYWORDS if kw in symptom]
@@ -95,18 +126,10 @@ def _remote_assess(symptom: str, timeout: int = 12) -> dict | None:
             {'role': 'user', 'content': symptom},
         ],
         'temperature': 0.2,
+        # 走低延迟（Fast）推理档位，输出更快；超限/不支持时自动降级常规档位
+        'service_tier': 'fast',
     }
-    body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
-    request = urllib.request.Request(
-        ARK_BASE_URL, data=body,
-        headers={
-            'Authorization': f'Bearer {api_key}',
-            'Content-Type': 'application/json',
-        },
-        method='POST',
-    )
-    with urllib.request.urlopen(request, timeout=timeout) as resp:
-        data = json.loads(resp.read().decode('utf-8'))
+    data = _request_chat(payload, timeout)
 
     content = data['choices'][0]['message']['content']
     parsed = _parse_model_json(content)
@@ -217,18 +240,10 @@ def _remote_guide_next(qa: list[dict], timeout: int = 10) -> dict | None:
             {'role': 'user', 'content': guide_history_text(qa) or '（尚无回答）'},
         ],
         'temperature': 0.3,
+        # 走低延迟（Fast）推理档位，输出更快；超限/不支持时自动降级常规档位
+        'service_tier': 'fast',
     }
-    body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
-    request = urllib.request.Request(
-        ARK_BASE_URL, data=body,
-        headers={
-            'Authorization': f'Bearer {api_key}',
-            'Content-Type': 'application/json',
-        },
-        method='POST',
-    )
-    with urllib.request.urlopen(request, timeout=timeout) as resp:
-        data = json.loads(resp.read().decode('utf-8'))
+    data = _request_chat(payload, timeout)
 
     content = data['choices'][0]['message']['content']
     parsed = _parse_model_json(content)

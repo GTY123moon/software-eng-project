@@ -1,20 +1,13 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}管理后台 · 智慧医疗在线问诊与处方流转平台{% endblock %}
+{% block title %}首页概览 · 管理后台{% endblock %}
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/accounts.css' %}">
 
 <div class="dash-layout">
-    <aside class="side">
-        <div class="side-title">管理后台</div>
-        <a class="side-item active" href="{% url 'adminpanel:dashboard' %}">首页概览</a>
-        {% for item in menu %}
-        <span class="side-item side-item-disabled">{{ item.0 }}</span>
-        {% endfor %}
-        <a class="side-item" href="{% url 'accounts:logout' %}">退出登录</a>
-    </aside>
+    <aside class="side">{% include 'adminpanel/_side.html' %}</aside>
 
     <main class="main">
         <div class="topbar">
@@ -22,21 +15,87 @@
                 <h2>您好，{{ staff_name }}</h2>
                 <span class="user-info">后台账号：{{ staff_account }}</span>
             </div>
-        </div>
-
-        <div class="card">
-            <h3>功能模块（待接入）</h3>
-            {% for item in menu %}
-            <div class="list-item">
-                <div>{{ item.0 }}</div>
-                <span class="time">{{ item.1 }}</span>
+            <div class="head-actions">
+                <a class="btn-secondary" href="{% url 'adminpanel:drug_add' %}">新增药品</a>
+                <a class="btn-primary" href="{% url 'adminpanel:duty_add' %}">新增排班</a>
             </div>
-            {% endfor %}
+        </div>
+
+        <div class="stat-grid">
+            <div class="stat-card">
+                <div class="stat-num">{{ drug_total }}</div>
+                <div class="stat-label">药品目录总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-num">{{ low_stock }}</div>
+                <div class="stat-label">库存低于 {{ low_stock_threshold }} 的药品</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-num">{{ today_duty }}</div>
+                <div class="stat-label">今日有效排班</div>
+            </div>
+        </div>
+
+        <div class="stat-grid">
+            <div class="stat-card">
+                <div class="stat-num">{{ active_consult }}</div>
+                <div class="stat-label">进行中问诊</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-num">{{ pending_prescription }}</div>
+                <div class="stat-label">待审核处方</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-num">{{ today_log }}</div>
+                <div class="stat-label">今日操作日志</div>
+            </div>
         </div>
 
         <div class="card">
-            <h3>说明</h3>
-            <p>管理员后台登录鉴权已接通，账号开通、药品目录、值班排班与操作日志审计等模块由后续迭代在此接入。</p>
+            <h3>今日值班 <a class="link-btn" href="{% url 'adminpanel:duty_list' %}">查看全部排班</a></h3>
+            {% if today_duties %}
+            <table class="presc-table">
+                <thead>
+                    <tr><th>医生</th><th>班次</th><th>时间</th><th>状态</th></tr>
+                </thead>
+                <tbody>
+                    {% for d in today_duties %}
+                    <tr>
+                        <td>{{ d.doctor_name }}</td>
+                        <td>{{ d.shift_type }}</td>
+                        <td>{{ d.start_text }} - {{ d.end_text }}</td>
+                        <td><span class="badge {% if d.status == '正常' %}badge-green{% elif d.status == '调班' %}badge-orange{% else %}badge-red{% endif %}">{{ d.status }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-tip">今日暂无有效排班，请先到"值班排班"配置白班 / 夜班。</p>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h3>最近操作 <a class="link-btn" href="{% url 'adminpanel:log_list' %}">进入日志审计</a></h3>
+            {% if recent_logs %}
+            <table class="presc-table">
+                <thead>
+                    <tr><th>日志号</th><th>操作人</th><th>类型</th><th>动作</th><th>时间</th></tr>
+                </thead>
+                <tbody>
+                    {% for l in recent_logs %}
+                    <tr>
+                        <td><a class="link-btn" href="{% url 'adminpanel:log_detail' l.log_id %}">#{{ l.log_id }}</a></td>
+                        <td>{{ l.operator_name }}</td>
+                        <td>{{ l.operator_type }}</td>
+                        <td>{{ l.action }}</td>
+                        <td>{{ l.time_text }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-tip">暂无操作日志。</p>
+            {% endif %}
         </div>
     </main>
 </div>

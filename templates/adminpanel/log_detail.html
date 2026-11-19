@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}日志 #{{ log.log_id }} · 管理后台{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+
+<div class="dash-layout">
+    <aside class="side">{% include 'adminpanel/_side.html' %}</aside>
+
+    <main class="main">
+        <div class="topbar">
+            <h2>日志 #{{ log.log_id }} 回溯</h2>
+            <a class="btn-secondary" href="{% url 'adminpanel:log_list' %}">返回日志列表</a>
+        </div>
+
+        <div class="card">
+            <h3>日志记录</h3>
+            <div class="info-row">
+                <span>日志号：{{ log.log_id }}</span>
+                <span>操作时间：{{ time_text }}</span>
+            </div>
+            <div class="info-row">
+                <span>操作人：{{ operator_name }}（ID {{ log.operator_id }}）</span>
+                <span>操作人类型：{{ log.operator_type }}</span>
+            </div>
+            <div class="info-row">
+                <span>动作：{{ log.action }}</span>
+                <span>目标类型：{{ target_cn }}</span>
+                <span>目标 ID：{{ log.target_id|default:"—" }}</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>被操作对象</h3>
+            {% if target_detail %}
+            <table class="presc-table">
+                <thead><tr><th>字段</th><th>值</th></tr></thead>
+                <tbody>
+                    {% for label, value in target_detail %}
+                    <tr><td>{{ label }}</td><td>{{ value }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-tip">该日志没有可回溯的目标对象（或目标记录已被删除）。</p>
+            {% endif %}
+        </div>
+    </main>
+</div>
+{% endblock %}

@@ -52,17 +52,28 @@ def _chat_json(system_prompt, user_prompt, timeout=TIMEOUT):
         ],
         'temperature': 0.2,
         'max_tokens': 700,
+        # 走低延迟（Fast）推理档位，输出更快；超限/不支持时自动降级常规档位
+        'service_tier': 'fast',
     }
-    body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
-    request = urllib.request.Request(
-        ARK_BASE_URL, data=body,
-        headers={'Authorization': 'Bearer %s' % api_key,
-                 'Content-Type': 'application/json'},
-        method='POST',
-    )
+    def _open(pl):
+        body = json.dumps(pl, ensure_ascii=False).encode('utf-8')
+        req = urllib.request.Request(
+            ARK_BASE_URL, data=body,
+            headers={'Authorization': 'Bearer %s' % api_key,
+                     'Content-Type': 'application/json'},
+            method='POST')
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode('utf-8'))
+
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
+        try:
+            data = _open(payload)
+        except urllib.error.HTTPError as e:
+            # fast 档位未开通时，去掉 service_tier 走常规档重试一次
+            if e.code == 404 and 'service_tier' in payload:
+                data = _open({k: v for k, v in payload.items() if k != 'service_tier'})
+            else:
+                raise
         content = data['choices'][0]['message']['content']
     except (urllib.error.URLError, TimeoutError, ValueError, KeyError, OSError):
         return None

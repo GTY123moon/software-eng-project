@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}操作日志 · 管理后台{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+
+<div class="dash-layout">
+    <aside class="side">{% include 'adminpanel/_side.html' %}</aside>
+
+    <main class="main">
+        <div class="topbar">
+            <div>
+                <h2>操作日志</h2>
+                <span class="user-info">当前筛选结果 {{ total }} 条（按日志号倒序，最多显示 300 条）</span>
+            </div>
+            <div class="head-actions">
+                <a class="btn-secondary" href="{% url 'adminpanel:referral_list' %}">转诊日志</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <form class="form-inline" method="get" action="">
+                <select name="operator_type">
+                    <option value="">全部操作人类型</option>
+                    {% for t in operator_types %}
+                    <option value="{{ t }}" {% if operator_type == t %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+                <select name="target_type">
+                    <option value="">全部目标类型</option>
+                    {% for t in target_options %}
+                    <option value="{{ t.code }}" {% if target_type == t.code %}selected{% endif %}>{{ t.label }}</option>
+                    {% endfor %}
+                </select>
+                <input type="text" name="action" value="{{ action }}" placeholder="动作关键词，如 开方 / 审核">
+                {% include 'adminpanel/_date_field.html' %}
+                <select name="sort">
+                    <option value="" {% if sort != 'time_asc' %}selected{% endif %}>时间倒序（最新在前）</option>
+                    <option value="time_asc" {% if sort == 'time_asc' %}selected{% endif %}>时间正序（最早在前）</option>
+                </select>
+                <button class="btn-primary" type="submit">筛选</button>
+                <a class="btn-secondary" href="{% url 'adminpanel:log_list' %}">重置</a>
+            </form>
+
+            {% if rows %}
+            <table class="presc-table">
+                <thead>
+                    <tr><th>日志号</th><th>操作人</th><th>操作人类型</th><th>动作</th><th>目标类型</th><th>目标ID</th><th>时间</th><th>回溯</th></tr>
+                </thead>
+                <tbody>
+                    {% for l in rows %}
+                    <tr>
+                        <td>#{{ l.log_id }}</td>
+                        <td>{{ l.operator_name }}</td>
+                        <td>{{ l.operator_type }}</td>
+                        <td>{{ l.action }}</td>
+                        <td>{{ l.target_cn }}</td>
+                        <td>{{ l.target_id|default:"—" }}</td>
+                        <td>{{ l.time_text }}</td>
+                        <td><a class="link-btn" href="{% url 'adminpanel:log_detail' l.log_id %}">查看详情</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-tip">没有符合条件的日志。先在药品目录 / 排班页做一次操作，再回来刷新。</p>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h3>审计说明</h3>
+            <p class="empty-tip">每条日志由 core.log_service.write_log 写入，记录操作人、动作、目标类型与目标ID；点日志号可回溯到被操作对象当时的记录。AI 不作为操作人写日志。</p>
+        </div>
+    </main>
+</div>
+{% endblock %}

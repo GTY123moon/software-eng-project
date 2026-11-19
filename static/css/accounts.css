@@ -512,9 +512,38 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
     gap: 12px;
     font-size: 13px;
     color: var(--text-2);
+}
+
+/* 取药方式选择：单选横排 */
+.pickup-method {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.pickup-method label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.presc-table .pickup-select {
+    min-width: 64px;
+    padding: 5px 8px;
+}
+.presc-table .decoction-num {
+    width: 70px;
+    margin-top: 4px;
+}
+.flash-ok {
+    background: var(--green-light);
+    color: var(--green);
+    border-color: #bfe6c6;
 }
 
 .presc-table {

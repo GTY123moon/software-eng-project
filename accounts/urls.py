@@ -31,4 +31,6 @@ urlpatterns = [
     path('prescriptions/', views.prescription_list_view, name='prescription_list'),
     # 处方详情
     path('prescriptions/<int:presc_id>/', views.prescription_detail_view, name='prescription_detail'),
+    # 患者选择取药方式与代煎（审核通过后）
+    path('prescriptions/<int:presc_id>/pickup/', views.prescription_pickup_view, name='prescription_pickup'),
 ]

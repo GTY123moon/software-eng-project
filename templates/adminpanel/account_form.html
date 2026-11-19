@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}开通账号 · 管理后台{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+
+<div class="dash-layout">
+    <aside class="side">{% include 'adminpanel/_side.html' %}</aside>
+
+    <main class="main">
+        <div class="topbar">
+            <h2>开通职工账号</h2>
+            <a class="btn-secondary" href="{% url 'adminpanel:account_list' %}">返回账号列表</a>
+        </div>
+
+        {% if errors %}
+        <div class="form-error">
+            {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <form method="post" action="">
+                {% csrf_token %}
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>角色</label>
+                        <select name="role">
+                            <option value="2" {% if form.role == '2' %}selected{% endif %}>医生</option>
+                            <option value="3" {% if form.role == '3' %}selected{% endif %}>药师</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>姓名</label>
+                        <input type="text" name="name" value="{{ form.name }}" placeholder="真实姓名" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>手机号（登录账号）</label>
+                        <input type="text" name="phone" value="{{ form.phone }}" placeholder="11 位手机号" required>
+                    </div>
+                    <div class="form-group">
+                        <label>内部密钥（登录密码）</label>
+                        <input type="password" name="password" value="" placeholder="至少 6 位" required>
+                    </div>
+                    <div class="form-group">
+                        <label>性别</label>
+                        <select name="gender">
+                            <option value="" {% if not form.gender %}selected{% endif %}>未填写</option>
+                            <option value="男" {% if form.gender == '男' %}selected{% endif %}>男</option>
+                            <option value="女" {% if form.gender == '女' %}selected{% endif %}>女</option>
+                        </select>
+                    </div>
+                </div>
+
+                {% if form.role == '3' %}
+                <div class="form-group">
+                    <label>药师类型</label>
+                    <input type="text" name="pharmacist_type" value="{{ form.pharmacist_type }}" placeholder="如 审方药师 / 配药药师">
+                </div>
+                {% else %}
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>所属科室</label>
+                        <input type="text" name="department" value="{{ form.department }}" placeholder="如 内科" required>
+                    </div>
+                    <div class="form-group">
+                        <label>职称</label>
+                        <input type="text" name="title" value="{{ form.title }}" placeholder="如 主治医师">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>擅长</label>
+                    <input type="text" name="skill" value="{{ form.skill }}" placeholder="如 高血压、糖尿病随访">
+                </div>
+                {% endif %}
+
+                <div class="form-actions">
+                    <button class="btn-primary" type="submit">开通并建立档案</button>
+                    <a class="btn-secondary" href="{% url 'adminpanel:account_list' %}">取消</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="card">
+            <h3>开通后如何使用</h3>
+            <p class="empty-tip">职工在身份选择页点"医生 / 药师"，输入这里的手机号和内部密钥即可登录对应工作台；停用后立即无法登录。医生账号开通后，还需到"值班排班"为其配置班次，才会进入患者端可选医生与夜间接诊池。</p>
+        </div>
+    </main>
+</div>
+{% endblock %}
