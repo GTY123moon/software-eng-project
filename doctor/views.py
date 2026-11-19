@@ -705,8 +705,6 @@ def _prescription_form(request, cid=None, presc_id=None):
                     dosage=item['dosage'],
                     unit_price=item['unit_price'],
                     subtotal=item['subtotal'],
-                    is_decoction=item['is_decoction'],
-                    decoction_num=item['decoction_num'],
                 )
             write_log(doctor.doctor_id, '医生', '保存处方草稿',
                       target_type='prescription', target_id=presc.presc_id)
@@ -727,8 +725,6 @@ def _render_form(request, doctor, consult, presc, patient, drugs_json, rows=None
             'drug_id': i.drug_id,
             'qty': i.qty,
             'dosage': i.dosage,
-            'is_decoction': i.is_decoction,
-            'decoction_num': i.decoction_num or '',
             'drug_name': i.drug_name,
             'unit_price': float(i.unit_price),
             'subtotal': float(i.subtotal),

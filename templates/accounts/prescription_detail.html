@@ -22,6 +22,12 @@
             <a class="btn-secondary" href="{% url 'accounts:prescription_list' %}">返回处方列表</a>
         </div>
 
+        {% if messages %}
+        {% for m in messages %}
+        <div class="form-error {% if 'success' in m.tags %}flash-ok{% endif %}">{{ m }}</div>
+        {% endfor %}
+        {% endif %}
+
         {% if prescription %}
         <div class="card">
             <div class="presc-head">
@@ -44,6 +50,11 @@
                 <span>临床诊断：{{ prescription.diagnosis }}</span>
             </div>
 
+            {% if prescription.can_choose %}
+            <form method="post" action="{% url 'accounts:prescription_pickup' prescription.presc_id %}">
+                {% csrf_token %}
+            {% endif %}
+
             <table class="presc-table">
                 <thead>
                     <tr>
@@ -53,6 +64,7 @@
                         <th>用法用量</th>
                         <th>单价(元)</th>
                         <th>小计(元)</th>
+                        <th>代煎</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -64,21 +76,47 @@
                         <td>{{ item.dosage }}</td>
                         <td>{{ item.price }}</td>
                         <td>{{ item.subtotal }}</td>
+                        <td>
+                            {% if prescription.can_choose %}
+                            <input type="hidden" name="item_drug_id" value="{{ item.drug_id }}">
+                            <select name="item_decoction" class="pickup-select">
+                                <option value="0" {% if not item.is_decoction %}selected{% endif %}>否</option>
+                                <option value="1" {% if item.is_decoction %}selected{% endif %}>是</option>
+                            </select>
+                            <input type="number" name="item_decoction_num" min="0"
+                                   value="{{ item.decoction_num|default:'' }}" placeholder="剂数" class="decoction-num">
+                            {% else %}
+                            {{ item.decoction_text }}
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="5" class="align-right">合计</td>
+                        <td colspan="6" class="align-right">合计</td>
                         <td>{{ total }}</td>
                     </tr>
                 </tfoot>
             </table>
 
             <div class="presc-foot" style="margin-top:14px;">
+                {% if prescription.can_choose %}
+                <div class="pickup-method">
+                    <span>取药方式：</span>
+                    <label><input type="radio" name="pickup_method" value="0" {% if prescription.pickup_method == 0 %}checked{% endif %}> 院药房取药</label>
+                    <label><input type="radio" name="pickup_method" value="1" {% if prescription.pickup_method == 1 %}checked{% endif %}> 社会药店购药</label>
+                </div>
+                <button class="btn-primary" type="submit">确认取药方式与代煎</button>
+                {% else %}
                 <span>取药方式：{{ prescription.pickup }}</span>
+                {% endif %}
                 <span>审核状态：{{ prescription.audit }}</span>
             </div>
+
+            {% if prescription.can_choose %}
+            </form>
+            {% endif %}
         </div>
         {% else %}
         <div class="card">

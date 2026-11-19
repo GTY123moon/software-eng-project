@@ -40,7 +40,6 @@
 /* 开方表格里的输入控件 */
 .presc-table input[type="number"] { width: 70px; }
 .presc-table input[name="dosage"] { width: 100%; }
-.presc-table .decoction-num { width: 60px; margin-top: 4px; }
 
 /* 筛选按钮激活态 */
 .link-btn.active { color: #2254c5; font-weight: 600; text-decoration: underline; }
@@ -61,8 +60,6 @@
 /* 开方表固定列宽，控件不越列 */
 #itemTable { table-layout: fixed; }
 #itemTable select, #itemTable input { width: 100%; box-sizing: border-box; }
-#itemTable select[name="is_decoction"] { width: auto; min-width: 64px; }
-#itemTable .decoction-num { width: 100%; }
 
 /* 复核单选：行内横排，避免 .form-group label 的块级样式把选项压成两行 */
 .review-options { display: flex; gap: 24px; margin-top: 2px; }
