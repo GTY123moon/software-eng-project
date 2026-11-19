@@ -1,0 +1,63 @@
+{% extends 'doctor/base.html' %}
+{% load static %}
+
+{% block title %}我的处方 · 医生工作台{% endblock %}
+
+{% block main %}
+<div class="topbar">
+    <div>
+        <h2>我的处方</h2>
+        <span class="user-info">{{ doctor.department }} · {{ doctor.name }}</span>
+    </div>
+    <div class="head-actions">
+        <a class="btn-secondary" href="{% url 'doctor:dashboard' %}">返回接诊台</a>
+    </div>
+</div>
+
+<div class="card">
+    <h3>按状态筛选</h3>
+    <div class="form-inline">
+        {% for s in status_tabs %}
+        <a class="link-btn {% if current_status == s %}active{% endif %}"
+           href="{% url 'doctor:prescription_list' %}{% if s %}?status={{ s }}{% endif %}">
+            {% if s %}{{ s }}{% else %}全部{% endif %}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+{% for p in prescriptions %}
+<div class="card">
+    <div class="presc-head">
+        <div>
+            <div class="presc-title">{{ p.no }}</div>
+            <div class="presc-meta">{{ p.patient }} · 开具于 {{ p.time }}</div>
+        </div>
+        <span class="badge {{ p.badge }}">{{ p.status }}</span>
+    </div>
+    <div class="presc-items">{{ p.items }}</div>
+    {% if p.ai_comment %}
+    <div class="ai-summary">AI 预审（{{ p.ai_result }}）：{{ p.ai_comment }}</div>
+    {% endif %}
+    <div class="presc-foot">
+        <span>合计 ￥{{ p.amount }}</span>
+        <span>
+            <a class="link-btn" href="{% url 'doctor:prescription_edit' p.id %}">
+                {% if p.editable %}编辑草稿{% else %}查看处方{% endif %}
+            </a>
+            {% if p.editable %}
+            <form method="post" action="{% url 'doctor:prescription_submit' p.id %}" class="form-inline"
+                  onsubmit="return confirm('确认提交该处方给药师审核？提交后不可再修改。');">
+                {% csrf_token %}
+                <button class="link-btn" type="submit">提交审核</button>
+            </form>
+            {% endif %}
+        </span>
+    </div>
+</div>
+{% empty %}
+<div class="card">
+    <p class="empty-tip">该状态下暂无处方。可在问诊详情页点击“开方”新建草稿。</p>
+</div>
+{% endfor %}
+{% endblock %}

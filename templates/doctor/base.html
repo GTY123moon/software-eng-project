@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+<link rel="stylesheet" href="{% static 'css/doctor.css' %}">
+
+{% if messages %}
+<div class="flash-bar">
+    {% for m in messages %}
+    <div class="form-error flash-msg {% if 'success' in m.tags %}flash-ok{% endif %}">{{ m }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="dash-layout">
+    <aside class="side">
+        <div class="side-title">医生工作台</div>
+        <a class="side-item {% if nav == 'workbench' %}active{% endif %}"
+           href="{% url 'doctor:dashboard' %}">首页概览</a>
+        <a class="side-item {% if nav == 'prescriptions' %}active{% endif %}"
+           href="{% url 'doctor:prescription_list' %}">我的处方</a>
+        <a class="side-item" href="{% url 'accounts:logout' %}">退出登录</a>
+    </aside>
+
+    <main class="main">
+        {% block main %}{% endblock %}
+    </main>
+</div>
+{% endblock %}

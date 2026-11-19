@@ -1,0 +1,93 @@
+/*
+ * 医生端补充样式（patient 端 accounts.css 打底，这里只补三端共用类覆盖不到的细节）
+ */
+
+.pre-wrap { white-space: pre-wrap; }
+
+/* 顶部提示条：成功绿色，其余沿用 base 的红色错误样式 */
+.form-error.flash-msg {
+    margin: 0 0 14px;
+    border-radius: 8px;
+}
+.form-error.flash-ok {
+    color: #1c7c4a;
+    background: #e8f7ef;
+    border-color: #bfe8d2;
+}
+
+/* AI 复核建议卡 */
+.ai-suggest {
+    margin: 12px 0;
+    padding: 12px 14px;
+    border: 1px dashed #b9d0ff;
+    border-radius: 10px;
+    background: #f5f9ff;
+}
+.ai-suggest-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    color: #2254c5;
+    margin-bottom: 6px;
+}
+.ai-suggest-body {
+    font-size: 13px;
+    color: #3a4356;
+    line-height: 1.7;
+}
+
+/* 开方表格里的输入控件 */
+.presc-table input[type="number"] { width: 70px; }
+.presc-table input[name="dosage"] { width: 100%; }
+.presc-table .decoction-num { width: 60px; margin-top: 4px; }
+
+/* 筛选按钮激活态 */
+.link-btn.active { color: #2254c5; font-weight: 600; text-decoration: underline; }
+
+/* 对话输入框里的图片按钮高度对齐 */
+.chat-input .img-upload { align-self: center; }
+
+/* 处方明细表：输入控件留足宽度，避免挤在一起 */
+.presc-table select { min-width: 200px; padding: 6px 8px; }
+.presc-table input[type="text"] { width: 100%; padding: 6px 8px; }
+.presc-table td { vertical-align: middle; }
+.presc-table .link-btn { margin-right: 4px; }
+
+/* 行内按钮组：等距排列 */
+.form-inline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.link-btn + .link-btn, .form-inline .link-btn { margin-right: 2px; }
+
+/* 开方表固定列宽，控件不越列 */
+#itemTable { table-layout: fixed; }
+#itemTable select, #itemTable input { width: 100%; box-sizing: border-box; }
+#itemTable select[name="is_decoction"] { width: auto; min-width: 64px; }
+#itemTable .decoction-num { width: 100%; }
+
+/* 复核单选：行内横排，避免 .form-group label 的块级样式把选项压成两行 */
+.review-options { display: flex; gap: 24px; margin-top: 2px; }
+.review-option {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 6px;
+    margin: 0 !important;
+    font-size: 14px;
+    color: #3a4356;
+}
+.review-option input { width: auto; margin: 0; }
+
+/* AI 辅助按钮行 */
+.ai-help-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0;
+    flex-wrap: wrap;
+}
+
+/* 并排按钮行 */
+.action-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.action-row form { display: inline-flex; }
+
+/* 顶部提示条：横跨页面，避免把侧栏挤下去 */
+.flash-bar { max-width: 1180px; margin: 14px auto 0; padding: 0 20px; }

@@ -1,0 +1,131 @@
+{% extends 'doctor/base.html' %}
+{% load static %}
+
+{% block title %}医生工作台 · 智慧医疗在线问诊与处方流转平台{% endblock %}
+
+{% block main %}
+<div class="topbar">
+    <div>
+        <h2>您好，{{ doctor.name }}</h2>
+        <span class="user-info">{{ doctor.department }} · {{ doctor.title }}</span>
+    </div>
+</div>
+
+{% with active=mine|first %}
+{% if active %}
+<div class="card active-consult">
+    <h3>当前问诊</h3>
+    <div class="presc-meta">患者 {{ active.patient }}{% if active.gender %} · {{ active.gender }}{% endif %}{% if active.age %} · {{ active.age }} 岁{% endif %} · {{ active.time }} 开始</div>
+    <div class="presc-items">{{ active.chief }}</div>
+    <div class="form-actions">
+        <a class="btn-primary" href="{% url 'doctor:consult_detail' active.id %}">进入接诊</a>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <h3>当前问诊</h3>
+    <p class="empty-tip">暂无进行中的问诊。患者挂号并指定你之后，问诊会出现在这里。</p>
+</div>
+{% endif %}
+{% endwith %}
+
+<div class="entry-grid">
+    <a class="entry-card" href="{% url 'doctor:prescription_list' %}">
+        <div class="entry-icon">处方</div>
+        <div class="entry-body">
+            <div class="entry-title">处方管理</div>
+            <div class="entry-desc">查看草稿、提交药师审核、跟踪流转状态</div>
+        </div>
+    </a>
+    <a class="entry-card" href="#ai-pending">
+        <div class="entry-icon">AI</div>
+        <div class="entry-body">
+            <div class="entry-title">AI 摘要复核</div>
+            <div class="entry-desc">核对风险分级与病情摘要，采纳 / 修正 / 否决</div>
+        </div>
+    </a>
+</div>
+
+<div class="card">
+    <h3>工作概览</h3>
+    <div class="info-row">
+        <span>进行中问诊：{{ counts.mine }}</span>
+        <span>待复核 AI 摘要：{{ counts.ai }}</span>
+        <span>处方草稿待提交：{{ counts.draft }}</span>
+    </div>
+    <div class="info-row">
+        <span>在线状态：{{ doctor.status_text }}</span>
+        <span>待接诊队列：{{ counts.pool }}</span>
+    </div>
+</div>
+
+<div class="card" id="ai-pending">
+    <h3>待复核 AI 预问诊摘要</h3>
+    {% for a in pending_ai %}
+    <div class="list-item">
+        <div>
+            <span class="badge {% if a.risk_level == '高危' %}badge-red{% else %}badge-green{% endif %}">{{ a.risk_level }}</span>
+            {{ a.patient }}
+            <div class="presc-items">{{ a.summary }}</div>
+            <div class="time">生成时间：{{ a.time }}{% if a.keyword %} · 命中高危词：{{ a.keyword }}{% endif %}</div>
+        </div>
+        <div class="item-right">
+            <a class="link-btn" href="{% url 'doctor:consult_detail' a.cid %}">去复核</a>
+        </div>
+    </div>
+    {% empty %}
+    <p class="empty-tip">没有待复核的 AI 摘要。</p>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <h3>待接诊队列</h3>
+    {% for c in pool %}
+    <div class="list-item">
+        <div>
+            {{ c.patient }}
+            <div class="presc-items">{{ c.chief }}</div>
+            <div class="time">发起时间：{{ c.time }}</div>
+        </div>
+        <div class="item-right">
+            <a class="link-btn" href="{% url 'doctor:consult_detail' c.id %}">查看</a>
+        </div>
+    </div>
+    {% empty %}
+    <p class="empty-tip">暂无待接诊的问诊。</p>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <h3>最近处方 <a class="link-btn" href="{% url 'doctor:prescription_list' %}">全部处方</a></h3>
+    {% for p in prescriptions %}
+    <div class="list-item">
+        <div>处方号 {{ p.no }} · {{ p.patient }}</div>
+        <div class="item-right">
+            <span class="badge {{ p.badge }}">{{ p.status }}</span>
+            <span class="time">{{ p.time }}</span>
+            <a class="link-btn" href="{% url 'doctor:prescription_edit' p.id %}">查看</a>
+        </div>
+    </div>
+    {% empty %}
+    <p class="empty-tip">暂无处方记录，可在问诊详情页开方。</p>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <h3>历史问诊</h3>
+    {% for c in history %}
+    <div class="list-item">
+        <div>问诊 {{ c.id }} · {{ c.patient }}</div>
+        <div class="item-right">
+            <span class="badge {{ c.badge }}">{{ c.status }}</span>
+            <span class="badge {{ c.review_badge }}">{{ c.review_status }}</span>
+            <span class="time">{{ c.time }}</span>
+            <a class="link-btn" href="{% url 'doctor:consult_detail' c.id %}">查看</a>
+        </div>
+    </div>
+    {% empty %}
+    <p class="empty-tip">暂无历史问诊。</p>
+    {% endfor %}
+</div>
+{% endblock %}

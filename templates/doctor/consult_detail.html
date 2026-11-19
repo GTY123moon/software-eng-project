@@ -1,0 +1,257 @@
+{% extends 'doctor/base.html' %}
+{% load static %}
+
+{% block title %}问诊详情 · 医生工作台{% endblock %}
+
+{% block main %}
+<div class="topbar">
+    <div>
+        <h2>与 {{ patient.name }} 的问诊</h2>
+        <span class="user-info">
+            病历号 {{ patient.medical_no }} · {{ patient.gender }} · {{ patient.age }} 岁 · 开始 {{ consult.time }}
+        </span>
+    </div>
+    <div class="head-actions">
+        <span class="badge {{ consult.badge }}">{{ consult.status }}</span>
+        <span class="badge {{ consult.review_badge }}">AI {{ consult.review_status }}</span>
+        {% if consult.is_mine %}
+        <a class="btn-primary" href="{% url 'doctor:prescription_new' consult.id %}">
+            {% if draft %}继续编辑处方{% else %}开方{% endif %}
+        </a>
+        {% else %}
+        <form method="post" action="{% url 'doctor:consult_accept' consult.id %}">
+            {% csrf_token %}
+            <button class="btn-primary" type="submit">接诊</button>
+        </form>
+        {% endif %}
+        <a class="btn-secondary" href="{% url 'doctor:dashboard' %}">返回接诊台</a>
+    </div>
+</div>
+
+<div class="card">
+    <h3>患者档案与主诉</h3>
+    <div class="info-row">
+        <span>性别：{{ patient.gender }}</span>
+        <span>年龄：{{ patient.age }}</span>
+        <span>过敏史：{{ patient.allergy }}</span>
+    </div>
+    <div class="ai-summary pre-wrap">{{ consult.record }}</div>
+    <div class="ai-time">家庭住址：{{ patient.address }}</div>
+</div>
+
+{% if ai %}
+<div class="card ai-card">
+    <h3>AI 预问诊摘要（待医生复核）</h3>
+    <div class="ai-row">
+        风险等级：
+        <span class="badge {% if ai.risk_level == '高危' %}badge-red{% else %}badge-green{% endif %}">{{ ai.risk_level }}</span>
+        {% if ai.risk_level == '高危' %}
+        <span class="badge {% if ai.risk_consent == 1 %}badge-green{% else %}badge-orange{% endif %}">
+            高危知情同意：{{ ai.consent_text }}
+        </span>
+        {% endif %}
+    </div>
+    <div class="ai-summary">{{ ai.summary }}</div>
+    {% if ai.keyword %}
+    <div class="ai-keyword">命中高危词：{{ ai.keyword }}</div>
+    {% endif %}
+    <div class="ai-row">当前复核结论：<strong>{{ ai.review_result }}</strong></div>
+    {% if ai.review_comment %}
+    <div class="ai-time">复核意见：{{ ai.review_comment }}</div>
+    {% endif %}
+    <div class="ai-time">生成时间：{{ ai.time }}</div>
+
+    {% if ai.risk_level == '高危' %}
+    <div class="risk-banner">本次为高危急症：线上仅能提供健康建议，不能替代线下面诊与急救处置，请提示患者及时就近就医。</div>
+    {% endif %}
+
+    {% if ai_suggest %}
+    <div class="ai-suggest">
+        <div class="ai-suggest-head">
+            AI 复核建议 · 推荐「{{ ai_suggest.recommended }}」
+            <span class="time">{{ ai_suggest.time }}</span>
+        </div>
+        <div class="ai-suggest-body">理由：{{ ai_suggest.reason }}</div>
+        {% if ai_suggest.refined_summary %}
+        <div class="ai-suggest-body">规整摘要：{{ ai_suggest.refined_summary }}</div>
+        {% endif %}
+        <div class="ai-suggest-body">建议分级：{{ ai_suggest.suggested_level }}</div>
+        <button class="btn-secondary" type="button" data-reason="{{ ai_suggest.reason }}"
+                onclick="applySuggest('{{ ai_suggest.recommended }}', this)">一键填入复核表单</button>
+    </div>
+    {% endif %}
+
+    {% if consult.is_mine and consult.status == '进行中' %}
+    <div class="ai-help-row">
+        <span>AI 辅助：</span>
+        <form method="post" action="{% url 'doctor:ai_suggest' consult.id %}" class="form-inline">
+            {% csrf_token %}
+            <button class="btn-secondary" type="submit">生成 AI 复核建议</button>
+        </form>
+        <span class="ai-time">约需 10 秒；AI 不可用时会自动降级为人工复核</span>
+    </div>
+    <form method="post" action="{% url 'doctor:review_ai' consult.id %}" id="reviewForm">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>复核结论</label>
+            <div class="review-options">
+                <label class="review-option"><input type="radio" name="result" value="采纳"> 采纳</label>
+                <label class="review-option"><input type="radio" name="result" value="修正"> 修正</label>
+                <label class="review-option"><input type="radio" name="result" value="否决"> 否决</label>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>复核意见（选择“修正 / 否决”时必填）</label>
+            <textarea class="form-textarea" name="opinion" id="reviewOpinion" rows="2"
+                      placeholder="如：患者未提及胸痛，风险等级应下调为中低危">{{ ai.review_comment }}</textarea>
+        </div>
+        <div class="form-actions">
+            <button class="btn-primary" type="submit">提交复核</button>
+        </div>
+        <p class="empty-tip" style="text-align:left;">
+            复核结果仅作为医生判断的参考，最终诊断由医生填写，AI 结果不会直接写入诊断。
+        </p>
+    </form>
+    {% endif %}
+</div>
+{% else %}
+<div class="card">
+    <h3>AI 预问诊摘要</h3>
+    <p class="empty-tip">本次问诊尚未生成 AI 摘要（患者可能跳过了 AI 采集环节）。</p>
+</div>
+{% endif %}
+
+<div class="card chat-panel">
+    <div class="presc-head">
+        <div>
+            <div class="presc-title">图文对话</div>
+            <div class="presc-meta">共 {{ chats|length }} 条消息，双方可发送文字与图片。</div>
+        </div>
+        <div class="head-actions">
+            {% if can_chat %}
+            <button class="btn-secondary" id="openVideo" type="button">视频通话</button>
+            {% endif %}
+        </div>
+    </div>
+    <div class="msg-list">
+        {% for m in chats %}
+        <div class="msg-row {% if m.mine %}mine{% endif %}">
+            <div class="msg-bubble">
+                <div class="msg-role">{{ m.role }}</div>
+                {% if m.msg_type == 'image' %}
+                <img class="msg-image" src="{{ m.media_url }}" alt="图片消息">
+                {% if m.content %}<div class="msg-content">{{ m.content }}</div>{% endif %}
+                {% else %}
+                <div class="msg-content">{{ m.content }}</div>
+                {% endif %}
+                <div class="msg-time">{{ m.time }}</div>
+            </div>
+        </div>
+        {% empty %}
+        <p class="empty-tip">暂无消息，发送第一条消息开始对话。</p>
+        {% endfor %}
+    </div>
+
+    {% if can_chat %}
+    <form class="chat-input" method="post" enctype="multipart/form-data"
+          action="{% url 'doctor:send_message' consult.id %}">
+        {% csrf_token %}
+        <label class="img-upload" for="imageInput">图片
+            <input type="file" id="imageInput" name="image" accept="image/*" hidden>
+        </label>
+        <textarea name="content" rows="2" placeholder="回复患者：解释病情、交代注意事项…"></textarea>
+        <button class="btn-primary" type="submit">发送</button>
+    </form>
+    {% elif consult.is_mine and consent_blocked %}
+    <p class="empty-tip">该问诊为高危，患者尚未确认风险告知，线上对话暂未开启。</p>
+    {% elif consult.is_mine %}
+    <p class="empty-tip">本次问诊{{ consult.status }}，不能再发送消息。</p>
+    {% else %}
+    <p class="empty-tip">请先接诊，接诊后可与患者沟通并开方。</p>
+    {% endif %}
+</div>
+
+{% if draft %}
+<div class="card">
+    <h3>处方草稿</h3>
+    <div class="presc-head">
+        <div>
+            <div class="presc-title">{{ draft.no }}</div>
+            <div class="presc-meta">AI 预审：{{ draft.ai_result }}</div>
+        </div>
+        <span class="badge badge-gray">草稿</span>
+    </div>
+    {% if draft.ai_comment %}
+    <div class="ai-summary">{{ draft.ai_comment }}</div>
+    {% endif %}
+    <div class="action-row">
+        <a class="btn-secondary" href="{% url 'doctor:prescription_edit' draft.id %}">编辑草稿</a>
+        <form method="post" action="{% url 'doctor:prescription_submit' draft.id %}"
+              onsubmit="return confirm('确认提交该处方给药师审核？提交后不可再修改。');">
+            {% csrf_token %}
+            <button class="btn-primary" type="submit">提交审核</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if consult.is_mine %}
+<div class="card">
+    <h3>结束问诊与最终诊断</h3>
+    <div class="ai-row">当前诊断：<strong>{{ consult.final_diagnosis|default:'尚未填写' }}</strong></div>
+    {% if consult.status == '进行中' %}
+    <form method="post" action="{% url 'doctor:end_consult' consult.id %}">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>最终诊断（由医生出具，不由 AI 自动写入）</label>
+            <textarea class="form-textarea" name="final_diagnosis" rows="2"
+                      placeholder="例如：急性上呼吸道感染（病毒性）">{{ consult.final_diagnosis }}</textarea>
+        </div>
+        <div class="form-actions">
+            <button class="btn-secondary" type="submit"
+                    onclick="return confirm('确认结束本次问诊？结束后将不能再发送消息。');">结束问诊</button>
+        </div>
+    </form>
+    {% else %}
+    <p class="empty-tip" style="text-align:left;">本次问诊{{ consult.status }}于 {{ consult.end_time }}。</p>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="video-mask" id="videoMask" hidden>
+    <div class="video-modal">
+        <div class="video-modal-head">
+            <span>视频问诊 · {{ patient.name }}</span>
+            <button type="button" id="closeVideo" aria-label="关闭">×</button>
+        </div>
+        <div class="video-panels" id="videoPanels">
+            <video id="remoteVideo" autoplay playsinline></video>
+            <div class="video-status" id="videoStatus">等待发起呼叫</div>
+            <video id="localVideo" autoplay playsinline muted></video>
+        </div>
+        <div class="video-actions">
+            <button class="btn-primary" type="button" id="startVideo">发起呼叫</button>
+            <button class="btn-secondary" type="button" id="hangupVideo">挂断</button>
+        </div>
+        <p class="video-tip">课设演示：右下角小窗为本地摄像头预览；双方实时通话需另行部署信令服务器与 TURN 中继服务。</p>
+    </div>
+</div>
+
+<script src="{% static 'js/video_call.js' %}"></script>
+<script>
+    function applySuggest(action, btn) {
+        var form = document.getElementById('reviewForm');
+        if (!form) { return; }
+        var radios = form.querySelectorAll('input[name="result"]');
+        for (var i = 0; i < radios.length; i++) {
+            radios[i].checked = (radios[i].value === action);
+        }
+        var opinion = document.getElementById('reviewOpinion');
+        var reason = btn.getAttribute('data-reason') || '';
+        if (opinion && !opinion.value.trim() && reason) {
+            opinion.value = reason;
+        }
+        if (opinion) { opinion.focus(); }
+    }
+</script>
+{% endblock %}
