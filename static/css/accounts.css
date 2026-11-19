@@ -863,6 +863,89 @@
     line-height: 1.6;
 }
 
+/* ===== 高危风险告知 ===== */
+.risk-banner {
+    background: #fdecea;
+    border-left: 4px solid #c62828;
+    color: #c62828;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 12px 0;
+}
+
+.risk-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 1000;
+}
+
+.risk-modal {
+    background: #fff;
+    border-radius: 16px;
+    max-width: 460px;
+    width: 100%;
+    padding: 26px 28px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.risk-modal-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #c62828;
+    margin-bottom: 12px;
+}
+
+.risk-modal p {
+    font-size: 14px;
+    color: #333;
+    line-height: 1.7;
+    margin-bottom: 12px;
+}
+
+.risk-warn span {
+    color: #c62828;
+    font-weight: bold;
+}
+
+.risk-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 18px;
+}
+
+.risk-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.consent-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+    color: #555;
+    line-height: 1.6;
+    cursor: pointer;
+}
+
+.consent-check input {
+    margin-top: 3px;
+}
+
+#consentBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 @media (max-width: 768px) {
     .dash-layout {
         flex-direction: column;

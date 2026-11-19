@@ -473,14 +473,26 @@ def consult_chat_view(request, consult_id):
         return redirect('accounts:messages')
 
     # 未完成 AI 预问诊评估的问诊，先回到评估页，不允许直接进入对话
-    if not AiPreAssessment.objects.filter(
-            consultation_id=consult.consult_id).exists():
+    ai = AiPreAssessment.objects.filter(
+        consultation_id=consult.consult_id).first()
+    if not ai:
         return redirect('accounts:consult_assess', consult.consult_id)
 
-    can_chat = consult.status == '进行中'
+    # 高危且尚未签署知情同意：先弹出风险告知，确认后才允许发言
+    need_consent = (ai.risk_level == '高危' and ai.risk_consent == 0
+                    and consult.status == '进行中')
+    can_chat = consult.status == '进行中' and not need_consent
 
-    if request.method == 'POST' and can_chat:
+    if request.method == 'POST':
         action = request.POST.get('action', 'message')
+
+        if action == 'consent':
+            # 患者已知晓高危风险并选择继续线上咨询，风险自行承担
+            ai.risk_consent = 1
+            ai.save(update_fields=['risk_consent'])
+            write_log(patient.patient_id, '患者', '高危知情同意',
+                      target_type='consultation', target_id=consult.consult_id)
+            return redirect('accounts:consult_chat', consult.consult_id)
 
         if action == 'finish':
             consult.status = '已结束'
@@ -495,6 +507,10 @@ def consult_chat_view(request, consult_id):
                     Doctor.objects.filter(doctor_id=consult.doctor_id).update(work_status=1)
             write_log(patient.patient_id, '患者', '结束问诊',
                       target_type='consultation', target_id=consult.consult_id)
+            return redirect('accounts:consult_chat', consult.consult_id)
+
+        # 未解锁发言（未完成知情同意 / 已结束）时不允许发送消息
+        if not can_chat:
             return redirect('accounts:consult_chat', consult.consult_id)
 
         content = request.POST.get('content', '').strip()
@@ -528,7 +544,6 @@ def consult_chat_view(request, consult_id):
 
     messages = ConsultationMessage.objects.filter(
         consultation_id=consult.consult_id).order_by('send_time')
-    ai = AiPreAssessment.objects.filter(consultation_id=consult.consult_id).first()
 
     context = {
         'consult': {
@@ -539,6 +554,7 @@ def consult_chat_view(request, consult_id):
             'time': _format_time(consult.start_time),
         },
         'can_chat': can_chat,
+        'need_consent': need_consent,
         'messages': [{
             'role': m.sender_role,
             'content': m.content or '',
@@ -551,7 +567,8 @@ def consult_chat_view(request, consult_id):
             'risk_level': ai.risk_level,
             'summary': ai.ai_summary,
             'keyword': ai.matched_keyword,
+            'consent': ai.risk_consent,
             'time': _format_time(ai.created_at),
-        } if ai else None,
+        },
     }
     return render(request, 'accounts/consult_chat.html', context)

@@ -141,6 +141,7 @@ class AiPreAssessment(models.Model):
     matched_keyword = models.CharField(max_length=200, null=True, blank=True)
     review_result = models.CharField(max_length=20, null=True, blank=True)
     review_comment = models.TextField(null=True, blank=True)
+    risk_consent = models.SmallIntegerField(default=0)
     created_at = models.DateTimeField()
 
     class Meta:

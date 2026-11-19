@@ -187,13 +187,15 @@ CREATE TABLE ai_pre_assessment (
     matched_keyword VARCHAR(200) NULL COMMENT '命中的高危关键词',
     review_result  VARCHAR(20)  NULL COMMENT '复核结果：已采纳/已修正/已否决',
     review_comment TEXT         NULL COMMENT '复核意见',
+    risk_consent   SMALLINT     NOT NULL DEFAULT 0 COMMENT '高危知情同意：0未确认/1已知晓风险并坚持线上就诊',
     created_at     DATETIME     NOT NULL COMMENT '评估生成时间',
     PRIMARY KEY (pre_id),
     KEY idx_pre_risk (risk_level),
     CONSTRAINT fk_pre_consult FOREIGN KEY (consult_id)
         REFERENCES consultation (consult_id),
     CONSTRAINT chk_pre_risk CHECK (risk_level IN ('高危', '中低危')),
-    CONSTRAINT chk_pre_review CHECK (review_result IS NULL OR review_result IN ('已采纳', '已修正', '已否决'))
+    CONSTRAINT chk_pre_review CHECK (review_result IS NULL OR review_result IN ('已采纳', '已修正', '已否决')),
+    CONSTRAINT chk_pre_consent CHECK (risk_consent IN (0, 1))
 ) ENGINE = InnoDB COMMENT 'AI预问诊评估表';
 
 -- ---------------------------------------------------------------------

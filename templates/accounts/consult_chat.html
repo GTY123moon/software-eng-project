@@ -44,6 +44,9 @@
             {% endif %}
             <div class="ai-time">生成时间：{{ ai.time }}</div>
         </div>
+        {% if ai.risk_level == '高危' %}
+        <div class="risk-banner">本次为高危急症：线上医生仅能提供健康建议，不能替代线下面诊、检查与急救处置，请及时就近就医。</div>
+        {% endif %}
         {% endif %}
 
         <div class="card chat-panel">
@@ -83,11 +86,49 @@
                 <button class="btn-secondary" type="submit">结束问诊</button>
             </form>
             {% else %}
+            {% if need_consent %}
+            <p class="empty-tip">请先完成上方风险告知，再进入线上咨询。</p>
+            {% else %}
             <p class="empty-tip">本次问诊已结束，仅可查看历史记录，不能再发消息或呼叫。</p>
+            {% endif %}
             {% endif %}
         </div>
     </main>
 </div>
+
+{% if need_consent %}
+<!-- 高危风险告知弹层：引导线下就诊；坚持线上须签署知情同意 -->
+<div class="risk-mask">
+    <div class="risk-modal">
+        <div class="risk-modal-title">风险告知</div>
+        <p class="risk-warn">AI 预问诊评估判定当前症状为<span>高危急症</span>。</p>
+        <p>强烈建议您立即前往就近医院就诊，或拨打 120 急救电话。线上咨询无法完成急救处置、当面查体与辅助检查，请优先线下就医。</p>
+        <div class="risk-actions">
+            <form method="post" action="{% url 'accounts:consult_chat' consult.id %}" class="risk-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="finish">
+                <button class="btn-secondary" type="submit">前往线下就诊，结束咨询</button>
+            </form>
+            <form method="post" action="{% url 'accounts:consult_chat' consult.id %}" class="risk-form" id="consentForm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="consent">
+                <label class="consent-check">
+                    <input type="checkbox" id="consentBox">
+                    我已阅读上述风险提示，自愿继续线上咨询，相关风险自行承担
+                </label>
+                <button class="btn-primary" type="submit" id="consentBtn" disabled>已知晓风险，继续线上咨询</button>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    var consentBox = document.getElementById('consentBox');
+    var consentBtn = document.getElementById('consentBtn');
+    consentBox.addEventListener('change', function () {
+        consentBtn.disabled = !consentBox.checked;
+    });
+</script>
+{% endif %}
 
 <!-- 视频问诊弹窗 -->
 <div class="video-mask" id="videoMask" hidden>

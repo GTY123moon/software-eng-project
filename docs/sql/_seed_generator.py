@@ -398,9 +398,10 @@ def build_business():
         keyword_sql = "NULL" if keyword is None else f"'{esc(keyword)}'"
         review_sql = "NULL" if review_result is None else f"'{esc(review_result)}'"
         comment_sql = "NULL" if comment is None else f"'{esc(comment)}'"
+        consent_val = 1 if risk == "高危" else 0
         pre_rows.append(
             f"({cid}, {cid}, '{risk}', '{esc(summ)}', {keyword_sql}, "
-            f"{review_sql}, {comment_sql}, '{start}')"
+            f"{review_sql}, {comment_sql}, {consent_val}, '{start}')"
         )
         # 消息：患者一条 + 医生一条（已结束/进行中/转诊有医生回复；已取消仅患者一条）
         msg_rows.append(f"({cid}, '患者', {pid}, 'text', '{esc('医生您好，' + comp)}', NULL, '{start}', 1)")
@@ -415,7 +416,7 @@ def build_business():
     lines.append("")
 
     lines.append("-- 3. AI 预问诊评估 ai_pre_assessment（60 条）")
-    lines.append("INSERT INTO ai_pre_assessment (pre_id, consult_id, risk_level, ai_summary, matched_keyword, review_result, review_comment, created_at) VALUES")
+    lines.append("INSERT INTO ai_pre_assessment (pre_id, consult_id, risk_level, ai_summary, matched_keyword, review_result, review_comment, risk_consent, created_at) VALUES")
     lines.append(",\n".join(pre_rows) + ";")
     lines.append("")
 
