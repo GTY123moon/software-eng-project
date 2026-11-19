@@ -25,21 +25,6 @@
             </div>
         </div>
 
-        <div class="stat-grid">
-            <div class="stat-card">
-                <div class="stat-num">{{ active_count }}</div>
-                <div class="stat-label">进行中问诊</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-num">{{ unread }}</div>
-                <div class="stat-label">未读消息</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-num">{{ prescriptions|length }}</div>
-                <div class="stat-label">我的处方</div>
-            </div>
-        </div>
-
         {% if active %}
         <div class="card active-consult">
             <h3>当前问诊</h3>
