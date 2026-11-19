@@ -225,9 +225,12 @@ def dashboard_view(request):
         'department': _doctor_dept(c.doctor_id),
         'status': c.status,
         'time': _format_time(c.start_time),
+        'assessed': AiPreAssessment.objects.filter(consultation_id=c.consult_id).exists(),
     } for c in consults]
 
     active = next((c for c in consultations if c['status'] == '进行中'), None)
+    history = [c for c in consultations if c['status'] != '进行中']
+    active_count = sum(1 for c in consultations if c['status'] == '进行中')
 
     prescs = Prescription.objects.filter(patient_id=patient.patient_id) \
         .select_related('doctor', 'consultation').order_by('-created_at')
@@ -245,7 +248,9 @@ def dashboard_view(request):
             'allergy': patient.allergy or '无记录',
         },
         'consultations': consultations,
+        'history': history,
         'active': active,
+        'active_count': active_count,
         'prescriptions': prescriptions,
         'unread': unread,
     }

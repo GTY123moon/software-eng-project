@@ -25,7 +25,7 @@
 
         <div class="stat-grid">
             <div class="stat-card">
-                <div class="stat-num">{{ consultations|length }}</div>
+                <div class="stat-num">{{ active_count }}</div>
                 <div class="stat-label">进行中问诊</div>
             </div>
             <div class="stat-card">
@@ -43,7 +43,11 @@
             <h3>当前问诊</h3>
             <div class="presc-meta">与 {{ active.doctor }} · {{ active.department }} · {{ active.time }}</div>
             <div class="form-actions">
+                {% if active.assessed %}
                 <a class="btn-primary" href="{% url 'accounts:consult_chat' active.id %}">进入对话 / 视频</a>
+                {% else %}
+                <a class="btn-primary" href="{% url 'accounts:consult_assess' active.id %}">继续 AI 预问诊</a>
+                {% endif %}
             </div>
         </div>
         {% endif %}
@@ -76,7 +80,7 @@
 
         <div class="card">
             <h3>历史问诊</h3>
-            {% for c in consultations %}
+            {% for c in history %}
             <div class="list-item">
                 <div>{{ c.doctor }} · {{ c.department }}</div>
                 <div class="item-right">
