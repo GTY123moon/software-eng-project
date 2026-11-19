@@ -18,7 +18,7 @@ from core.models import (
     SysUser, Patient, Doctor, Pharmacist, Admin, Consultation,
     ConsultationMessage, Prescription, PrescriptionItem, AiPreAssessment,
 )
-from core.ai_service import assess_risk
+from core.ai_service import assess_risk, next_guide_question, guide_history_text, GUIDE_TOPICS
 from core.log_service import write_log
 
 
@@ -498,42 +498,75 @@ def consult_assess_view(request, consult_id):
     if AiPreAssessment.objects.filter(consultation_id=consult.consult_id).exists():
         return redirect('accounts:consult_chat', consult.consult_id)
 
+    MAX_ROUNDS = len(GUIDE_TOPICS)
+
+    def _guide_msgs():
+        return ConsultationMessage.objects.filter(
+            consultation_id=consult.consult_id,
+            sender_role__in=['AI', '患者']
+        ).order_by('send_time')
+
+    def _finish_assessment():
+        """汇总多轮引导问答，生成风险分级与病情摘要，落评估后进入对话。"""
+        qa = [{'role': m.sender_role, 'text': m.content or ''}
+              for m in _guide_msgs()]
+        case_text = guide_history_text(qa)
+        consult.record_content = case_text
+        consult.save(update_fields=['record_content'])
+
+        ai = assess_risk(case_text)
+        AiPreAssessment.objects.create(
+            consultation_id=consult.consult_id, risk_level=ai['risk_level'],
+            ai_summary=ai['ai_summary'], matched_keyword=ai['matched_keyword'],
+            created_at=timezone.now())
+        write_log(patient.patient_id, '患者', 'AI预问诊评估',
+                  target_type='consultation', target_id=consult.consult_id)
+        return redirect('accounts:consult_chat', consult.consult_id)
+
     if request.method == 'POST':
         # 同一问诊只保留一条 AI 评估，重复提交不再重复插入
         if AiPreAssessment.objects.filter(consultation_id=consult.consult_id).exists():
             return redirect('accounts:consult_chat', consult.consult_id)
 
-        chief = request.POST.get('chief_complaint', '').strip()
-        onset = request.POST.get('onset_time', '').strip()
-        symptoms = request.POST.get('symptoms', '').strip()
-        history = request.POST.get('history', '').strip()
+        action = request.POST.get('action', 'answer')
 
-        record_parts = [f'主诉：{chief}']
-        if onset:
-            record_parts.append(f'起病时间：{onset}')
-        if symptoms:
-            record_parts.append(f'伴随症状：{symptoms}')
-        if history:
-            record_parts.append(f'病史/用药过敏：{history}')
-        record = '\n'.join(record_parts)
+        # 患者主动点“补充完毕”，直接收尾
+        if action == 'finish':
+            return _finish_assessment()
 
-        consult.record_content = record
-        consult.save(update_fields=['record_content'])
+        answer = request.POST.get('answer', '').strip()
+        if answer:
+            ConsultationMessage.objects.create(
+                consultation_id=consult.consult_id, sender_role='患者',
+                sender_id=patient.patient_id, msg_type='text', content=answer,
+                send_time=timezone.now(), read_status=1)
+
+        msgs = list(_guide_msgs())
+        qa = [{'role': m.sender_role, 'text': m.content or ''} for m in msgs]
+        patient_turns = sum(1 for x in qa if x['role'] == '患者')
+
+        # 达到轮次上限强制收尾，避免无限追问
+        if patient_turns >= MAX_ROUNDS:
+            return _finish_assessment()
+
+        nxt = next_guide_question(qa)
+        if nxt['done']:
+            return _finish_assessment()
 
         ConsultationMessage.objects.create(
-            consultation_id=consult.consult_id, sender_role='患者',
-            sender_id=patient.patient_id, msg_type='text', content=record,
+            consultation_id=consult.consult_id, sender_role='AI', sender_id=1,
+            msg_type='text', content=nxt['question'],
             send_time=timezone.now(), read_status=1)
+        return redirect('accounts:consult_assess', consult.consult_id)
 
-        ai = assess_risk(record)
-        AiPreAssessment.objects.create(
-            consultation_id=consult.consult_id, risk_level=ai['risk_level'],
-            ai_summary=ai['ai_summary'], matched_keyword=ai['matched_keyword'],
-            created_at=timezone.now())
-
-        write_log(patient.patient_id, '患者', 'AI预问诊评估',
-                  target_type='consultation', target_id=consult.consult_id)
-        return redirect('accounts:consult_chat', consult.consult_id)
+    msgs = list(_guide_msgs())
+    # 首轮进入：落地第一条引导问题（本地清单首题，避免页面加载即调远程模型）
+    if not msgs:
+        ConsultationMessage.objects.create(
+            consultation_id=consult.consult_id, sender_role='AI', sender_id=1,
+            msg_type='text', content=GUIDE_TOPICS[0][2],
+            send_time=timezone.now(), read_status=1)
+        msgs = list(_guide_msgs())
 
     return render(request, 'accounts/consult_assess.html', {
         'consult': {
@@ -542,6 +575,12 @@ def consult_assess_view(request, consult_id):
             'department': _doctor_dept(consult.doctor_id),
             'time': _format_time(consult.start_time),
         },
+        'messages': [{
+            'role': m.sender_role,
+            'content': m.content or '',
+            'time': _format_time(m.send_time),
+            'mine': m.sender_role == '患者',
+        } for m in msgs],
     })
 
 
@@ -594,7 +633,8 @@ def messages_view(request):
         .select_related('doctor').order_by('-start_time')
     threads = []
     for c in consults:
-        last = ConsultationMessage.objects.filter(consultation_id=c.consult_id) \
+        last = ConsultationMessage.objects.filter(
+            consultation_id=c.consult_id).exclude(sender_role='AI') \
             .order_by('-send_time').first()
         if not last:
             preview = '暂无消息'
@@ -704,7 +744,8 @@ def consult_chat_view(request, consult_id):
         return redirect('accounts:consult_chat', consult.consult_id)
 
     messages = ConsultationMessage.objects.filter(
-        consultation_id=consult.consult_id).order_by('send_time')
+        consultation_id=consult.consult_id
+    ).exclude(sender_role='AI').order_by('send_time')
 
     # 进入会话即把医生发来的未读消息标记为已读，工作台未读数与列表未读角标随之清零
     ConsultationMessage.objects.filter(

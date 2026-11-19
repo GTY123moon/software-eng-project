@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}AI 预问诊 · 患者工作台{% endblock %}
+{% block title %}AI 引导式预问诊 · 患者工作台{% endblock %}
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/accounts.css' %}">
@@ -19,7 +19,7 @@
     <main class="main">
         <div class="topbar">
             <div>
-                <h2>AI 预问诊信息采集</h2>
+                <h2>AI 引导式预问诊</h2>
                 <span class="user-info">接诊医生：{{ consult.doctor }} · {{ consult.department }} · {{ consult.time }}</span>
             </div>
         </div>
@@ -27,37 +27,36 @@
         <div class="card ai-card">
             <h3>就诊引导</h3>
             <div class="ai-summary">
-                挂号已成功。请先补充以下病情信息，AI 将据此完成风险分级；分级通过后即可进入与医生的图文/视频对话。
+                AI 助手会逐项了解您的不适部位、持续时间、症状性质、诱因、外伤与既往作息等情况；信息收集完整后，将自动整理成病情摘要并完成风险分级，之后即可进入与医生的图文对话。
             </div>
         </div>
 
-        <form method="post" action="{% url 'accounts:consult_assess' consult.id %}">
-            {% csrf_token %}
-            <div class="card">
-                <h3>病情信息</h3>
-                <div class="form-group">
-                    <label>主诉</label>
-                    <input type="text" name="chief_complaint" placeholder="如：咳嗽、发热两天" required>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>起病时间</label>
-                        <input type="text" name="onset_time" placeholder="如：两天前、今天早晨">
-                    </div>
-                    <div class="form-group">
-                        <label>伴随症状</label>
-                        <input type="text" name="symptoms" placeholder="如：咳痰、咽痛、乏力">
+        <div class="card chat-panel">
+            <div class="msg-list">
+                {% for m in messages %}
+                <div class="msg-row {% if m.mine %}mine{% endif %}">
+                    <div class="msg-bubble">
+                        <div class="msg-role">{% if m.role == 'AI' %}AI 助手{% else %}我{% endif %}</div>
+                        <div class="msg-content">{{ m.content }}</div>
+                        <div class="msg-time">{{ m.time }}</div>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>既往病史 / 用药 / 过敏史</label>
-                    <textarea class="form-textarea" name="history" rows="3" placeholder="既往疾病、正在服用的药物、药物过敏情况等"></textarea>
-                </div>
-                <div class="form-actions">
-                    <button class="btn-primary" type="submit">生成风险分级并进入对话</button>
-                </div>
+                {% empty %}
+                <p class="empty-tip">正在初始化问诊引导…</p>
+                {% endfor %}
             </div>
-        </form>
+
+            <form class="chat-input" method="post" action="{% url 'accounts:consult_assess' consult.id %}">
+                {% csrf_token %}
+                <textarea name="answer" rows="2" placeholder="根据 AI 助手的提问回答…" required></textarea>
+                <button class="btn-primary" type="submit">发送</button>
+            </form>
+            <form class="chat-finish" method="post" action="{% url 'accounts:consult_assess' consult.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="finish">
+                <button class="btn-secondary" type="submit">病情已补充完，生成评估</button>
+            </form>
+        </div>
     </main>
 </div>
 {% endblock %}

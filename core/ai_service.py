@@ -130,3 +130,96 @@ def assess_risk(symptom: str) -> dict:
     if remote:
         return {**remote, 'source': '豆包方舟'}
     return {**_local_assess(symptom), 'source': '本地规则降级'}
+
+
+# ---------------------------------------------------------------------
+# 多轮引导式问诊：AI 主动按维度追问，信息收集充分后再汇总分级
+# ---------------------------------------------------------------------
+
+# 兜底追问维度：主题、识别关键词、问题（远程模型不可用时按序逐项问）
+GUIDE_TOPICS = [
+    ('部位', ['哪里', '部位', '位置', '哪个', '哪儿'], '您主要是哪个部位不舒服？请说一下具体位置。'),
+    ('时长', ['多久', '几天', '小时', '持续', '起病', '时间'], '这个症状出现多久了？是突然发作还是时好时坏？'),
+    ('性质', ['钝痛', '刺痛', '胀痛', '绞痛', '灼痛', '性质', '感觉', '疼'], '不适是什么性质？比如钝痛、刺痛、胀痛、绞痛或灼痛。'),
+    ('诱因饮食', ['吃', '饮食', '诱因', '劳累', '饭', '食物', '饮酒'], '发病前后吃过什么、有无劳累或其他诱发因素？'),
+    ('外伤', ['外伤', '伤', '磕碰', '撞到', '运动', '扭'], '近期该部位有无受过外伤、磕碰或剧烈运动？'),
+    ('作息既往', ['作息', '睡眠', '病史', '既往', '过敏', '药'], '最近作息如何？既往有无相关疾病、用药或药物过敏？'),
+]
+
+
+def guide_history_text(qa: list[dict]) -> str:
+    """把问答历史拼成可读文本；qa=[{'role':'患者'/'AI','text':...}, ...]。"""
+    lines = []
+    for item in qa:
+        role = '患者' if item.get('role') == '患者' else 'AI'
+        lines.append(f"{role}：{item.get('text', '')}")
+    return '\n'.join(lines)
+
+
+def _local_guide_next(qa: list[dict]) -> dict:
+    """本地兜底：按固定维度清单，找到患者尚未覆盖的一项追问。"""
+    patient_text = ' '.join(i.get('text', '') for i in qa if i.get('role') == '患者')
+    for _topic, keywords, question in GUIDE_TOPICS:
+        if not any(k in patient_text for k in keywords):
+            return {'question': question, 'done': False, 'source': '本地清单兜底'}
+    return {'question': '', 'done': True, 'source': '本地清单兜底'}
+
+
+def _remote_guide_next(qa: list[dict], timeout: int = 30) -> dict | None:
+    """远程模型动态判断下一问；失败/解析异常返回 None。"""
+    api_key = os.environ.get('ARK_API_KEY')
+    model = os.environ.get('ARK_MODEL')
+    if not api_key or not model:
+        return None
+
+    system_prompt = (
+        '你是在线问诊预问诊助手，通过多轮对话逐步收集病情。'
+        '已关注维度：症状部位、持续时间、疼痛/不适性质、诱因与饮食、外伤史、作息与既往史/过敏史。'
+        '先通读问答历史，患者已经回答清楚的维度不要重复追问；只针对仍缺失的最关键一项继续提问。'
+        '根据问答历史判断是否还有关键信息缺失，仅输出 JSON：'
+        '{"question": "下一个要问的一句话问题（口语化）", "done": true或false, "missing": ["仍缺失维度"]}。'
+        '信息已足够时 done=true、question 留空；否则 done=false，question 只问最关键的一项。'
+    )
+    payload = {
+        'model': model,
+        'messages': [
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': guide_history_text(qa) or '（尚无回答）'},
+        ],
+        'temperature': 0.3,
+    }
+    body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+    request = urllib.request.Request(
+        ARK_BASE_URL, data=body,
+        headers={
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json',
+        },
+        method='POST',
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as resp:
+        data = json.loads(resp.read().decode('utf-8'))
+
+    content = data['choices'][0]['message']['content']
+    parsed = _parse_model_json(content)
+    if not parsed:
+        return None
+    done = bool(parsed.get('done'))
+    question = str(parsed.get('question') or '').strip()
+    if not done and not question:
+        return None
+    return {'question': question, 'done': done, 'source': '豆包方舟'}
+
+
+def next_guide_question(qa: list[dict]) -> dict:
+    """统一入口：优先远程模型动态判断下一问，失败降级本地清单。
+
+    返回：question / done / source
+    """
+    try:
+        remote = _remote_guide_next(qa)
+    except (urllib.error.URLError, TimeoutError, ValueError, KeyError, OSError):
+        remote = None
+    if remote:
+        return remote
+    return _local_guide_next(qa)
