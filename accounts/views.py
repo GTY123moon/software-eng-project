@@ -572,7 +572,7 @@ def consult_assess_view(request, consult_id):
         if answer:
             ConsultationMessage.objects.create(
                 consultation_id=consult.consult_id, sender_role='患者',
-                sender_id=patient.patient_id, msg_type='text', content=answer,
+                sender_id=patient.patient_id, msg_type='pre', content=answer,
                 send_time=timezone.now(), read_status=1)
 
         msgs = list(_guide_msgs())
@@ -592,7 +592,7 @@ def consult_assess_view(request, consult_id):
 
         ConsultationMessage.objects.create(
             consultation_id=consult.consult_id, sender_role='AI', sender_id=1,
-            msg_type='text', content=nxt['question'],
+            msg_type='pre', content=nxt['question'],
             send_time=timezone.now(), read_status=1)
         return redirect('accounts:consult_assess', consult.consult_id)
 
@@ -601,7 +601,7 @@ def consult_assess_view(request, consult_id):
     if not msgs:
         ConsultationMessage.objects.create(
             consultation_id=consult.consult_id, sender_role='AI', sender_id=1,
-            msg_type='text', content=GUIDE_TOPICS[0][2],
+            msg_type='pre', content=GUIDE_TOPICS[0][2],
             send_time=timezone.now(), read_status=1)
         msgs = list(_guide_msgs())
 
@@ -672,7 +672,7 @@ def messages_view(request):
     for c in consults:
         last = ConsultationMessage.objects.filter(
             consultation_id=c.consult_id).exclude(sender_role='AI') \
-            .order_by('-send_time').first()
+            .exclude(msg_type='pre').order_by('-send_time').first()
         if not last:
             preview = '暂无消息'
         elif last.msg_type == 'image':
@@ -782,7 +782,7 @@ def consult_chat_view(request, consult_id):
 
     messages = ConsultationMessage.objects.filter(
         consultation_id=consult.consult_id
-    ).exclude(sender_role='AI').order_by('send_time')
+    ).exclude(sender_role='AI').exclude(msg_type='pre').order_by('send_time')
 
     # 进入会话即把医生发来的未读消息标记为已读，工作台未读数与列表未读角标随之清零
     ConsultationMessage.objects.filter(

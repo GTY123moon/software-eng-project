@@ -111,6 +111,7 @@ def _patient_info(patient):
 
 def _message_list(consult_id):
     rows = ConsultationMessage.objects.filter(consultation_id=consult_id) \
+        .exclude(sender_role='AI').exclude(msg_type='pre') \
         .order_by('send_time', 'msg_id')
     return [{
         'role': m.sender_role,

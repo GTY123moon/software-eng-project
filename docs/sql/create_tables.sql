@@ -209,7 +209,7 @@ CREATE TABLE consultation_message (
     consult_id  BIGINT       NOT NULL COMMENT '问诊ID，关联 consultation',
     sender_role VARCHAR(10)  NOT NULL COMMENT '发送方角色：患者/医生',
     sender_id   BIGINT       NOT NULL COMMENT '发送人账号ID，关联 sys_user',
-    msg_type    VARCHAR(20)  NOT NULL DEFAULT 'text' COMMENT '消息类型：text/image/video',
+    msg_type    VARCHAR(20)  NOT NULL DEFAULT 'text' COMMENT '消息类型：text/image/video/pre(AI预问诊)',
     content     TEXT         NULL COMMENT '文本内容',
     media_url   VARCHAR(500) NULL COMMENT '图片/视频地址',
     send_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间',
@@ -221,7 +221,7 @@ CREATE TABLE consultation_message (
         REFERENCES consultation (consult_id),
     CONSTRAINT fk_msg_sender FOREIGN KEY (sender_id)
         REFERENCES sys_user (user_id),
-    CONSTRAINT chk_msg_type CHECK (msg_type IN ('text', 'image', 'video')),
+    CONSTRAINT chk_msg_type CHECK (msg_type IN ('text', 'image', 'video', 'pre')),
     CONSTRAINT chk_msg_read CHECK (read_status IN (0, 1))
 ) ENGINE = InnoDB COMMENT '问诊消息表';
 
