@@ -32,6 +32,9 @@ media/
 Thumbs.db
 .DS_Store
 
+# Office 打开时的临时锁文件
+~$*
+
 # 临时截图（不进仓库）
 3ff57d74-*.png
 cee4917c-*.png

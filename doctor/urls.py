@@ -15,8 +15,9 @@ urlpatterns = [
     # 工作台（登录后由 accounts:staff_login 重定向到此）
     path('', views.workbench, name='dashboard'),
 
-    # 接诊与问诊详情
+    # 接诊与问诊详情（预问诊：患者档案 + AI 摘要复核）
     path('consult/<int:cid>/', views.consult_detail, name='consult_detail'),
+    path('consult/<int:cid>/chat/', views.consult_chat_view, name='consult_chat'),
     path('consult/<int:cid>/accept/', views.consult_accept, name='consult_accept'),
     path('consult/<int:cid>/review/', views.review_ai, name='review_ai'),
     path('consult/<int:cid>/ai-suggest/', views.ai_suggest, name='ai_suggest'),

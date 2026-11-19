@@ -1,7 +1,7 @@
 {% extends 'doctor/base.html' %}
 {% load static %}
 
-{% block title %}问诊详情 · 医生工作台{% endblock %}
+{% block title %}预问诊 · 医生工作台{% endblock %}
 
 {% block main %}
 <div class="topbar">
@@ -15,16 +15,13 @@
         <span class="badge {{ consult.badge }}">{{ consult.status }}</span>
         <span class="badge {{ consult.review_badge }}">AI {{ consult.review_status }}</span>
         {% if consult.is_mine %}
-        <a class="btn-primary" href="{% url 'doctor:prescription_new' consult.id %}">
-            {% if draft %}继续编辑处方{% else %}开方{% endif %}
-        </a>
+        <a class="btn-secondary" href="{% url 'doctor:dashboard' %}">返回接诊台</a>
         {% else %}
         <form method="post" action="{% url 'doctor:consult_accept' consult.id %}">
             {% csrf_token %}
             <button class="btn-primary" type="submit">接诊</button>
         </form>
         {% endif %}
-        <a class="btn-secondary" href="{% url 'doctor:dashboard' %}">返回接诊台</a>
     </div>
 </div>
 
@@ -121,123 +118,25 @@
 </div>
 {% endif %}
 
-<div class="card chat-panel">
-    <div class="presc-head">
-        <div>
-            <div class="presc-title">图文对话</div>
-            <div class="presc-meta">共 {{ chats|length }} 条消息，双方可发送文字与图片。</div>
-        </div>
-        <div class="head-actions">
-            {% if can_chat %}
-            <button class="btn-secondary" id="openVideo" type="button">视频通话</button>
-            {% endif %}
-        </div>
-    </div>
-    <div class="msg-list">
-        {% for m in chats %}
-        <div class="msg-row {% if m.mine %}mine{% endif %}">
-            <div class="msg-bubble">
-                <div class="msg-role">{{ m.role }}</div>
-                {% if m.msg_type == 'image' %}
-                <img class="msg-image" src="{{ m.media_url }}" alt="图片消息">
-                {% if m.content %}<div class="msg-content">{{ m.content }}</div>{% endif %}
-                {% else %}
-                <div class="msg-content">{{ m.content }}</div>
-                {% endif %}
-                <div class="msg-time">{{ m.time }}</div>
-            </div>
-        </div>
-        {% empty %}
-        <p class="empty-tip">暂无消息，发送第一条消息开始对话。</p>
-        {% endfor %}
-    </div>
-
-    {% if can_chat %}
-    <form class="chat-input" method="post" enctype="multipart/form-data"
-          action="{% url 'doctor:send_message' consult.id %}">
-        {% csrf_token %}
-        <label class="img-upload" for="imageInput">图片
-            <input type="file" id="imageInput" name="image" accept="image/*" hidden>
-        </label>
-        <textarea name="content" rows="2" placeholder="回复患者：解释病情、交代注意事项…"></textarea>
-        <button class="btn-primary" type="submit">发送</button>
-    </form>
-    {% elif consult.is_mine and consent_blocked %}
-    <p class="empty-tip">该问诊为高危，患者尚未确认风险告知，线上对话暂未开启。</p>
-    {% elif consult.is_mine %}
-    <p class="empty-tip">本次问诊{{ consult.status }}，不能再发送消息。</p>
-    {% else %}
-    <p class="empty-tip">请先接诊，接诊后可与患者沟通并开方。</p>
-    {% endif %}
-</div>
-
-{% if draft %}
 <div class="card">
-    <h3>处方草稿</h3>
-    <div class="presc-head">
-        <div>
-            <div class="presc-title">{{ draft.no }}</div>
-            <div class="presc-meta">AI 预审：{{ draft.ai_result }}</div>
-        </div>
-        <span class="badge badge-gray">草稿</span>
-    </div>
-    {% if draft.ai_comment %}
-    <div class="ai-summary">{{ draft.ai_comment }}</div>
-    {% endif %}
-    <div class="action-row">
-        <a class="btn-secondary" href="{% url 'doctor:prescription_edit' draft.id %}">编辑草稿</a>
-        <form method="post" action="{% url 'doctor:prescription_submit' draft.id %}"
-              onsubmit="return confirm('确认提交该处方给药师审核？提交后不可再修改。');">
-            {% csrf_token %}
-            <button class="btn-primary" type="submit">提交审核</button>
-        </form>
-    </div>
-</div>
-{% endif %}
-
-{% if consult.is_mine %}
-<div class="card">
-    <h3>结束问诊与最终诊断</h3>
-    <div class="ai-row">当前诊断：<strong>{{ consult.final_diagnosis|default:'尚未填写' }}</strong></div>
-    {% if consult.status == '进行中' %}
-    <form method="post" action="{% url 'doctor:end_consult' consult.id %}">
-        {% csrf_token %}
-        <div class="form-group">
-            <label>最终诊断（由医生出具，不由 AI 自动写入）</label>
-            <textarea class="form-textarea" name="final_diagnosis" rows="2"
-                      placeholder="例如：急性上呼吸道感染（病毒性）">{{ consult.final_diagnosis }}</textarea>
-        </div>
+    <h3>下一步</h3>
+    {% if consult.is_mine %}
+        {% if consult.status == '进行中' %}
         <div class="form-actions">
-            <button class="btn-secondary" type="submit"
-                    onclick="return confirm('确认结束本次问诊？结束后将不能再发送消息。');">结束问诊</button>
+            <a class="btn-primary" href="{% url 'doctor:consult_chat' consult.id %}">进入图文沟通</a>
         </div>
-    </form>
+        <p class="empty-tip" style="text-align:left;">复核病情摘要后，进入图文沟通与患者交流；沟通中可开具处方、结束问诊。</p>
+        {% else %}
+        <p class="empty-tip" style="text-align:left;">本次问诊{{ consult.status }}于 {{ consult.end_time }}。</p>
+        {% if consult.final_diagnosis %}
+        <div class="ai-row">最终诊断：<strong>{{ consult.final_diagnosis }}</strong></div>
+        {% endif %}
+        {% endif %}
     {% else %}
-    <p class="empty-tip" style="text-align:left;">本次问诊{{ consult.status }}于 {{ consult.end_time }}。</p>
+    <p class="empty-tip" style="text-align:left;">接诊后可查看病情摘要并进入图文沟通。</p>
     {% endif %}
 </div>
-{% endif %}
 
-<div class="video-mask" id="videoMask" hidden>
-    <div class="video-modal">
-        <div class="video-modal-head">
-            <span>视频问诊 · {{ patient.name }}</span>
-            <button type="button" id="closeVideo" aria-label="关闭">×</button>
-        </div>
-        <div class="video-panels" id="videoPanels">
-            <video id="remoteVideo" autoplay playsinline></video>
-            <div class="video-status" id="videoStatus">等待发起呼叫</div>
-            <video id="localVideo" autoplay playsinline muted></video>
-        </div>
-        <div class="video-actions">
-            <button class="btn-primary" type="button" id="startVideo">发起呼叫</button>
-            <button class="btn-secondary" type="button" id="hangupVideo">挂断</button>
-        </div>
-        <p class="video-tip">课设演示：右下角小窗为本地摄像头预览；双方实时通话需另行部署信令服务器与 TURN 中继服务。</p>
-    </div>
-</div>
-
-<script src="{% static 'js/video_call.js' %}"></script>
 <script>
     function applySuggest(action, btn) {
         var form = document.getElementById('reviewForm');

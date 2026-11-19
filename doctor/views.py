@@ -280,7 +280,7 @@ def consult_accept(request, cid):
 
 @doctor_required
 def consult_detail(request, cid):
-    """接诊详情：患者档案、主诉、AI 摘要（含复核操作）、图文消息、处方入口。"""
+    """预问诊页：患者档案 + AI 摘要复核。复核后再进入图文沟通页（分步跳转）。"""
     doctor = _current_doctor(request)
     consult = Consultation.objects.filter(consult_id=cid) \
         .select_related('patient', 'doctor', 'duty').first()
@@ -297,9 +297,6 @@ def consult_detail(request, cid):
     # 高危问诊须患者先确认风险告知，未确认前线上对话不开启（与患者端口径一致）
     consent_blocked = bool(ai and ai.risk_level == '高危'
                            and getattr(ai, 'risk_consent', 0) != 1)
-    draft = Prescription.objects.filter(consultation_id=consult.consult_id,
-                                        doctor_id=doctor.doctor_id,
-                                        status='草稿').first()
 
     context = {
         'consult': {
@@ -327,22 +324,55 @@ def consult_detail(request, cid):
             'consent_text': '已确认风险，坚持线上就诊' if getattr(ai, 'risk_consent', 0) == 1 else '未确认（高危须线下就诊）',
             'time': _fmt_time(ai.created_at),
         } if ai else None,
-        # 注意：上下文键不能叫 messages，否则会覆盖 Django messages 框架的 flash
-        'chats': _message_list(consult.consult_id),
         'ai_suggest': request.session.get('ai_suggest_%d' % consult.consult_id),
-        'draft': {
-            'id': draft.presc_id,
-            'no': 'P%09d' % draft.presc_id,
-            'ai_result': draft.ai_check_result or '未校验',
-            'ai_comment': draft.ai_check_comment or '',
-        } if draft else None,
-        'can_chat': (consult.status == '进行中'
-                     and consult.doctor_id == doctor.doctor_id
-                     and not consent_blocked),
         'consent_blocked': consent_blocked,
         'reviewed': bool(ai and ai.review_result),
     }
     return render(request, 'doctor/consult_detail.html', context)
+
+
+@doctor_required
+def consult_chat_view(request, cid):
+    """图文沟通页：消息对话为主，底部提供开处方与结束问诊入口。"""
+    doctor = _current_doctor(request)
+    consult = Consultation.objects.filter(consult_id=cid) \
+        .select_related('patient', 'doctor', 'duty').first()
+    if not consult:
+        flash.error(request, '问诊记录不存在。')
+        return redirect('doctor:dashboard')
+    if consult.doctor_id and consult.doctor_id != doctor.doctor_id:
+        flash.error(request, '该问诊由其他医生负责，无权查看。')
+        return redirect('doctor:dashboard')
+
+    ai = AiPreAssessment.objects.filter(consultation_id=consult.consult_id).first()
+    consent_blocked = bool(ai and ai.risk_level == '高危'
+                           and getattr(ai, 'risk_consent', 0) != 1)
+    draft = Prescription.objects.filter(consultation_id=consult.consult_id,
+                                        doctor_id=doctor.doctor_id,
+                                        status='草稿').first()
+    can_chat = (consult.status == '进行中'
+                and consult.doctor_id == doctor.doctor_id
+                and not consent_blocked)
+
+    context = {
+        'consult': {
+            'id': consult.consult_id,
+            'status': consult.status,
+            'badge': CONSULT_BADGE.get(consult.status, 'badge-gray'),
+            'time': _fmt_time(consult.start_time),
+            'end_time': _fmt_time(consult.end_time),
+            'record': consult.record_content or '',
+            'final_diagnosis': consult.final_diagnosis or '',
+            'is_mine': consult.doctor_id == doctor.doctor_id,
+        },
+        'patient': _patient_card(consult.patient),
+        'ai': {'risk_level': ai.risk_level} if ai else None,
+        'chats': _message_list(consult.consult_id),
+        'can_chat': can_chat,
+        'consent_blocked': consent_blocked,
+        'draft': {'id': draft.presc_id} if draft else None,
+    }
+    return render(request, 'doctor/consult_chat.html', context)
 
 
 @doctor_required
@@ -433,7 +463,7 @@ def review_ai(request, cid):
 def send_message(request, cid):
     """医生图文回复：文字或图片写入 consultation_message（read_status=0 表示患者未读）。"""
     if request.method != 'POST':
-        return redirect('doctor:consult_detail', cid=cid)
+        return redirect('doctor:consult_chat', cid=cid)
 
     doctor = _current_doctor(request)
     consult = Consultation.objects.filter(consult_id=cid, doctor_id=doctor.doctor_id).first()
@@ -442,12 +472,12 @@ def send_message(request, cid):
         return redirect('doctor:dashboard')
     if consult.status != '进行中':
         flash.error(request, '问诊已「%s」，无法继续发送消息。' % consult.status)
-        return redirect('doctor:consult_detail', cid=cid)
+        return redirect('doctor:consult_chat', cid=cid)
 
     ai = AiPreAssessment.objects.filter(consultation_id=consult.consult_id).first()
     if ai and ai.risk_level == '高危' and getattr(ai, 'risk_consent', 0) != 1:
         flash.error(request, '该问诊为高危，患者尚未确认风险告知，线上对话暂时不开放。')
-        return redirect('doctor:consult_detail', cid=cid)
+        return redirect('doctor:consult_chat', cid=cid)
 
     content = request.POST.get('content', '').strip()
     image = request.FILES.get('image')
@@ -458,7 +488,7 @@ def send_message(request, cid):
         msg_type = 'image'
     elif not content:
         flash.error(request, '请输入回复内容或选择一张图片。')
-        return redirect('doctor:consult_detail', cid=cid)
+        return redirect('doctor:consult_chat', cid=cid)
     if len(content) > 2000:
         content = content[:2000]
 
@@ -470,14 +500,14 @@ def send_message(request, cid):
     write_log(doctor.doctor_id, '医生', '回复消息',
               target_type='consultation', target_id=consult.consult_id)
 
-    return redirect('doctor:consult_detail', cid=cid)
+    return redirect('doctor:consult_chat', cid=cid)
 
 
 @doctor_required
 def end_consult(request, cid):
     """结束问诊：写入最终诊断（可选）并置状态为「已结束」。"""
     if request.method != 'POST':
-        return redirect('doctor:consult_detail', cid=cid)
+        return redirect('doctor:consult_chat', cid=cid)
 
     doctor = _current_doctor(request)
     consult = Consultation.objects.filter(consult_id=cid, doctor_id=doctor.doctor_id).first()
@@ -486,12 +516,12 @@ def end_consult(request, cid):
         return redirect('doctor:dashboard')
     if consult.status != '进行中':
         flash.error(request, '该问诊当前状态为「%s」，无需重复结束。' % consult.status)
-        return redirect('doctor:consult_detail', cid=cid)
+        return redirect('doctor:consult_chat', cid=cid)
 
     diagnosis = request.POST.get('final_diagnosis', '').strip()
     if not diagnosis:
         flash.error(request, '结束问诊前请填写最终诊断，诊断由医生出具、不由 AI 直接写入。')
-        return redirect('doctor:consult_detail', cid=cid)
+        return redirect('doctor:consult_chat', cid=cid)
 
     with transaction.atomic():
         consult.status = '已结束'
@@ -504,7 +534,7 @@ def end_consult(request, cid):
                   target_type='consultation', target_id=consult.consult_id)
 
     flash.success(request, '问诊已结束，最终诊断已记录。')
-    return redirect('doctor:consult_detail', cid=cid)
+    return redirect('doctor:consult_chat', cid=cid)
 
 
 # --------------------------------------------------------------------------

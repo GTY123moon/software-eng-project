@@ -91,3 +91,7 @@
 
 /* 顶部提示条：横跨页面，避免把侧栏挤下去 */
 .flash-bar { max-width: 1180px; margin: 14px auto 0; padding: 0 20px; }
+
+/* 沟通页底部结束问诊表单：与开方按钮区分，留足间距 */
+.end-form { margin-top: 16px; }
+.end-form .form-actions { justify-content: flex-end; }
