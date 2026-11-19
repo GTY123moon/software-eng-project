@@ -16,6 +16,7 @@ class SysUser(models.Model):
     phone = models.CharField(max_length=11, unique=True)
     password = models.CharField(max_length=200)
     role_type = models.SmallIntegerField()
+    status = models.SmallIntegerField(default=1, help_text='帐号状态：0=停用，1=启用')
     last_login = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -56,7 +57,7 @@ class Doctor(models.Model):
     department = models.CharField(max_length=100)
     title = models.CharField(max_length=50, null=True, blank=True)
     skill = models.CharField(max_length=200, null=True, blank=True)
-    doctor_status = models.SmallIntegerField(default=0)
+    work_status = models.SmallIntegerField(default=0)
     gender = models.CharField(max_length=20, null=True, blank=True)
 
     class Meta:
@@ -95,13 +96,12 @@ class Drug(models.Model):
 
 class DutySchedule(models.Model):
     """值班排班表。"""
-    duty_id = models.BigAutoField(primary_key=True)
+    duty_code = models.BigAutoField(primary_key=True)
     doctor = models.ForeignKey(Doctor, db_column='doctor_id', on_delete=models.PROTECT)
-    duty_date = models.DateField()
-    shift_type = models.CharField(max_length=20)
-    start_time = models.TimeField()
-    end_time = models.TimeField()
-    status = models.CharField(max_length=20, default='正常')
+    shift_type = models.CharField(max_length=200)
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField()
+    status = models.CharField(max_length=200, default='正常')
     created_by = models.BigIntegerField()
     updated_at = models.DateTimeField(null=True, blank=True)
 
@@ -116,7 +116,7 @@ class Consultation(models.Model):
     patient = models.ForeignKey(Patient, db_column='patient_id', on_delete=models.PROTECT)
     doctor = models.ForeignKey(Doctor, db_column='doctor_id', null=True, blank=True,
                                 on_delete=models.PROTECT)
-    duty = models.ForeignKey(DutySchedule, db_column='duty_id', null=True, blank=True,
+    duty = models.ForeignKey(DutySchedule, db_column='duty_code', null=True, blank=True,
                              on_delete=models.PROTECT)
     record_content = models.TextField()
     status = models.CharField(max_length=20, default='进行中')
@@ -176,6 +176,7 @@ class ReferralLog(models.Model):
     matched_keyword = models.CharField(max_length=200, null=True, blank=True)
     patient_choice = models.CharField(max_length=20)
     action = models.CharField(max_length=20)
+    operator_id = models.BigIntegerField(null=True, blank=True)
     operator_type = models.CharField(max_length=20, null=True, blank=True)
     created_at = models.DateTimeField()
 

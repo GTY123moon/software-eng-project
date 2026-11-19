@@ -282,7 +282,7 @@ def consult_create_view(request):
         'name': _user_name(d.doctor_id),
         'title': d.title or '医师',
         'department': d.department,
-        'status': {0: '离线', 1: '在线', 2: '忙碌'}.get(d.doctor_status, '离线'),
+        'status': {0: '离线', 1: '在线', 2: '忙碌'}.get(d.work_status, '离线'),
     } for d in doctors_qs]
     return render(request, 'accounts/consult_create.html', {
         'active_consult': active,

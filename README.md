@@ -113,36 +113,27 @@ software-eng-project/
 
 ## 八、本地启动
 
+> 详细操作步骤见 `docs/组员本地运行指南.docx`。每个人在自己本机 MySQL 建独立库，数据库不共享。
+
 1. 安装依赖：
 
 ```
 python -m pip install -r requirements.txt
 ```
 
-2. 配置数据库：在 `medical_platform/settings.py` 的 `DATABASES` 中填写本机 MySQL 库名、账号、密码；数据库尚未就绪时可临时使用 SQLite 跑通页面骨架。
+2. 初始化数据库：在本机 MySQL 按顺序执行 `docs/sql/` 下脚本（`create_tables.sql` → `seed_data.sql` → `seed_business_extra.sql`），创建 `medical_platform` 库与 14 张表并灌入演示数据（管理员 2 / 患者 80 / 医生 55 / 药师 50 / 药品 95，及排班、问诊、处方等业务数据）。`seed_data.sql` 与 `seed_business_extra.sql` 可重复执行（先清空再灌入）。
 
-3. 建库建表（成员4 负责）：在 MySQL 中创建 `medical_platform` 库，并按建表 SQL 创建业务表。
+3. 填写本机私有配置：在 `medical_platform/` 下新建 `local_settings.py`，填写本机 MySQL 密码（该文件已被 `.gitignore` 排除，不提交）。业务表由 SQL 直接创建，无需执行 `makemigrations` / `migrate`。
 
-4. 执行迁移：
-
-```
-python manage.py makemigrations
-python manage.py migrate
-```
-
-5. 创建后台超级用户（可选）：
-
-```
-python manage.py createsuperuser
-```
-
-6. 启动开发服务器：
+4. 启动开发服务器：
 
 ```
 python manage.py runserver
 ```
 
-浏览器访问 `http://127.0.0.1:8000/admin/`（注意带 `:8000` 端口）。
+浏览器访问 `http://127.0.0.1:8000`，根路径自动跳转患者登录页；各端前缀：`/accounts/`、`/doctor/`、`/pharmacist/`、`/adminpanel/`。
+
+演示患者账号：手机号 `13800000002`，密码 `demo123456`。
 
 ---
 
