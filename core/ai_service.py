@@ -64,7 +64,7 @@ def _normalize_level(value) -> str | None:
     return None
 
 
-def _remote_assess(symptom: str, timeout: int = 10) -> dict | None:
+def _remote_assess(symptom: str, timeout: int = 30) -> dict | None:
     """调用方舟豆包大模型；未配置凭据或失败时返回 None。"""
     api_key = os.environ.get('ARK_API_KEY')
     model = os.environ.get('ARK_MODEL')

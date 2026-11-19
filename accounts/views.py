@@ -499,6 +499,10 @@ def consult_assess_view(request, consult_id):
         return redirect('accounts:consult_chat', consult.consult_id)
 
     if request.method == 'POST':
+        # 同一问诊只保留一条 AI 评估，重复提交不再重复插入
+        if AiPreAssessment.objects.filter(consultation_id=consult.consult_id).exists():
+            return redirect('accounts:consult_chat', consult.consult_id)
+
         chief = request.POST.get('chief_complaint', '').strip()
         onset = request.POST.get('onset_time', '').strip()
         symptoms = request.POST.get('symptoms', '').strip()
