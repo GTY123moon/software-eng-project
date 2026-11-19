@@ -716,4 +716,7 @@ INSERT INTO operation_log (operator_id, operator_type, action, target_type, targ
 (31, '患者', '登录', 'sys_user', 31, '2026-11-16 16:24:00'),
 (32, '患者', '登录', 'sys_user', 32, '2026-11-17 17:27:00');
 
+-- 9. 医生接诊状态：进行中问诊对应的医生置忙碌(2)
+UPDATE doctor SET work_status=2 WHERE doctor_id IN (83, 86, 87, 101, 103, 106, 108, 118, 127, 129);
+
 SET FOREIGN_KEY_CHECKS = 1;

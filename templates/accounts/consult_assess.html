@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}AI 预问诊 · 患者工作台{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+
+<div class="dash-layout">
+    <aside class="side">
+        <div class="side-title">患者工作台</div>
+        <a class="side-item" href="{% url 'accounts:dashboard' %}">首页概览</a>
+        <a class="side-item" href="{% url 'accounts:consult_create' %}">发起问诊</a>
+        <a class="side-item" href="{% url 'accounts:prescription_list' %}">我的处方</a>
+        <a class="side-item" href="{% url 'accounts:messages' %}">消息记录</a>
+    </aside>
+
+    <main class="main">
+        <div class="topbar">
+            <div>
+                <h2>AI 预问诊信息采集</h2>
+                <span class="user-info">接诊医生：{{ consult.doctor }} · {{ consult.department }} · {{ consult.time }}</span>
+            </div>
+        </div>
+
+        <div class="card ai-card">
+            <h3>就诊引导</h3>
+            <div class="ai-summary">
+                挂号已成功。请先补充以下病情信息，AI 将据此完成风险分级；分级通过后即可进入与医生的图文/视频对话。
+            </div>
+        </div>
+
+        <form method="post" action="{% url 'accounts:consult_assess' consult.id %}">
+            {% csrf_token %}
+            <div class="card">
+                <h3>病情信息</h3>
+                <div class="form-group">
+                    <label>主诉</label>
+                    <input type="text" name="chief_complaint" placeholder="如：咳嗽、发热两天" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>起病时间</label>
+                        <input type="text" name="onset_time" placeholder="如：两天前、今天早晨">
+                    </div>
+                    <div class="form-group">
+                        <label>伴随症状</label>
+                        <input type="text" name="symptoms" placeholder="如：咳痰、咽痛、乏力">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>既往病史 / 用药 / 过敏史</label>
+                    <textarea class="form-textarea" name="history" rows="3" placeholder="既往疾病、正在服用的药物、药物过敏情况等"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-primary" type="submit">生成风险分级并进入对话</button>
+                </div>
+            </div>
+        </form>
+    </main>
+</div>
+{% endblock %}

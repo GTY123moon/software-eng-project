@@ -12,6 +12,8 @@ urlpatterns = [
     path('dashboard/', views.dashboard_view, name='dashboard_alt'),
     # 发起问诊
     path('consult/create/', views.consult_create_view, name='consult_create'),
+    # AI 引导式预问诊评估
+    path('consult/<int:consult_id>/assess/', views.consult_assess_view, name='consult_assess'),
     # 消息记录
     path('messages/', views.messages_view, name='messages'),
     # 问诊聊天

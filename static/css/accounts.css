@@ -403,6 +403,16 @@
     accent-color: #1976d2;
 }
 
+.doctor-card.disabled {
+    opacity: .55;
+    cursor: not-allowed;
+    background: #fafafa;
+}
+
+.doctor-card.disabled input {
+    accent-color: #999;
+}
+
 .doctor-name {
     font-size: 14px;
     font-weight: 600;

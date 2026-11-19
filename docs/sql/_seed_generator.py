@@ -185,7 +185,8 @@ def gen_users_and_profiles():
         title = TITLES[k % len(TITLES)]
         skill = SKILLS[dept]
         gender = "女" if k % 2 else "男"
-        status = [0, 1, 2][k % 3]
+        # 默认在线(1)，少量离线(0)；忙碌(2)由业务脚本按进行中问诊回填
+        status = 1 if k % 5 else 0
         name = f"{SURNAMES[k % len(SURNAMES)]}医生"
         phone = f"137{did:08d}"
         rows_user.append((did, name, phone, PWD, 2, 1, "2026-11-18 08:30:00" if k % 4 else None))
@@ -532,6 +533,15 @@ def build_business():
     lines.append("INSERT INTO operation_log (operator_id, operator_type, action, target_type, target_id, created_at) VALUES")
     lines.append(",\n".join(log_rows) + ";")
     lines.append("")
+
+    # 9. 医生接诊状态回填：有进行中问诊的医生置忙碌(2)，其余保持在线/离线
+    busy_docs = sorted({c["doc"] for c in consults if c["status"] == "进行中"})
+    if busy_docs:
+        lines.append("-- 9. 医生接诊状态：进行中问诊对应的医生置忙碌(2)")
+        lines.append("UPDATE doctor SET work_status=2 WHERE doctor_id IN ("
+                     + ", ".join(str(d) for d in busy_docs) + ");")
+        lines.append("")
+
     lines.append("SET FOREIGN_KEY_CHECKS = 1;")
     return "\n".join(lines) + "\n"
 

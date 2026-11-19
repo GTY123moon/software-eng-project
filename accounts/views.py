@@ -9,6 +9,7 @@ import uuid
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Count
 from django.shortcuts import render, redirect
 from django.utils import timezone
 
@@ -50,6 +51,46 @@ def _doctor_dept(uid):
     """按医生整数 ID 取所属科室。"""
     d = Doctor.objects.filter(doctor_id=uid).first()
     return d.department if d else ''
+
+
+def _doctor_options(current_dept=''):
+    """组装医生列表：实时按进行中问诊推导忙碌态，附排队人数与可接诊标记。
+
+    可接诊条件：非离线、未被置忙碌、当前没有进行中的问诊（一医一患）。
+    """
+    qs = Doctor.objects.all()
+    if current_dept:
+        qs = qs.filter(department=current_dept)
+    active_map = {
+        r['doctor_id']: r['n']
+        for r in Consultation.objects.filter(status='进行中')
+        .values('doctor_id').annotate(n=Count('doctor_id'))
+    }
+    options = []
+    for d in qs:
+        active = active_map.get(d.doctor_id, 0)
+        offline = d.work_status == 0
+        busy = active > 0 or d.work_status == 2
+        available = not offline and not busy
+        if offline:
+            label, badge = '离线', 'badge-gray'
+        elif active > 0:
+            label, badge = '忙碌', 'badge-orange'
+        elif d.work_status == 2:
+            label, badge = '忙碌', 'badge-orange'
+        else:
+            label, badge = '在线', 'badge-green'
+        options.append({
+            'id': d.doctor_id,
+            'name': _user_name(d.doctor_id),
+            'title': d.title or '医师',
+            'department': d.department,
+            'status': label,
+            'badge': badge,
+            'available': available,
+            'queue': active,
+        })
+    return options
 
 
 def _presc_brief(p):
@@ -224,6 +265,11 @@ def consult_create_view(request):
     active = Consultation.objects.filter(
         patient_id=patient.patient_id, status='进行中').first()
 
+    current_dept = request.GET.get('dept', '').strip()
+    departments = list(
+        Doctor.objects.values_list('department', flat=True).distinct().order_by('department'))
+    doctors = _doctor_options(current_dept)
+
     if request.method == 'POST':
         if active:
             return render(request, 'accounts/consult_create.html', {
@@ -231,11 +277,69 @@ def consult_create_view(request):
                 'active_doctor': _user_name(active.doctor_id),
                 'active_dept': _doctor_dept(active.doctor_id),
                 'active_time': _format_time(active.start_time),
-                'doctors': [], 'departments': [], 'current_dept': '',
+                'doctors': doctors, 'departments': departments, 'current_dept': current_dept,
                 'error': '您已有一条进行中的挂号，请结束当前问诊后再发起新挂号。',
             })
 
         doctor_id = request.POST.get('doctor', '').strip()
+        doc = Doctor.objects.filter(doctor_id=doctor_id).first() if doctor_id else None
+        queue = Consultation.objects.filter(
+            doctor_id=doctor_id, status='进行中').count() if doc else 0
+
+        unavailable = (
+            not doc or doc.work_status == 0 or doc.work_status == 2 or queue > 0)
+        if unavailable:
+            if doc and doc.work_status == 0:
+                error = '该医生当前离线，请选择其他在线医生。'
+            else:
+                error = f'该医生正在接诊，前方还有 {queue} 位患者等待，请选择其他在线医生。'
+            return render(request, 'accounts/consult_create.html', {
+                'active_consult': active,
+                'active_doctor': _user_name(active.doctor_id) if active else '',
+                'active_dept': _doctor_dept(active.doctor_id) if active else '',
+                'active_time': _format_time(active.start_time) if active else '',
+                'doctors': doctors, 'departments': departments, 'current_dept': current_dept,
+                'error': error,
+            })
+
+        # 占号：先建立问诊记录，医生置忙碌；病情采集与风险分级在 AI 评估页完成
+        consult = Consultation.objects.create(
+            patient_id=patient.patient_id, doctor_id=doc.doctor_id,
+            record_content='待 AI 预问诊采集', status='进行中',
+            start_time=timezone.now())
+        Doctor.objects.filter(doctor_id=doc.doctor_id).update(work_status=2)
+
+        write_log(patient.patient_id, '患者', '发起挂号',
+                  target_type='consultation', target_id=consult.consult_id)
+        return redirect('accounts:consult_assess', consult.consult_id)
+
+    return render(request, 'accounts/consult_create.html', {
+        'active_consult': active,
+        'active_doctor': _user_name(active.doctor_id) if active else '',
+        'active_dept': _doctor_dept(active.doctor_id) if active else '',
+        'active_time': _format_time(active.start_time) if active else '',
+        'doctors': doctors,
+        'departments': departments,
+        'current_dept': current_dept,
+    })
+
+
+def consult_assess_view(request, consult_id):
+    """AI 引导式预问诊：采集病情 → 风险分级 → 通过后再进入医生对话。"""
+    patient = _current_patient(request)
+    if not patient:
+        return redirect('accounts:login')
+
+    consult = Consultation.objects.filter(
+        consult_id=consult_id, patient_id=patient.patient_id).first()
+    if not consult:
+        return redirect('accounts:messages')
+
+    # 已完成评估的问诊直接进入对话
+    if AiPreAssessment.objects.filter(consultation_id=consult.consult_id).exists():
+        return redirect('accounts:consult_chat', consult.consult_id)
+
+    if request.method == 'POST':
         chief = request.POST.get('chief_complaint', '').strip()
         onset = request.POST.get('onset_time', '').strip()
         symptoms = request.POST.get('symptoms', '').strip()
@@ -250,10 +354,8 @@ def consult_create_view(request):
             record_parts.append(f'病史/用药过敏：{history}')
         record = '\n'.join(record_parts)
 
-        consult = Consultation.objects.create(
-            patient_id=patient.patient_id, doctor_id=doctor_id or None,
-            record_content=record, status='进行中',
-            start_time=timezone.now())
+        consult.record_content = record
+        consult.save(update_fields=['record_content'])
 
         ConsultationMessage.objects.create(
             consultation_id=consult.consult_id, sender_role='患者',
@@ -266,32 +368,17 @@ def consult_create_view(request):
             ai_summary=ai['ai_summary'], matched_keyword=ai['matched_keyword'],
             created_at=timezone.now())
 
-        write_log(patient.patient_id, '患者', '发起问诊',
+        write_log(patient.patient_id, '患者', 'AI预问诊评估',
                   target_type='consultation', target_id=consult.consult_id)
         return redirect('accounts:consult_chat', consult.consult_id)
 
-    # 先选科室，再按科室筛选医生
-    current_dept = request.GET.get('dept', '').strip()
-    departments = list(
-        Doctor.objects.values_list('department', flat=True).distinct().order_by('department'))
-    doctors_qs = Doctor.objects.all()
-    if current_dept:
-        doctors_qs = doctors_qs.filter(department=current_dept)
-    doctor_list = [{
-        'id': d.doctor_id,
-        'name': _user_name(d.doctor_id),
-        'title': d.title or '医师',
-        'department': d.department,
-        'status': {0: '离线', 1: '在线', 2: '忙碌'}.get(d.work_status, '离线'),
-    } for d in doctors_qs]
-    return render(request, 'accounts/consult_create.html', {
-        'active_consult': active,
-        'active_doctor': _user_name(active.doctor_id) if active else '',
-        'active_dept': _doctor_dept(active.doctor_id) if active else '',
-        'active_time': _format_time(active.start_time) if active else '',
-        'doctors': doctor_list,
-        'departments': departments,
-        'current_dept': current_dept,
+    return render(request, 'accounts/consult_assess.html', {
+        'consult': {
+            'id': consult.consult_id,
+            'doctor': _user_name(consult.doctor_id),
+            'department': _doctor_dept(consult.doctor_id),
+            'time': _format_time(consult.start_time),
+        },
     })
 
 
@@ -380,6 +467,11 @@ def consult_chat_view(request, consult_id):
     if not consult:
         return redirect('accounts:messages')
 
+    # 未完成 AI 预问诊评估的问诊，先回到评估页，不允许直接进入对话
+    if not AiPreAssessment.objects.filter(
+            consultation_id=consult.consult_id).exists():
+        return redirect('accounts:consult_assess', consult.consult_id)
+
     can_chat = consult.status == '进行中'
 
     if request.method == 'POST' and can_chat:
@@ -389,6 +481,13 @@ def consult_chat_view(request, consult_id):
             consult.status = '已结束'
             consult.end_time = timezone.now()
             consult.save()
+            # 释放医生接诊状态：该医生无其他进行中问诊时恢复在线
+            if consult.doctor_id:
+                other_active = Consultation.objects.filter(
+                    doctor_id=consult.doctor_id, status='进行中'
+                ).exclude(consult_id=consult.consult_id).count()
+                if other_active == 0:
+                    Doctor.objects.filter(doctor_id=consult.doctor_id).update(work_status=1)
             write_log(patient.patient_id, '患者', '结束问诊',
                       target_type='consultation', target_id=consult.consult_id)
             return redirect('accounts:consult_chat', consult.consult_id)
