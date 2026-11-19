@@ -1,40 +1,99 @@
-/* 公共基础样式：各角色页面在此基础上扩展 */
-body {
-    margin: 0;
-    font-family: "Microsoft YaHei", Arial, sans-serif;
-    background-color: #f5f7fa;
-    color: #333;
+/* 公共基础样式：各角色页面在此基础上扩展
+ * 视觉基调：Tabler 清爽后台风（浅色背景 + 白色圆角卡片 + 医疗蓝主色），
+ * 聊天/会话面板参考 AdminLTE 观感。仅用原生 CSS，不依赖前端框架与 CDN。
+ */
+
+/* ===== 设计令牌（统一配色 / 圆角 / 阴影，改主题只动这里） ===== */
+:root {
+    --primary: #206bc4;          /* 主蓝 */
+    --primary-dark: #1a5fa8;
+    --primary-light: #e7f1fb;
+    --bg: #f6f7fb;               /* 页面浅灰背景 */
+    --card: #ffffff;             /* 卡片底色 */
+    --border: #e6e9ef;           /* 卡片/输入框边线 */
+    --text: #1f2937;             /* 主文字 */
+    --text-2: #4a5568;           /* 次文字 */
+    --text-muted: #8a93a6;        /* 辅助文字 */
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+    --shadow-hover: 0 8px 20px rgba(32, 107, 196, 0.12);
+    --green: #2fb368;
+    --green-light: #e6f6ee;
+    --orange: #f59f00;
+    --orange-light: #fff4e0;
+    --red: #e5484d;
+    --red-light: #fdecec;
+    --sidebar-bg: #ffffff;
 }
 
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", Arial, sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+}
+
+/* ===== 顶部导航 ===== */
 .top-nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 24px;
-    background-color: #1f6fb2;
-    color: #fff;
+    padding: 14px 28px;
+    background-color: var(--card);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    position: sticky;
+    top: 0;
+    z-index: 50;
 }
 
 .brand {
-    font-size: 18px;
-    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+/* 品牌前的医疗蓝标识方块（纯 CSS，无需图标库） */
+.brand::before {
+    content: "";
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: var(--primary);
+    box-shadow: inset 0 0 0 6px rgba(255, 255, 255, 0.18);
 }
 
 .nav-links a {
-    color: #fff;
-    margin-left: 16px;
+    color: var(--text-2);
+    margin-left: 18px;
     text-decoration: none;
+    font-size: 14px;
 }
 
+.nav-links a:hover {
+    color: var(--primary);
+}
+
+/* ===== 内容容器 ===== */
 .content {
-    max-width: 1080px;
+    max-width: 1200px;
     margin: 24px auto;
-    padding: 0 16px;
+    padding: 0 20px;
 }
 
+/* ===== 页脚 ===== */
 .footer {
     text-align: center;
-    padding: 16px;
-    color: #888;
+    padding: 18px 16px;
+    color: var(--text-muted);
     font-size: 12px;
 }
