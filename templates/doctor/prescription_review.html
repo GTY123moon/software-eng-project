@@ -1,0 +1,101 @@
+{% extends 'doctor/base.html' %}
+{% load static %}
+
+{% block title %}预审结果 · 医生工作台{% endblock %}
+
+{% block main %}
+<div class="topbar">
+    <div>
+        <h2>处方 AI 预审结果 {{ presc.no }}</h2>
+        <span class="user-info">
+            {{ doctor.department }} · {{ doctor.name }}　患者：{{ patient.name }}（{{ patient.gender }} · {{ patient.age }} 岁）
+        </span>
+    </div>
+    <div class="head-actions">
+        <span class="badge {{ presc.badge }}">{{ presc.status }}</span>
+        <a class="btn-secondary" href="{% url 'doctor:dashboard' %}">返回接诊台</a>
+    </div>
+</div>
+
+<div class="card">
+    <h3>病情摘要</h3>
+    <div class="info-row"><span>患者过敏史</span><strong>{{ patient.allergy }}</strong></div>
+    {% if consult.record %}
+    <div class="info-row"><span>主诉与病史</span><strong class="pre-wrap">{{ consult.record }}</strong></div>
+    {% endif %}
+    <div class="info-row"><span>最终诊断</span><strong>{{ consult.diagnosis|default:'待填写' }}</strong></div>
+</div>
+
+<div class="card">
+    <h3>药品明细</h3>
+    <table class="presc-table">
+        <thead>
+        <tr>
+            <th>药品名称</th>
+            <th>规格</th>
+            <th>数量</th>
+            <th>用法用量</th>
+            <th>单价(元)</th>
+            <th>小计(元)</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for item in items %}
+        <tr>
+            <td>{{ item.drug_name }}</td>
+            <td>{{ item.spec }}</td>
+            <td>{{ item.qty }}</td>
+            <td>{{ item.dosage }}</td>
+            <td>{{ item.unit_price|floatformat:2 }}</td>
+            <td>{{ item.subtotal|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+        <tr>
+            <td colspan="5" class="align-right">合计金额</td>
+            <td>{{ total|floatformat:2 }}</td>
+        </tr>
+        </tfoot>
+    </table>
+</div>
+
+<div class="card ai-card">
+    <h3>处方 AI 校验结果</h3>
+    <div class="info-row"><span>校验结论</span><strong>{{ presc.ai_result }}</strong></div>
+    <div class="info-row"><span>校验说明</span><strong>{{ presc.ai_comment }}</strong></div>
+    {% if presc.ai_result == '通过' %}
+    <p class="ai-time">AI 预审未发现明显禁忌，确认无误后可提交药师审核。</p>
+    {% elif presc.ai_result == '风险提示' %}
+    <p class="ai-time">AI 预审提示存在风险，请结合临床复核；如确认处方无误，可在知悉风险后强制提交，最终由药师审核把关。</p>
+    {% elif presc.ai_result == '超时降级' %}
+    <p class="ai-time">远程 AI 暂不可用，本次为本地规则初筛结果，可提交药师审核。</p>
+    {% endif %}
+</div>
+
+{% if presc.editable %}
+<div class="card">
+    <div class="form-actions">
+        <a class="btn-secondary" href="{% url 'doctor:prescription_edit' presc.id %}">返回修改处方</a>
+        {% if can_submit %}
+        <form method="post" action="{% url 'doctor:prescription_submit' presc.id %}"
+              onsubmit="return confirm('确认提交该处方给药师审核？提交后不可再修改。');">
+            {% csrf_token %}
+            <button class="btn-primary" type="submit">提交药师审核</button>
+        </form>
+        {% endif %}
+        {% if is_risk %}
+        <form method="post" action="{% url 'doctor:prescription_submit' presc.id %}"
+              onsubmit="return confirm('该处方存在 AI 提示风险，确认仍要提交药师审核吗？提交后不可再修改。');">
+            {% csrf_token %}
+            <button class="btn-secondary" type="submit">已知悉风险，仍提交药师审核</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <p class="ai-time">该处方已提交，不可再修改，可在处方列表查看流转状态。</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -113,20 +113,6 @@
     </div>
 </form>
 
-{% if presc and presc.editable %}
-<form method="post" action="{% url 'doctor:prescription_submit' presc.id %}"
-      onsubmit="return confirm('确认提交该处方给药师审核？提交后不可再修改。');">
-    {% csrf_token %}
-    <div class="card">
-        <h3>提交审核</h3>
-        <p>草稿保存无误后提交药师审核，状态变为「待审核」，药师端即可承接审核。</p>
-        <div class="form-actions">
-            <button class="btn-primary" type="submit">提交药师审核</button>
-        </div>
-    </div>
-</form>
-{% endif %}
-
 <!-- 行模板：新增行时复制使用 -->
 <template id="rowTemplate">
     <tr class="item-row">
