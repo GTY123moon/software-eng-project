@@ -24,10 +24,11 @@ urlpatterns = [
     path('consult/<int:cid>/message/', views.send_message, name='send_message'),
     path('consult/<int:cid>/advice/', views.consult_advice, name='consult_advice'),
 
-    # 处方：按问诊新建草稿 / 编辑草稿 / 列表 / 提交审核
+    # 处方：按问诊新建草稿 / 编辑草稿 / AI 预审结果页 / 列表 / 提交审核
     path('consult/<int:cid>/prescription/', views.prescription_new, name='prescription_new'),
     path('prescriptions/', views.prescription_list, name='prescription_list'),
     path('prescriptions/<int:presc_id>/edit/', views.prescription_edit, name='prescription_edit'),
+    path('prescriptions/<int:presc_id>/review/', views.prescription_review, name='prescription_review'),
     path('prescriptions/<int:presc_id>/submit/', views.prescription_submit, name='prescription_submit'),
 
     # 个人中心

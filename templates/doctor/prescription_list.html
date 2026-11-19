@@ -46,11 +46,7 @@
                 {% if p.editable %}编辑草稿{% else %}查看处方{% endif %}
             </a>
             {% if p.editable %}
-            <form method="post" action="{% url 'doctor:prescription_submit' p.id %}" class="form-inline"
-                  onsubmit="return confirm('确认提交该处方给药师审核？提交后不可再修改。');">
-                {% csrf_token %}
-                <button class="link-btn" type="submit">提交审核</button>
-            </form>
+            <a class="link-btn" href="{% url 'doctor:prescription_review' p.id %}">预审结果与提交</a>
             {% endif %}
         </span>
     </div>

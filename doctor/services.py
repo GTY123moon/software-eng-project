@@ -28,14 +28,14 @@ MAX_QTY_PER_ITEM = 30
 def parse_rows(post):
     """从 POST 的并行数组还原处方明细草稿。
 
-    返回 (rows, errors)：rows 为 [{drug_id, qty, dosage, is_decoction, decoction_num}]，
+    返回 (rows, errors)：rows 为 [{drug_id, qty, dosage}]，
     errors 为面向医生的中文提示列表。
+    代煎与取药方式不在医生开方环节填写：代煎由患者取药时选择、取药方式
+    由患者在处方审核通过后选择。
     """
     drug_ids = post.getlist('drug_id')
     qtys = post.getlist('qty')
     dosages = post.getlist('dosage')
-    decoctions = post.getlist('is_decoction')
-    decoction_nums = post.getlist('decoction_num')
 
     rows, errors = [], []
     seen = set()
@@ -62,15 +62,10 @@ def parse_rows(post):
             errors.append('第 %d 行请填写用法用量。' % (idx + 1))
             continue
 
-        decoction = (decoctions[idx] if idx < len(decoctions) else '0').strip() or '0'
-        decoction_num = (decoction_nums[idx] if idx < len(decoction_nums) else '').strip()
-
         rows.append({
             'drug_id': drug_id,
             'qty': int(raw_qty),
             'dosage': dosage,
-            'is_decoction': 1 if decoction == '1' else 0,
-            'decoction_num': int(decoction_num) if decoction_num.isdigit() else None,
         })
     return rows, errors
 
@@ -96,8 +91,6 @@ def build_items(rows):
             'dosage': row['dosage'],
             'unit_price': unit_price,
             'subtotal': (unit_price * row['qty']).quantize(Decimal('0.01')),
-            'is_decoction': row['is_decoction'],
-            'decoction_num': row['decoction_num'],
         })
     return items, errors
 

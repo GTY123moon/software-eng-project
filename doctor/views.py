@@ -705,14 +705,12 @@ def _prescription_form(request, cid=None, presc_id=None):
                     dosage=item['dosage'],
                     unit_price=item['unit_price'],
                     subtotal=item['subtotal'],
-                    is_decoction=item['is_decoction'],
-                    decoction_num=item['decoction_num'],
                 )
             write_log(doctor.doctor_id, '医生', '保存处方草稿',
                       target_type='prescription', target_id=presc.presc_id)
 
         flash.success(request, '处方草稿已保存（AI 校验：%s）。' % ai_result)
-        return redirect('doctor:prescription_edit', presc_id=presc.presc_id)
+        return redirect('doctor:prescription_review', presc_id=presc.presc_id)
 
     existing = []
     if presc:
@@ -727,8 +725,6 @@ def _render_form(request, doctor, consult, presc, patient, drugs_json, rows=None
             'drug_id': i.drug_id,
             'qty': i.qty,
             'dosage': i.dosage,
-            'is_decoction': i.is_decoction,
-            'decoction_num': i.decoction_num or '',
             'drug_name': i.drug_name,
             'unit_price': float(i.unit_price),
             'subtotal': float(i.subtotal),
@@ -801,6 +797,62 @@ def prescription_list(request):
         'status_tabs': ['', '草稿', '待审核', '已通过', '已驳回', '待配药', '已完成'],
     }
     return render(request, 'doctor/prescription_list.html', context)
+
+
+@doctor_required
+def prescription_review(request, presc_id):
+    """AI 合理性预审结果页：展示处方明细与预审结论，按结论放行提交药师审核。
+
+    - 通过 / 超时降级：可常规提交药师审核；
+    - 风险提示：不提供常规提交，仅保留“知悉风险仍提交”的强制入口，由药师最终把关；
+    - 草稿可返回修改；已提交处方只读展示。
+    """
+    doctor = _current_doctor(request)
+    presc = Prescription.objects.filter(
+        presc_id=presc_id, doctor_id=doctor.doctor_id
+    ).select_related('patient', 'consultation').first()
+    if not presc:
+        flash.error(request, '处方不存在或不属于当前医生。')
+        return redirect('doctor:prescription_list')
+
+    items = list(PrescriptionItem.objects.filter(
+        prescription_id=presc.presc_id).select_related('drug'))
+    total = round(sum(float(i.subtotal) for i in items), 2)
+    ai_result = presc.ai_check_result or '未校验'
+    can_submit = ai_result in ('通过', '超时降级')
+    is_risk = ai_result == '风险提示'
+
+    consult = presc.consultation
+    context = {
+        'doctor': {'name': _user_name(doctor.doctor_id), 'department': doctor.department},
+        'presc': {
+            'id': presc.presc_id,
+            'no': 'P%09d' % presc.presc_id,
+            'status': presc.status,
+            'badge': PRESC_BADGE.get(presc.status, 'badge-gray'),
+            'ai_result': ai_result,
+            'ai_comment': presc.ai_check_comment or '—',
+            'time': _fmt_time(presc.created_at),
+            'editable': presc.status == '草稿',
+        },
+        'patient': _patient_card(presc.patient),
+        'consult': {
+            'diagnosis': consult.final_diagnosis if consult else '',
+            'record': consult.record_content if consult else '',
+        },
+        'items': [{
+            'drug_name': i.drug_name,
+            'spec': i.drug.specification if i.drug_id else '',
+            'qty': i.qty,
+            'dosage': i.dosage,
+            'unit_price': float(i.unit_price),
+            'subtotal': float(i.subtotal),
+        } for i in items],
+        'total': total,
+        'can_submit': can_submit,
+        'is_risk': is_risk,
+    }
+    return render(request, 'doctor/prescription_review.html', context)
 
 
 @doctor_required

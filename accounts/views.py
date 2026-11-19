@@ -8,6 +8,7 @@ import os
 import uuid
 
 from django.conf import settings
+from django.contrib import messages
 from django.db import transaction
 from django.db.models import Count
 from django.shortcuts import render, redirect
@@ -132,12 +133,16 @@ def _presc_detail(p):
     """把处方 ORM 对象适配成详情模板期望的字典（含药品明细）。"""
     items = PrescriptionItem.objects.filter(prescription_id=p.presc_id).select_related('drug')
     detail_items = [{
+        'drug_id': i.drug_id,
         'drug': i.drug_name,
         'spec': i.drug.specification if i.drug_id else '',
         'qty': i.qty,
         'dosage': i.dosage,
         'price': i.unit_price,
         'subtotal': i.subtotal,
+        'is_decoction': i.is_decoction,
+        'decoction_num': i.decoction_num or '',
+        'decoction_text': ('代煎 %s 剂' % i.decoction_num) if i.is_decoction else '自行煎煮',
     } for i in items]
     diagnosis = p.consultation.final_diagnosis if p.consultation_id else None
     return {
@@ -148,6 +153,9 @@ def _presc_detail(p):
         'status': p.status,
         'diagnosis': diagnosis or '待医生填写诊断',
         'pickup': PICKUP_METHOD.get(p.pickup_method, '未选择'),
+        'pickup_method': p.pickup_method,
+        # 药师审核通过、尚未取药时，患者可选择取药方式与代煎；已完成则锁定
+        'can_choose': p.status == '已通过' and p.pickup_status == 0,
         'audit': p.audit_conclusion or '等待药师审核',
         'time': _format_time(p.created_at),
         'items': detail_items,
@@ -654,6 +662,61 @@ def prescription_detail_view(request, presc_id):
     total = sum(float(i['subtotal']) for i in prescription['items'])
     return render(request, 'accounts/prescription_detail.html',
                   {'prescription': prescription, 'total': round(total, 2)})
+
+
+def prescription_pickup_view(request, presc_id):
+    """患者在处方审核通过后选择取药方式，并登记各明细是否代煎。
+
+    - 取药方式（院药房取药 / 社会药店购药）写入 prescription.pickup_method；
+    - 代煎（是否代煎、剂数）按药品明细写回 prescription_item；
+    - 仅「已通过」且未取药的处方可提交，已完成 / 其他状态锁定。
+    """
+    patient = _current_patient(request)
+    if not patient:
+        return redirect('accounts:login')
+
+    p = Prescription.objects.filter(presc_id=presc_id, patient_id=patient.patient_id).first()
+    if not p:
+        messages.error(request, '未找到该处方信息。')
+        return redirect('accounts:prescription_list')
+
+    if request.method != 'POST':
+        return redirect('accounts:prescription_detail', presc_id=presc_id)
+
+    if not (p.status == '已通过' and p.pickup_status == 0):
+        messages.error(request, '当前处方状态为「%s」，不能选择取药方式。' % p.status)
+        return redirect('accounts:prescription_detail', presc_id=presc_id)
+
+    pickup_method = request.POST.get('pickup_method')
+    if pickup_method not in ('0', '1'):
+        messages.error(request, '请选择取药方式（院药房取药 / 社会药店购药）。')
+        return redirect('accounts:prescription_detail', presc_id=presc_id)
+
+    p.pickup_method = int(pickup_method)
+    p.updated_at = timezone.now()
+    p.save(update_fields=['pickup_method', 'updated_at'])
+
+    # 逐行回写代煎：按药品明细匹配，数组按提交顺序对齐。
+    # 注意：明细表在 ORM 里主键映射到处方外键，对象 save 会按处方 id 命中多行，
+    # 因此这里用 filter().update() 按 (presc_id, drug_id) 精确定位单行更新。
+    drug_ids = request.POST.getlist('item_drug_id')
+    decoctions = request.POST.getlist('item_decoction')
+    decoction_nums = request.POST.getlist('item_decoction_num')
+    for idx, raw in enumerate(drug_ids):
+        if not raw.isdigit():
+            continue
+        drug_id = int(raw)
+        is_dec = 1 if idx < len(decoctions) and decoctions[idx] == '1' else 0
+        num_raw = (decoction_nums[idx] if idx < len(decoction_nums) else '').strip()
+        decoction_num = int(num_raw) if is_dec == 1 and num_raw.isdigit() else None
+        PrescriptionItem.objects.filter(
+            prescription_id=p.presc_id, drug_id=drug_id
+        ).update(is_decoction=is_dec, decoction_num=decoction_num)
+
+    write_log(patient.patient_id, '患者', '选择取药方式与代煎',
+              target_type='prescription', target_id=p.presc_id)
+    messages.success(request, '取药方式与代煎选择已提交，药房将按此配药。')
+    return redirect('accounts:prescription_detail', presc_id=presc_id)
 
 
 # ---------------------------------------------------------------------------
