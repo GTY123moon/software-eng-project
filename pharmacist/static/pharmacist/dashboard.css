@@ -1,0 +1,93 @@
+/* 复用公共工作台布局，样式仅作用于药师端。 */
+.pharmacist-dashboard .stat-label {
+    margin: 4px 0 0;
+    color: var(--text-2);
+    font-weight: 600;
+}
+
+.pharmacist-dashboard .pharmacist-hint {
+    margin: 8px 0 0;
+    color: var(--text-2);
+    font-size: 13px;
+}
+
+.pharmacist-dashboard .pharmacist-pending {
+    color: #956000;
+}
+
+.pharmacist-dashboard .pharmacist-processed {
+    color: #237d49;
+}
+
+.pharmacist-dashboard .pharmacist-notice {
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    border: 1px solid #f6c6c7;
+    border-radius: var(--radius-sm);
+    background: var(--red-light);
+    color: #a3262a;
+    font-size: 14px;
+}
+
+.pharmacist-dashboard .pharmacist-table-wrap {
+    overflow-x: auto;
+    margin-top: 16px;
+}
+
+.pharmacist-dashboard .pharmacist-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.pharmacist-dashboard .pharmacist-table caption {
+    text-align: left;
+    color: var(--text-2);
+    font-size: 13px;
+    padding-bottom: 8px;
+}
+
+.pharmacist-dashboard .pharmacist-table th,
+.pharmacist-dashboard .pharmacist-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+}
+
+.pharmacist-dashboard .pharmacist-table th {
+    background: var(--bg);
+    font-weight: 600;
+}
+
+.pharmacist-dashboard .pharmacist-empty {
+    margin-top: 16px;
+    padding: 28px 16px;
+    text-align: center;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.pharmacist-dashboard .pharmacist-empty > p:first-child {
+    margin: 0;
+    font-weight: 600;
+}
+
+.pharmacist-dashboard a:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+}
+
+.pharmacist-dashboard [id] {
+    scroll-margin-top: 90px;
+}
+
+@media (max-width: 768px) {
+    .pharmacist-dashboard .main {
+        width: 100%;
+    }
+
+    .pharmacist-dashboard .topbar {
+        flex-wrap: wrap;
+    }
+}
