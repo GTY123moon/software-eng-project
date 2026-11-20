@@ -1,0 +1,17 @@
+<div class="pharmacist-table-wrap" tabindex="0" role="region" aria-label="处方表格，可横向滚动">
+    <table class="pharmacist-table">
+        <caption class="pharmacist-visually-hidden">{{ page_title }}处方记录</caption>
+        <thead><tr><th scope="col">处方号</th><th scope="col">状态</th><th scope="col">任务归属</th><th scope="col">开方时间</th><th scope="col">操作</th></tr></thead>
+        <tbody>
+        {% for prescription in rows %}
+        <tr>
+            <td><a class="pharmacist-id" href="{% url 'pharmacist:prescription_detail' prescription.presc_id %}{% if prescription.detail_query %}?{{ prescription.detail_query }}{% endif %}">#{{ prescription.presc_id }}</a></td>
+            <td><span class="badge {{ prescription.badge }}">{{ prescription.status }}</span></td>
+            <td>{{ prescription.assignment }}</td>
+            <td class="pharmacist-date">{{ prescription.created_at|date:"Y-m-d H:i"|default:"—" }}</td>
+            <td><a class="link-btn" href="{% url 'pharmacist:prescription_detail' prescription.presc_id %}{% if prescription.detail_query %}?{{ prescription.detail_query }}{% endif %}" aria-label="查看处方 {{ prescription.presc_id }} 详情">查看详情</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>

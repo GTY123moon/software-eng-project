@@ -3,13 +3,17 @@
 不连接 MySQL，不创建表、测试库或持久化演示数据。
 """
 from datetime import datetime, timedelta
+from decimal import Decimal
 import sqlite3
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.db import OperationalError
 from django.db.models.sql.constants import MULTI, SINGLE
+from django.core.paginator import Paginator
+from django.http import Http404
 from django.test import RequestFactory, SimpleTestCase
+from django.urls import resolve, reverse
 
 from . import views
 
@@ -127,17 +131,137 @@ class DashboardTests(SimpleTestCase):
                     self.assertEqual(views.dashboard(self.request(method=method)).status_code, 405)
             staff.assert_not_called()
 
-    def test_navigation_points_to_existing_routes_or_sections(self):
+    def test_navigation_points_to_independent_pages(self):
         response = self.render_dashboard()
-        for target in ('/pharmacist/', '/accounts/logout/', '#recent-prescriptions', '#workbench-notes'):
+        for target in ('/pharmacist/', '/accounts/logout/',
+                       '/pharmacist/prescriptions/',
+                       '/pharmacist/prescriptions/pending-review/',
+                       '/pharmacist/prescriptions/pending-dispense/',
+                       '/pharmacist/prescriptions/processed/'):
             self.assertContains(response, 'href="%s"' % target)
-        self.assertContains(response, 'id="recent-prescriptions"')
-        self.assertContains(response, 'id="workbench-notes"')
+        self.assertNotContains(response, 'href="#')
+
+    def test_home_preview_is_short_and_links_to_real_detail(self):
+        rows = [{'presc_id': i, 'status': '待审核', 'badge': 'badge-orange',
+                 'assignment': '待分配', 'created_at': datetime(2026, 11, 19)}
+                for i in range(10)]
+        response = self.render_dashboard(recent=rows)
+        self.assertContains(response, 'aria-label="查看处方', count=5)
+        self.assertContains(response, '/pharmacist/prescriptions/0/')
+
+    def test_all_routes_resolve_and_reject_writes_before_authentication(self):
+        targets = [('dashboard', {}), ('prescription_list', {}),
+                   ('pending_review', {}), ('pending_dispense', {}),
+                   ('processed', {}), ('prescription_detail', {'presc_id': 42})]
+        with patch.object(views, '_current_pharmacist') as auth:
+            for name, kwargs in targets:
+                match = resolve(reverse('pharmacist:' + name, kwargs=kwargs))
+                for method in ('post', 'put', 'patch', 'delete'):
+                    self.assertEqual(match.func(self.request(method=method), **match.kwargs).status_code, 405)
+            auth.assert_not_called()
+
+    def test_new_pages_require_pharmacist_identity(self):
+        for name, kwargs in [('prescription_list', {}), ('pending_review', {}),
+                             ('pending_dispense', {}), ('processed', {}),
+                             ('prescription_detail', {'presc_id': 42})]:
+            match = resolve(reverse('pharmacist:' + name, kwargs=kwargs))
+            for session in ({}, {'staff_id': 138, 'role_type': 1},
+                            {'staff_id': '138', 'role_type': 3}):
+                response = match.func(self.request(session), **match.kwargs)
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.url, '/accounts/staff/pharmacist/')
+
+    def list_response(self, params=None, rows=None, error=None, section='all'):
+        request = self.factory.get('/pharmacist/prescriptions/', params or {})
+        with patch.object(views, '_current_pharmacist', return_value=(self.user, self.pharmacist)):
+            with patch.object(views, '_list_data', return_value=Paginator(rows or [], 20).get_page(1),
+                              side_effect=error):
+                return views.prescription_list(request, section=section)
+
+    def test_list_preserves_filters_sort_and_detail_return_state(self):
+        row = {'presc_id': 42, 'status': '已通过', 'badge': 'badge-green',
+               'assignment': '本人', 'created_at': datetime(2026, 11, 19)}
+        response = self.list_response({'status': '已通过', 'sort': 'oldest'}, [row], section='processed')
+        self.assertContains(response, '<option value="已通过" selected>已通过</option>', html=True)
+        self.assertContains(response, '<option value="oldest" selected>旧到新</option>', html=True)
+        self.assertContains(response, 'from=processed&amp;status=')
+        self.assertContains(response, 'sort=oldest&amp;page=1')
+        self.assertContains(response, 'method="get"')
+        self.assertNotContains(response, 'method="post"')
+        self.assertContains(response, '恢复默认')
+
+    def test_list_empty_and_query_failure_are_distinct(self):
+        response = self.list_response({'status': '已驳回'})
+        self.assertContains(response, '当前筛选下暂无处方')
+        response = self.list_response(error=OperationalError('secret database details'))
+        self.assertContains(response, '处方列表暂不可用', status_code=503)
+        self.assertNotContains(response, '当前筛选下暂无处方', status_code=503)
+        self.assertNotContains(response, '共 <strong>0</strong>', status_code=503)
+        self.assertNotContains(response, 'secret database details', status_code=503)
+
+    def test_pagination_links_keep_state_and_page_out_of_range_recovers(self):
+        rows = [{'presc_id': i, 'status': '已通过', 'badge': 'badge-green',
+                 'assignment': '本人', 'created_at': datetime(2026, 11, 19)} for i in range(45)]
+        request = self.factory.get('/pharmacist/prescriptions/', {'status': '已通过', 'sort': 'oldest'})
+        with patch.object(views, '_current_pharmacist', return_value=(self.user, self.pharmacist)):
+            with patch.object(views, '_list_data', return_value=Paginator(rows, 20).get_page(2)):
+                response = views.prescription_list(request)
+        self.assertContains(response, 'sort=oldest&amp;page=1')
+        self.assertContains(response, 'sort=oldest&amp;page=3')
+        self.assertContains(response, '显示 21–40 条')
+
+    def test_detail_handles_missing_and_failure_without_leaking_content(self):
+        request = self.factory.get('/pharmacist/prescriptions/42/',
+                                   {'from': '//outside.example', 'sort': 'oldest'})
+        with patch.object(views, '_current_pharmacist', return_value=(self.user, self.pharmacist)):
+            with patch.object(views, '_detail_data', side_effect=Http404):
+                response = views.prescription_detail(request, 42)
+                self.assertContains(response, '未找到可查看的处方', status_code=404)
+                self.assertContains(response, 'href="/pharmacist/prescriptions/?sort=oldest&amp;page=1"', status_code=404)
+                self.assertNotContains(response, 'outside.example', status_code=404)
+            with patch.object(views, '_detail_data', side_effect=OperationalError('secret')):
+                response = views.prescription_detail(request, 42)
+                self.assertContains(response, '处方详情暂不可用', status_code=503)
+                self.assertNotContains(response, 'secret', status_code=503)
+
+    def test_detail_uses_visibility_query_before_reading_items(self):
+        with patch.object(views, '_visible_prescriptions') as visible:
+            visible.return_value.select_related.return_value.filter.return_value.first.return_value = None
+            with patch.object(views.PrescriptionItem.objects, 'filter') as items:
+                with self.assertRaises(Http404):
+                    views._detail_data(138, 42)
+                visible.assert_called_once_with(138)
+                visible.return_value.select_related.return_value.filter.assert_called_once_with(presc_id=42)
+                items.assert_not_called()
+
+    def test_readonly_detail_renders_items_and_escapes_user_content(self):
+        consultation = SimpleNamespace(final_diagnosis='<script>private</script>',
+            doctor_review_status='已采纳', doctor_review_opinion='已核对')
+        prescription = SimpleNamespace(presc_id=42, status='待审核', consultation_id=7,
+            created_at=datetime(2026, 11, 19), consultation=consultation,
+            patient=SimpleNamespace(gender='女', age=30, allergy='未填写', medical_history='无'),
+            doctor=SimpleNamespace(department='内科'), ai_check_result='通过',
+            ai_check_comment='供参考', doctor_confirm=1, audit_conclusion=None,
+            audit_time=None, pickup_status=0, dispensed_at=None)
+        data = {'prescription': prescription, 'patient_name': '测试患者', 'doctor_name': '测试医生',
+                'pharmacist_name': '待分配', 'badge': 'badge-orange', 'pickup_text': '尚未选择',
+                'total': Decimal('24.60'), 'items': [{'drug_name': '测试药品',
+                'drug__specification': '10片', 'qty': 2, 'dosage': '遵医嘱',
+                'unit_price': Decimal('12.30'), 'subtotal': Decimal('24.60'), 'is_decoction': 0}]}
+        with patch.object(views, '_current_pharmacist', return_value=(self.user, self.pharmacist)):
+            with patch.object(views, '_detail_data', return_value=data):
+                response = views.prescription_detail(self.request(), 42)
+        self.assertContains(response, '测试药品')
+        self.assertContains(response, '24.60')
+        self.assertContains(response, '&lt;script&gt;private&lt;/script&gt;')
+        self.assertNotContains(response, '<form')
+        self.assertNotContains(response, '<button')
+        self.assertNotContains(response, '/accounts/prescriptions/')
 
 
 class WorkbenchQueryTests(SimpleTestCase):
     """执行 ORM 编译出的 SELECT；测试样例只作为内存 CTE，不建表。"""
-    def query_data(self, rows):
+    def query_data(self, rows, operation=None):
         statements = []
         with sqlite3.connect(':memory:') as memory:
             def execute(compiler, result_type=MULTI, chunked_fetch=False, chunk_size=100):
@@ -163,8 +287,9 @@ class WorkbenchQueryTests(SimpleTestCase):
                 return (result[0] if result else None) if result_type == SINGLE else [result]
 
             with patch('django.db.models.sql.compiler.SQLCompiler.execute_sql', new=execute):
-                result = views._workbench_data(138)
-        self.assertEqual(len(statements), 2)
+                result = operation() if operation else views._workbench_data(138)
+        if operation is None:
+            self.assertEqual(len(statements), 2)
         return result
 
     def test_empty_query_returns_real_zeroes(self):
@@ -191,3 +316,35 @@ class WorkbenchQueryTests(SimpleTestCase):
         counts, recent = self.query_data(rows)
         self.assertEqual(counts['pending_review'], 15)
         self.assertEqual([row['presc_id'] for row in recent], list(range(14, 4, -1)))
+
+    def test_list_filters_before_pagination_and_never_exposes_other_owners(self):
+        rows = [(i, '待审核', None, '2026-11-19 12:00:00') for i in range(45)]
+        rows += [(100, '待审核', 139, '2026-11-19 12:00:00'),
+                 (101, '草稿', 138, '2026-11-19 12:00:00')]
+        state = views._list_state({'sort': 'oldest', 'page': '2'}, 'review')
+        page = self.query_data(rows, lambda: views._list_data(138, state))
+        self.assertEqual(page.paginator.count, 45)
+        self.assertEqual([row['presc_id'] for row in page.object_list], list(range(20, 40)))
+        state['page'] = 999
+        page = self.query_data(rows, lambda: views._list_data(138, state))
+        self.assertEqual(page.number, 3)
+
+    def test_section_counts_agree_with_home_counts(self):
+        statuses = ('草稿', '待审核', '已通过', '已驳回', '待配药', '已完成')
+        rows = [(a * 10 + b, status, owner, '2026-11-19 12:00:00')
+                for a, owner in enumerate((None, 138, 139)) for b, status in enumerate(statuses)]
+        counts, _ = self.query_data(rows)
+        for section, key in [('review', 'pending_review'), ('dispense', 'pending_dispense'), ('processed', 'processed')]:
+            state = views._list_state({}, section)
+            page = self.query_data(rows, lambda: views._list_data(138, state))
+            self.assertEqual(page.paginator.count, counts[key])
+        state = views._list_state({'status': '已驳回'}, 'processed')
+        page = self.query_data(rows, lambda: views._list_data(138, state))
+        self.assertEqual([row['presc_id'] for row in page], [13])
+
+    def test_invalid_query_parameters_cannot_change_scope_or_sort_fields(self):
+        for raw_page in ('oops', '-4', '9' * 5000):
+            state = views._list_state({'status': '草稿', 'sort': 'patient__name', 'page': raw_page}, 'review')
+            self.assertEqual(state, {'section': 'review', 'status': '', 'sort': 'newest', 'page': 1})
+        state = views._list_state({'status': '已通过'}, 'dispense')
+        self.assertEqual(state['status'], '')

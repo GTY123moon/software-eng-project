@@ -1,91 +1,29 @@
-{% extends 'base.html' %}
-{% load static %}
-
-{% block title %}药师工作台 · 智慧医疗在线问诊与处方流转平台{% endblock %}
-
-{% block content %}
-<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
-<link rel="stylesheet" href="{% static 'pharmacist/dashboard.css' %}">
-
-<div class="dash-layout pharmacist-dashboard">
-    <aside class="side">
-        <div class="side-title">药师工作台</div>
-        <nav aria-label="药师导航">
-            <a class="side-item active" href="{% url 'pharmacist:dashboard' %}" aria-current="page">首页概览</a>
-            <a class="side-item" href="#recent-prescriptions">最近处方</a>
-            <a class="side-item" href="#workbench-notes">功能说明</a>
-            <a class="side-item" href="{% url 'accounts:logout' %}">退出登录</a>
-        </nav>
-    </aside>
-
-    <section class="main" aria-label="药师工作概览">
-        <div class="topbar">
-            <div>
-                <h2>您好，{{ staff_name }}</h2>
-                <span class="user-info">{{ staff_type }} · 欢迎进入药师工作台</span>
-            </div>
-            <a class="btn-secondary" href="{% url 'pharmacist:dashboard' %}">刷新数据</a>
-        </div>
-
-        {% if data_error %}
-        <div class="pharmacist-notice" role="alert">{{ data_error }}</div>
-        {% endif %}
-
-        <div class="stat-grid" aria-label="处方统计">
-            <div class="stat-card">
-                <div class="stat-num pharmacist-pending">{% if data_error %}—{% else %}{{ counts.pending_review }}{% endif %}</div>
-                <h3 class="stat-label">待审核</h3>
-                <p class="pharmacist-hint">未分配或分配给本人的待审核处方</p>
-            </div>
-            <div class="stat-card">
-                <div class="stat-num">{% if data_error %}—{% else %}{{ counts.pending_dispense }}{% endif %}</div>
-                <h3 class="stat-label">待配药</h3>
-                <p class="pharmacist-hint">未分配或分配给本人的待配药处方</p>
-            </div>
-            <div class="stat-card">
-                <div class="stat-num pharmacist-processed">{% if data_error %}—{% else %}{{ counts.processed }}{% endif %}</div>
-                <h3 class="stat-label">本人已处理</h3>
-                <p class="pharmacist-hint">本人审核的处方，含后续配药及完成记录</p>
-            </div>
-        </div>
-
-        <div class="card" id="recent-prescriptions">
-            <h3>最近处方</h3>
-            <p class="pharmacist-hint">按开方时间倒序，最多展示 10 条；范围为共享待办及本人记录，不含医生草稿。</p>
-            {% if data_error %}
-            <p class="empty-tip">处方列表暂不可用，请稍后刷新。</p>
-            {% elif recent_prescriptions %}
-            <div class="pharmacist-table-wrap">
-                <table class="pharmacist-table">
-                    <caption>共享待办与本人最近处方</caption>
-                    <thead>
-                        <tr><th scope="col">处方号</th><th scope="col">状态</th><th scope="col">任务归属</th><th scope="col">开方时间</th></tr>
-                    </thead>
-                    <tbody>
-                        {% for prescription in recent_prescriptions %}
-                        <tr>
-                            <td>#{{ prescription.presc_id }}</td>
-                            <td><span class="badge {{ prescription.badge }}">{{ prescription.status }}</span></td>
-                            <td>{{ prescription.assignment }}</td>
-                            <td>{{ prescription.created_at|date:"Y-m-d H:i"|default:"—" }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="pharmacist-empty">
-                <p>暂无处方数据</p>
-                <p class="pharmacist-hint">当前没有共享待办或本人已处理记录。医生提交处方后，可刷新查看。</p>
-            </div>
-            {% endif %}
-        </div>
-
-        <div class="card" id="workbench-notes">
-            <h3>功能说明</h3>
-            <p class="pharmacist-hint">当前提供处方概览。处方审核、配药发药及药品目录核对暂未接入。</p>
-            <p class="pharmacist-hint">“本人已处理”按本人名下已通过、已驳回、待配药、已完成的处方计数，与待配药数量可能重叠；统计未限定日期。</p>
-        </div>
-    </section>
+{% extends 'pharmacist/base.html' %}
+{% block page_actions %}<a class="btn-secondary" href="{% url 'pharmacist:dashboard' %}" data-refresh>刷新数据</a>{% endblock %}
+{% block pharmacist_content %}
+<div class="stat-grid" aria-label="处方统计">
+    <a class="stat-card pharmacist-stat" href="{% url 'pharmacist:pending_review' %}">
+        <h2 class="stat-label">待审核</h2>
+        <div class="stat-num pharmacist-pending">{% if data_error %}—{% else %}{{ counts.pending_review }}{% endif %}</div>
+        <p class="pharmacist-hint">共享待办及本人待审核</p><span class="pharmacist-stat-link">查看待审核处方 →</span>
+    </a>
+    <a class="stat-card pharmacist-stat" href="{% url 'pharmacist:pending_dispense' %}">
+        <h2 class="stat-label">待配药</h2>
+        <div class="stat-num">{% if data_error %}—{% else %}{{ counts.pending_dispense }}{% endif %}</div>
+        <p class="pharmacist-hint">共享待办及本人待配药</p><span class="pharmacist-stat-link">查看待配药处方 →</span>
+    </a>
+    <a class="stat-card pharmacist-stat" href="{% url 'pharmacist:processed' %}">
+        <h2 class="stat-label">本人已处理</h2>
+        <div class="stat-num pharmacist-processed">{% if data_error %}—{% else %}{{ counts.processed }}{% endif %}</div>
+        <p class="pharmacist-hint">本人审核及后续流转记录</p><span class="pharmacist-stat-link">查看本人记录 →</span>
+    </a>
 </div>
+<details class="pharmacist-explanation"><summary>统计范围说明</summary><p>待审核、待配药包含未分配或分配给本人的对应处方。“本人已处理”包含本人名下已通过、已驳回、待配药、已完成记录，与待配药数量可能重叠；统计未限定日期。</p></details>
+<section class="pharmacist-panel" aria-labelledby="recent-title">
+    <div class="pharmacist-section-head"><div><h2 id="recent-title">最近处方</h2><p class="pharmacist-hint">共享待办及本人记录，按开方时间展示最近 5 条</p></div><a class="link-btn" href="{% url 'pharmacist:prescription_list' %}">查看全部处方 →</a></div>
+    {% if data_error %}<p class="empty-tip">处方列表暂不可用，请稍后刷新。</p>
+    {% elif recent_prescriptions %}{% include 'pharmacist/_prescription_table.html' with rows=recent_prescriptions %}
+    {% else %}<div class="pharmacist-empty"><h3>暂无处方数据</h3><p>当前没有共享待办或本人记录。医生提交处方后，可刷新查看。</p></div>{% endif %}
+</section>
+{% if not data_error %}<p class="pharmacist-updated">本次数据读取时间：{{ loaded_at|date:"Y-m-d H:i:s" }}</p>{% endif %}
 {% endblock %}
