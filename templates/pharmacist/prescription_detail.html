@@ -19,9 +19,9 @@
     <section class="pharmacist-detail-section"><h3>药品明细</h3>
         {% if items %}<div class="pharmacist-table-wrap" tabindex="0" role="region" aria-label="药品明细，可横向滚动"><table class="pharmacist-table pharmacist-items">
             <caption class="pharmacist-visually-hidden">处方 {{ prescription.presc_id }} 药品明细</caption>
-            <thead><tr><th scope="col">药品／规格</th><th scope="col">数量</th><th scope="col">用法用量</th><th scope="col" class="pharmacist-money">单价（元）</th><th scope="col" class="pharmacist-money">小计（元）</th><th scope="col">代煎</th></tr></thead>
-            <tbody>{% for item in items %}<tr><td>{{ item.drug_name }}<span class="pharmacist-cell-sub">{{ item.drug__specification }}</span></td><td>{{ item.qty }}</td><td class="pharmacist-dosage">{{ item.dosage }}</td><td class="pharmacist-money">{{ item.unit_price|floatformat:2 }}</td><td class="pharmacist-money">{{ item.subtotal|floatformat:2 }}</td><td>{% if item.is_decoction %}是 · {{ item.decoction_num|default_if_none:"未填" }} 剂{% else %}否{% endif %}</td></tr>{% endfor %}</tbody>
-            <tfoot><tr><th scope="row" colspan="4">明细金额合计（元）</th><td class="pharmacist-money">{{ total|floatformat:2 }}</td><td></td></tr></tfoot>
+            <thead><tr><th scope="col">药品／规格</th><th scope="col">数量</th><th scope="col">库存</th><th scope="col">用法用量</th><th scope="col" class="pharmacist-money">单价（元）</th><th scope="col" class="pharmacist-money">小计（元）</th><th scope="col">代煎</th></tr></thead>
+            <tbody>{% for item in items %}<tr><td>{{ item.drug_name }}<span class="pharmacist-cell-sub">{{ item.drug__specification }}</span></td><td>{{ item.qty }}</td><td>{% if item.stock_qty is not None %}{{ item.stock_qty }}{% else %}未知{% endif %}</td><td class="pharmacist-dosage">{{ item.dosage }}</td><td class="pharmacist-money">{{ item.unit_price|floatformat:2 }}</td><td class="pharmacist-money">{{ item.subtotal|floatformat:2 }}</td><td>{% if item.is_decoction %}是 · {{ item.decoction_num|default_if_none:"未填" }} 剂{% else %}否{% endif %}</td></tr>{% endfor %}</tbody>
+            <tfoot><tr><th scope="row" colspan="5">明细金额合计（元）</th><td class="pharmacist-money">{{ total|floatformat:2 }}</td><td></td></tr></tfoot>
         </table></div>{% else %}<p class="pharmacist-hint">该处方暂无药品明细。</p>{% endif %}
     </section>
     <section class="pharmacist-detail-section"><h3>预审与医生确认</h3>
@@ -32,6 +32,33 @@
     <section class="pharmacist-detail-section"><h3>审核与取药记录</h3>
         <dl class="pharmacist-facts"><div><dt>审核结论</dt><dd>{{ prescription.audit_conclusion|default:"暂无审核记录" }}</dd></div><div><dt>审核时间</dt><dd>{{ prescription.audit_time|date:"Y-m-d H:i"|default:"—" }}</dd></div><div><dt>取药方式</dt><dd>{{ pickup_text }}</dd></div><div><dt>取药状态</dt><dd>{% if prescription.pickup_status %}已取药{% else %}未取药{% endif %}</dd></div><div><dt>发药时间</dt><dd>{{ prescription.dispensed_at|date:"Y-m-d H:i"|default:"—" }}</dd></div></dl>
     </section>
+    {% if can_approve %}
+    <section class="pharmacist-detail-section"><h3>药师审核</h3>
+        <form class="pharmacist-action-form" method="post" action="{% url 'pharmacist:prescription_audit' prescription.presc_id %}">
+            {% csrf_token %}<input type="hidden" name="version" value="{{ audit_token }}"><input type="hidden" name="decision" value="approve">
+            <button class="btn-primary" type="submit">审核通过</button>
+        </form>
+        <form class="pharmacist-action-form" method="post" action="{% url 'pharmacist:prescription_audit' prescription.presc_id %}">
+            {% csrf_token %}<input type="hidden" name="version" value="{{ audit_token }}"><input type="hidden" name="decision" value="reject">
+            <label for="audit-reason">驳回理由（必填）</label><textarea id="audit-reason" name="reason" rows="3" required maxlength="252" placeholder="请说明需要医生修改的内容"></textarea>
+            <button class="btn-secondary" type="submit">驳回处方</button>
+        </form>
+    </section>
+    {% elif can_dispense %}
+    <section class="pharmacist-detail-section"><h3>配药与发药</h3>
+        {% if not pickup_selected %}<p class="pharmacist-hint">等待患者选择取药方式后才能发药。</p>{% else %}
+        <p class="pharmacist-hint">先核对上方药品、数量、用法与代煎需求。实际交付时一次扣减库存并记录发药；本页核对过程不预扣库存。</p>
+        {% if stock_short %}<p class="pharmacist-notice" role="alert">当前库存不足，请联系管理员补充库存后刷新核对。</p>{% endif %}
+        <form class="pharmacist-action-form" method="post" action="{% url 'pharmacist:prescription_dispense' prescription.presc_id %}">
+            {% csrf_token %}<input type="hidden" name="version" value="{{ dispense_token }}">
+            <label><input type="checkbox" name="checked" value="1" required> 已核对患者身份、药品和数量，并确认实际交付</label>
+            {% if has_decoction %}<label><input type="checkbox" name="decoction_done" value="1" required> 已按明细剂数完成代煎并核对交付</label>{% endif %}
+            <button class="btn-primary" type="submit" {% if stock_short %}disabled{% endif %}>确认实际发药</button>
+        </form>{% endif %}
+    </section>
+    {% elif prescription.status == '已通过' %}
+    <p class="pharmacist-hint">{% if prescription.pickup_method == 1 %}患者凭电子处方到社会药店外购；不进入院内配药，不扣院内库存，不代确认已取药。{% else %}审核已通过，等待患者在处方详情中选择取药方式。{% endif %}</p>
+    {% endif %}
 </article>
 {% endif %}
 {% endblock %}

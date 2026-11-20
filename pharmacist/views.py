@@ -1,18 +1,20 @@
-"""药师只读工作区：所有页面共用角色验证和处方可见范围。"""
+"""药师工作区：页面与 POST 操作共用角色验证和处方可见范围。"""
 from decimal import Decimal
 from functools import wraps
 from urllib.parse import urlencode
 
 from django.core.paginator import Paginator
+from django.contrib import messages
 from django.db import DatabaseError
 from django.db.models import Count, Q
 from django.http import Http404
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_safe
+from django.views.decorators.http import require_POST, require_safe
 
-from core.models import SysUser, Pharmacist, Prescription, PrescriptionItem
+from core.models import Drug, SysUser, Pharmacist, Prescription, PrescriptionItem
+from . import services
 
 
 QUEUE_STATUSES = ('待审核', '待配药')
@@ -206,8 +208,13 @@ def _detail_data(pharmacist_id, presc_id):
     # 明细仅使用 values 读取，不对联合主键模型执行实例 save/delete。
     items = list(PrescriptionItem.objects.filter(prescription_id=presc_id)
                  .order_by('drug_id').values(
-                     'drug_name', 'drug__specification', 'qty', 'dosage',
+                     'drug_id', 'drug_name', 'drug__specification', 'qty', 'dosage',
                      'unit_price', 'subtotal', 'is_decoction', 'decoction_num'))
+    stock = dict(Drug.objects.filter(drug_id__in=[item['drug_id'] for item in items])
+                 .values_list('drug_id', 'stock_qty'))
+    for item in items:
+        item['stock_qty'] = stock.get(item['drug_id'])
+        item['stock_short'] = item['stock_qty'] is None or item['stock_qty'] < item['qty']
     names = dict(SysUser.objects.filter(user_id__in=(
         prescription.patient_id, prescription.doctor_id,
         prescription.pharmacist_id)).values_list('user_id', 'name'))
@@ -220,6 +227,14 @@ def _detail_data(pharmacist_id, presc_id):
         'badge': STATUS_BADGES[prescription.status],
         'pickup_text': {0: '院药房取药', 1: '社会药店购药'}.get(
             prescription.pickup_method, '尚未选择'),
+        'can_approve': prescription.status == '待审核' and prescription.doctor_confirm == 1,
+        'can_dispense': prescription.status == '待配药' and prescription.pickup_method == 0
+                        and prescription.pharmacist_id == pharmacist_id,
+        'pickup_selected': prescription.pickup_method is not None,
+        'stock_short': any(item['stock_short'] for item in items),
+        'has_decoction': any(item['is_decoction'] for item in items),
+        'audit_token': services.version_token(prescription, 'audit'),
+        'dispense_token': services.version_token(prescription, 'dispense'),
     }
 
 
@@ -239,3 +254,37 @@ def prescription_detail(request, presc_id):
         context['data_error'] = '处方详情暂不可用，请稍后重试；未显示不完整的处方信息。'
     return render(request, 'pharmacist/prescription_detail.html', context,
                   status=503 if context['data_error'] else 200)
+
+
+def _action_result(request, presc_id, operation, success_message):
+    context = _base_context(request, '操作未完成', 'all')
+    context['retry_url'] = reverse('pharmacist:prescription_detail', args=[presc_id])
+    try:
+        operation()
+    except services.WorkflowError as error:
+        context['data_error'] = error.message
+        return render(request, 'pharmacist/action_result.html', context, status=error.status)
+    except DatabaseError:
+        context['data_error'] = '数据库暂不可用，本次操作未完成。请返回详情核对最新状态后重试。'
+        return render(request, 'pharmacist/action_result.html', context, status=503)
+    messages.success(request, success_message)
+    return redirect(context['retry_url'])
+
+
+@require_POST
+@pharmacist_required
+def prescription_audit(request, presc_id):
+    """药师审核：共享待审核处方只能被一个药师一次性领取并完成审核。"""
+    return _action_result(request, presc_id, lambda: services.audit(
+        presc_id, request.pharmacist_staff[1].pharmacist_id,
+        request.POST.get('decision'), request.POST.get('reason'), request.POST.get('version')),
+        '审核结果已保存，处方状态和本人处理记录已更新。')
+
+
+@require_POST
+@pharmacist_required
+def prescription_dispense(request, presc_id):
+    """实际交付确认；库存、状态和日志在服务的同一事务提交。"""
+    return _action_result(request, presc_id, lambda: services.dispense(
+        presc_id, request.pharmacist_staff[1].pharmacist_id, request.POST),
+        '实际发药已确认，库存已扣减，处方已完成。')

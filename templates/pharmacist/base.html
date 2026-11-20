@@ -22,8 +22,9 @@
             <div class="head-actions">{% block page_actions %}{% endblock %}</div>
         </header>
         {% if data_error %}<div class="pharmacist-notice" role="alert">{{ data_error }}</div>{% endif %}
+        {% for message in messages %}<p class="pharmacist-success" role="status">{{ message }}</p>{% endfor %}
         {% block pharmacist_content %}{% endblock %}
-        {% if not data_error and not missing %}<p class="pharmacist-scope">当前提供只读查询，处方审核、配药和发药操作暂未接入。</p>{% endif %}
+        {% if not data_error and not missing %}<p class="pharmacist-scope">审核、配药和发药均受处方状态与药师权限控制，关键操作会记录日志。</p>{% endif %}
         <p class="pharmacist-feedback" role="status" aria-live="polite" data-feedback></p>
     </section>
 </div>

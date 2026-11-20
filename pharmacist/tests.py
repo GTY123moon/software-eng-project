@@ -160,6 +160,17 @@ class DashboardTests(SimpleTestCase):
                     self.assertEqual(match.func(self.request(method=method), **match.kwargs).status_code, 405)
             auth.assert_not_called()
 
+    def test_write_routes_require_post_and_pharmacist(self):
+        for name in ('prescription_audit', 'prescription_dispense'):
+            match = resolve(reverse('pharmacist:' + name, kwargs={'presc_id': 42}))
+            get_response = match.func(self.request(method='get'), **match.kwargs)
+            self.assertEqual(get_response.status_code, 405)
+            with patch.object(views, '_current_pharmacist', return_value=None):
+                post_response = match.func(self.request(session={'staff_id': 138, 'role_type': 1},
+                                                        method='post'), **match.kwargs)
+            self.assertEqual(post_response.status_code, 302)
+            self.assertEqual(post_response.url, '/accounts/staff/pharmacist/')
+
     def test_new_pages_require_pharmacist_identity(self):
         for name, kwargs in [('prescription_list', {}), ('pending_review', {}),
                              ('pending_dispense', {}), ('processed', {}),

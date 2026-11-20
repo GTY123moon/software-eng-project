@@ -38,6 +38,10 @@
 .pharmacist-dashboard .pharmacist-updated { font-size: 12px; color: var(--pharmacist-muted); margin: 12px 0 0; }
 .pharmacist-dashboard .pharmacist-feedback { font-size: 13px; color: var(--primary); margin: 8px 0 0; }
 .pharmacist-dashboard .pharmacist-feedback:empty { display: none; }
+.pharmacist-dashboard .pharmacist-success { padding: 12px 16px; background: #eaf7ef; color: #1f7044; border: 1px solid #b9dfc6; border-radius: var(--radius-sm); }
+.pharmacist-dashboard .pharmacist-action-form { display: grid; gap: 10px; max-width: 620px; margin-top: 14px; }
+.pharmacist-dashboard .pharmacist-action-form textarea { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.pharmacist-dashboard .pharmacist-action-form button { justify-self: start; min-height: 42px; }
 .pharmacist-dashboard .pharmacist-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; font-size: 14px; margin: 24px 0 0; }
 .pharmacist-dashboard .pharmacist-facts dt { color: var(--pharmacist-muted); font-size: 13px; margin-bottom: 4px; }
 .pharmacist-dashboard .pharmacist-facts dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }

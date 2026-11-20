@@ -15,4 +15,8 @@ urlpatterns = [
          {'section': 'processed'}, name='processed'),
     path('prescriptions/<int:presc_id>/', views.prescription_detail,
          name='prescription_detail'),
+    path('prescriptions/<int:presc_id>/audit/', views.prescription_audit,
+         name='prescription_audit'),
+    path('prescriptions/<int:presc_id>/dispense/', views.prescription_dispense,
+         name='prescription_dispense'),
 ]
