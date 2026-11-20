@@ -28,7 +28,7 @@ except ImportError:
     LOCAL_API_KEY = ''
     LOCAL_MODEL = ''
 
-TIMEOUT = 20
+TIMEOUT = 60
 
 
 def _credentials():
@@ -52,8 +52,8 @@ def _chat_json(system_prompt, user_prompt, timeout=TIMEOUT):
         ],
         'temperature': 0.2,
         'max_tokens': 700,
-        # 走低延迟（Fast）推理档位，输出更快；超限/不支持时自动降级常规档位
-        'service_tier': 'fast',
+        # 本演示账号未开通 fast 档位（返回 404 ModelNotOpen），直接用常规档，
+        # 避免每次请求先白跑一趟 404 重试。
     }
     def _open(pl):
         body = json.dumps(pl, ensure_ascii=False).encode('utf-8')
