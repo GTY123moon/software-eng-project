@@ -39,7 +39,7 @@
                 <thead><tr><th>字段</th><th>值</th></tr></thead>
                 <tbody>
                     {% for label, value in target_detail %}
-                    <tr><td>{{ label }}</td><td>{{ value }}</td></tr>
+                    <tr><td>{{ label }}</td><td style="word-break: break-all;">{{ value }}</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
