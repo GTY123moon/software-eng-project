@@ -18,6 +18,7 @@
 
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 
@@ -97,6 +98,9 @@ def chat_completion(messages: list[dict], temperature: float = 0.2,
     # service_tier 为方舟专有字段，仅方舟域名附带；其他兼容平台不发送
     if 'volces.com' in base_url:
         payload['service_tier'] = 'fast'
+    # 智谱 GLM-4.7 系列默认开启思维链，问诊/审方只需简短 JSON，关闭思考以降低延迟
+    if 'bigmodel.cn' in base_url or 'z.ai' in base_url:
+        payload['thinking'] = {'type': 'disabled'}
 
     def _open(pl: dict) -> dict:
         body = json.dumps(pl, ensure_ascii=False).encode('utf-8')
@@ -108,16 +112,22 @@ def chat_completion(messages: list[dict], temperature: float = 0.2,
         with urllib.request.urlopen(request, timeout=timeout) as resp:
             return json.loads(resp.read().decode('utf-8'))
 
-    try:
+    def _open_with_retry(pl: dict) -> dict:
         try:
-            data = _open(payload)
+            return _open(pl)
         except urllib.error.HTTPError as exc:
             # fast 档位未开通时，去掉 service_tier 走常规档重试一次（仅方舟）
-            if exc.code == 404 and 'service_tier' in payload:
-                fallback = {k: v for k, v in payload.items() if k != 'service_tier'}
-                data = _open(fallback)
-            else:
-                raise
+            if exc.code == 404 and 'service_tier' in pl:
+                fallback = {k: v for k, v in pl.items() if k != 'service_tier'}
+                return _open(fallback)
+            # 免费模型偶发 429 排队，短暂等待后重试一次；仍失败则抛给上层降级
+            if exc.code == 429:
+                time.sleep(2)
+                return _open(pl)
+            raise
+
+    try:
+        data = _open_with_retry(payload)
         return data['choices'][0]['message']['content']
     except (urllib.error.URLError, TimeoutError, ValueError, KeyError,
             OSError, IndexError, TypeError):

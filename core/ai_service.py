@@ -73,7 +73,7 @@ def _as_bool(value) -> bool:
     return v in ('true', '1', 'yes', 'y', '是')
 
 
-def _remote_assess(symptom: str, timeout: int = 12) -> dict | None:
+def _remote_assess(symptom: str, timeout: int = 18) -> dict | None:
     """调用远程大模型；未配置凭据或失败时返回 None。"""
     system_prompt = (
         '你是在线问诊平台的预问诊辅助助手，只做风险分级和病情摘要，不做疾病诊断。'
