@@ -153,7 +153,7 @@
         <div class="form-actions">
             <a class="btn-primary" href="{% url 'doctor:consult_chat' consult.id %}">进入图文沟通</a>
         </div>
-        <p class="empty-tip" style="text-align:left;">复核病情摘要后，进入图文沟通与患者交流；沟通中可开具处方、结束问诊。</p>
+        <p class="empty-tip" style="text-align:left;">复核病情摘要后，进入图文沟通与患者交流；结束时在处置建议中选择无需用药或开具处方。</p>
         {% else %}
         <p class="empty-tip" style="text-align:left;">本次问诊{{ consult.status }}于 {{ consult.end_time }}。</p>
         {% if consult.final_diagnosis %}

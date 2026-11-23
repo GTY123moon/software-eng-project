@@ -116,19 +116,12 @@
 
 {% if consult.is_mine %}
 <div class="card">
-    <h3>处方与结束</h3>
+    <h3>结束问诊</h3>
     {% if consult.status == '进行中' %}
-    <div class="action-row">
-        {% if draft %}
-        <a class="btn-primary" href="{% url 'doctor:prescription_edit' draft.id %}">继续编辑处方</a>
-        {% else %}
-        <a class="btn-primary" href="{% url 'doctor:prescription_new' consult.id %}">开具处方</a>
-        {% endif %}
-    </div>
-
     <div class="form-actions">
         <a class="btn-secondary" href="{% url 'doctor:consult_advice' consult.id %}">结束问诊并给出处置建议</a>
     </div>
+
     {% else %}
     <div class="ai-row">当前诊断：<strong>{{ consult.final_diagnosis|default:'尚未填写' }}</strong></div>
     {% if draft %}
