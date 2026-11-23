@@ -29,7 +29,7 @@
         <span class="badge badge-green">{{ prescription.status }}</span>
         {% elif prescription.status == '已驳回' %}
         <span class="badge badge-red">{{ prescription.status }}</span>
-        {% elif prescription.status == '草稿' %}
+        {% elif prescription.status == '草稿' or prescription.status == '待配药' %}
         <span class="badge badge-blue">{{ prescription.status }}</span>
         {% else %}
         <span class="badge badge-orange">{{ prescription.status }}</span>

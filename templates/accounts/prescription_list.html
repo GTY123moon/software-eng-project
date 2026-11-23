@@ -19,7 +19,7 @@
             <div class="presc-title">处方号 {{ p.id }}</div>
             <div class="presc-meta">{{ p.doctor }} · {{ p.department }} · {{ p.time }}</div>
         </div>
-        <span class="badge {% if p.status == '已完成' %}badge-green{% else %}badge-orange{% endif %}">{{ p.status }}</span>
+        <span class="badge {% if p.status == '已完成' or p.status == '已通过' %}badge-green{% elif p.status == '待配药' %}badge-blue{% else %}badge-orange{% endif %}">{{ p.status }}</span>
     </div>
     <div class="presc-items">{{ p.items }}</div>
     <div class="presc-foot">

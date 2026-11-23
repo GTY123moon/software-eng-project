@@ -734,8 +734,10 @@ def prescription_pickup_view(request, presc_id):
         return redirect('accounts:prescription_detail', presc_id=presc_id)
 
     p.pickup_method = int(pickup_method)
+    # 院内取药进入待配药，由药师核对并发药；社会药店外购不进入院内配药，保持已通过。
+    p.status = '待配药' if pickup_method == '0' else '已通过'
     p.updated_at = timezone.now()
-    p.save(update_fields=['pickup_method', 'updated_at'])
+    p.save(update_fields=['pickup_method', 'status', 'updated_at'])
 
     # 逐行回写代煎：按药品明细匹配，数组按提交顺序对齐。
     # 注意：明细表在 ORM 里主键映射到处方外键，对象 save 会按处方 id 命中多行，

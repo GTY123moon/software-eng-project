@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title|default:'药师工作台' }} · 智慧医疗在线问诊与处方流转平台{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+<link rel="stylesheet" href="{% static 'pharmacist/dashboard.css' %}">
+
+<div class="his-shell pharmacist-dashboard">
+    <!-- 最左：图标竖栏 -->
+    <nav class="his-rail">
+        <a class="his-rail-item {% if nav == 'home' %}active{% endif %}"
+           href="{% url 'pharmacist:dashboard' %}">
+            <span class="rail-icon">🏠</span>
+            <span class="rail-label">概览</span>
+        </a>
+        <a class="his-rail-item {% if nav == 'review' %}active{% endif %}"
+           href="{% url 'pharmacist:pending_review' %}">
+            <span class="rail-icon">📋</span>
+            <span class="rail-label">待审核</span>
+        </a>
+        <a class="his-rail-item {% if nav == 'dispense' %}active{% endif %}"
+           href="{% url 'pharmacist:pending_dispense' %}">
+            <span class="rail-icon">💊</span>
+            <span class="rail-label">待配药</span>
+        </a>
+        <a class="his-rail-item {% if nav == 'processed' %}active{% endif %}"
+           href="{% url 'pharmacist:processed' %}">
+            <span class="rail-icon">✅</span>
+            <span class="rail-label">已处理</span>
+        </a>
+        <a class="his-rail-item {% if nav == 'all' %}active{% endif %}"
+           href="{% url 'pharmacist:prescription_list' %}">
+            <span class="rail-icon">📄</span>
+            <span class="rail-label">全部处方</span>
+        </a>
+    </nav>
+
+    <!-- 右侧列：顶栏 + 标签页 + 内容 -->
+    <div class="his-col">
+        <header class="his-topbar">
+            <div class="his-crumb">
+                <span class="crumb-home">☰</span>
+                <span>首页</span>
+                <span class="crumb-sep">/</span>
+                <span class="crumb-current">{{ page_title|default:'药师工作台' }}</span>
+            </div>
+            <div class="his-topbar-right">
+                <span class="his-topbar-role">💊 药师{% if staff_name %} · {{ staff_name }}{% endif %}</span>
+                <a class="his-topbar-link" href="{% url 'accounts:logout' %}">退出登录</a>
+            </div>
+        </header>
+
+        <div class="his-tabs">
+            <span class="his-tab active"><span class="tab-dot"></span>{{ page_title|default:'工作台' }}</span>
+        </div>
+
+        <main class="his-body">
+            {% if data_error %}<div class="pharmacist-notice" role="alert">{{ data_error }}</div>{% endif %}
+            {% if messages %}
+            <div class="flash-bar">
+                {% for m in messages %}
+                <div class="form-error flash-msg {% if 'success' in m.tags %}flash-ok{% endif %}">{{ m }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% block page_actions %}{% endblock %}
+            {% block pharmacist_content %}{% endblock %}
+            {% if not data_error and not missing %}
+            <p class="pharmacist-scope">审核、配药和发药均受处方状态与药师权限控制，关键操作会记录日志。</p>
+            {% endif %}
+            <p class="pharmacist-feedback" role="status" aria-live="polite" data-feedback></p>
+        </main>
+    </div>
+</div>
+<script src="{% static 'pharmacist/dashboard.js' %}" defer></script>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends 'pharmacist/base.html' %}
+{% block page_actions %}<a class="btn-secondary" href="{{ refresh_url }}" data-refresh>刷新数据</a>{% endblock %}
+{% block pharmacist_content %}
+<section class="pharmacist-panel" aria-label="处方列表">
+    <form class="pharmacist-filters" action="{{ list_url }}" method="get" data-query-form>
+        <div class="form-group"><label for="status">处方状态</label>
+            <select name="status" id="status"><option value="">本页全部状态</option>{% for option in status_options %}<option value="{{ option }}" {% if state.status == option %}selected{% endif %}>{{ option }}</option>{% endfor %}</select>
+        </div>
+        <div class="form-group"><label for="sort">开方时间排序</label>
+            <select name="sort" id="sort"><option value="newest" {% if state.sort == 'newest' %}selected{% endif %}>新到旧</option><option value="oldest" {% if state.sort == 'oldest' %}selected{% endif %}>旧到新</option></select>
+        </div>
+        <button class="btn-primary" type="submit">应用筛选</button>
+        <a class="btn-secondary" href="{{ list_url }}">恢复默认</a>
+    </form>
+    <div class="pharmacist-list-summary">
+        <p>{% if state.status %}{{ state.status }}{% else %}本页全部状态{% endif %} · {% if state.sort == 'oldest' %}开方时间旧到新{% else %}开方时间新到旧{% endif %}</p>
+        {% if not data_error %}<p>共 <strong>{{ page_obj.paginator.count }}</strong> 条，每页最多 20 条</p>{% endif %}
+    </div>
+    {% if data_error %}
+        <div class="pharmacist-empty"><h2>暂时无法读取处方</h2><p>可保留当前条件刷新重试；查询失败不代表没有处方。</p></div>
+    {% elif page_obj.object_list %}
+        {% include 'pharmacist/_prescription_table.html' with rows=page_obj.object_list %}
+        <nav class="pharmacist-pagination" aria-label="处方分页">
+            <span>第 {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} 页 · 显示 {{ page_obj.start_index }}–{{ page_obj.end_index }} 条</span>
+            <div>{% if previous_query %}<a class="btn-secondary" href="?{{ previous_query }}">上一页</a>{% endif %}{% if next_query %}<a class="btn-secondary" href="?{{ next_query }}">下一页</a>{% endif %}</div>
+        </nav>
+    {% else %}
+        <div class="pharmacist-empty">
+            {% if filtered %}<h2>当前筛选下暂无处方</h2><p>尝试恢复默认条件，查看本页全部记录。</p><a class="link-btn" href="{{ list_url }}">清除筛选</a>
+            {% else %}<h2>暂无{{ page_title }}记录</h2><p>有符合条件的处方后会显示在这里，可稍后刷新查看。</p>{% endif %}
+        </div>
+    {% endif %}
+</section>
+{% if nav == 'processed' %}<p class="pharmacist-hint">包含本人名下已通过、已驳回、待配药、已完成的处方，统计未限定日期。</p>{% else %}<p class="pharmacist-hint">仅显示共享待办及本人可见记录，不含医生草稿和其他药师专属处方。</p>{% endif %}
+{% if not data_error %}<p class="pharmacist-updated">本次数据读取时间：{{ loaded_at|date:"Y-m-d H:i:s" }}</p>{% endif %}
+{% endblock %}
