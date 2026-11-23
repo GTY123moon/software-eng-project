@@ -59,4 +59,29 @@
         </main>
     </div>
 </div>
+
+{% if pending_receives %}
+<!-- 全局待查收处方提醒：任意患者端界面弹出，点击跳转处方详情 -->
+<div class="queue-mask" id="prescReceiveMask">
+    <div class="queue-modal">
+        <div class="queue-modal-title">📄 请查收处方</div>
+        {% for p in pending_receives %}
+        <div class="presc-receive-item">
+            <div class="presc-receive-meta">处方号 {{ p.id }} · {{ p.doctor }} · {{ p.department }}</div>
+            <a class="btn-primary" href="{% url 'accounts:prescription_detail' p.presc_id %}">查收处方</a>
+        </div>
+        {% endfor %}
+        <button class="btn-secondary" type="button" id="closePrescReceive">稍后查看</button>
+    </div>
+</div>
+<script>
+(function () {
+    var mask = document.getElementById('prescReceiveMask');
+    var closeBtn = document.getElementById('closePrescReceive');
+    function hideMask() { if (mask) mask.hidden = true; }
+    if (closeBtn) closeBtn.addEventListener('click', hideMask);
+    if (mask) mask.addEventListener('click', function (e) { if (e.target === mask) hideMask(); });
+})();
+</script>
+{% endif %}
 {% endblock %}

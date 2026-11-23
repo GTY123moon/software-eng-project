@@ -1364,6 +1364,25 @@
     margin-bottom: 16px;
 }
 
+.presc-receive-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 10px;
+    text-align: left;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.presc-receive-meta {
+    flex: 1;
+    line-height: 1.6;
+}
+
 @media (max-width: 768px) {
     .dash-layout {
         flex-direction: column;
