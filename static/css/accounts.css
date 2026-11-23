@@ -1342,6 +1342,10 @@
     padding: 20px;
     z-index: 1000;
 }
+
+.queue-mask[hidden] {
+    display: none;
+}
 .queue-modal {
     background: #fff;
     border-radius: 16px;
