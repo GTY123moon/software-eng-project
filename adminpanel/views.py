@@ -1,6 +1,6 @@
 """管理员后台视图：药品目录、值班排班、日志审计、账号管理、首页统计。
 
-会话口径与职工登录一致：session['staff_id'] + session['role_type'] == 0。
+会话口径：独立槽位 session['staff_admin_id']（兼容旧共享 staff_id + role_type == 0）。
 所有写操作统一通过 core.log_service.write_log 落 operation_log，
 日志号（log_id）即为"按日志号回溯"的入口。
 """
@@ -50,9 +50,14 @@ PICKUP_METHOD = {0: '院药房取药', 1: '社会药店购药'}
 # 公共：登录态与上下文
 # --------------------------------------------------------------------------
 def _current_admin(request):
-    """校验会话为管理员角色且管理员档案存在；返回 (user, admin) 或 None。"""
-    uid = request.session.get('staff_id')
-    if not isinstance(uid, int) or request.session.get('role_type') != ROLE_ADMIN:
+    """校验会话为管理员角色且管理员档案存在；返回 (user, admin) 或 None。
+
+    优先读独立槽位 staff_admin_id，兼容旧共享 staff_id/role_type 会话。
+    """
+    uid = request.session.get('staff_admin_id')
+    if uid is None and request.session.get('role_type') == ROLE_ADMIN:
+        uid = request.session.get('staff_id')
+    if not isinstance(uid, int):
         return None
     admin = Admin.objects.filter(admin_id=uid).first()
     if not admin:

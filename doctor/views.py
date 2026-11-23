@@ -3,7 +3,7 @@
 数据口径与组内约定一致：
 - 业务表由 docs/sql/create_tables.sql 建好，core.models 全部 managed=False，
   这里**不生成迁移、不建表**，只做查询与写入；
-- 登录口径与 main 统一：会话键用 accounts.staff_login 写入的 staff_id / role_type，
+- 登录口径：独立会话槽位 staff_doctor_id（兼容旧 staff_id / role_type），
   医生端不再自带登录页，未登录一律跳 accounts:staff_login(role='doctor')；
 - 关键动作统一通过 core.log_service.write_log 写入 operation_log。
 """
@@ -48,12 +48,19 @@ REVIEW_MAP = {'采纳': '已采纳', '修正': '已修正', '否决': '已否决
 # 通用工具
 # --------------------------------------------------------------------------
 
+def _doctor_session_id(request):
+    """取医生登录槽位：优先独立槽位 staff_doctor_id，兼容旧共享 staff_id/role_type 会话。"""
+    sid = request.session.get('staff_doctor_id')
+    if sid is None and request.session.get('role_type') == 2:
+        sid = request.session.get('staff_id')
+    return sid if isinstance(sid, int) else None
+
+
 def doctor_required(view_func):
     """医生身份守卫：未登录或非医生角色跳统一职工登录页（身份选择后进入）。"""
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        staff_id = request.session.get('staff_id')
-        if not isinstance(staff_id, int) or request.session.get('role_type') != 2:
+        if _doctor_session_id(request) is None:
             return redirect('accounts:staff_login', role='doctor')
         return view_func(request, *args, **kwargs)
     return wrapper
@@ -61,10 +68,8 @@ def doctor_required(view_func):
 
 def _current_doctor(request):
     """取当前登录医生档案（会话由 accounts.staff_login 写入）；档案不存在视为未登录。"""
-    staff_id = request.session.get('staff_id')
-    if not isinstance(staff_id, int):
-        return None
-    if request.session.get('role_type') != 2:
+    staff_id = _doctor_session_id(request)
+    if staff_id is None:
         return None
     try:
         return Doctor.objects.get(doctor_id=staff_id)

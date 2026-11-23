@@ -243,7 +243,14 @@ def _authenticate_staff(role, phone, secret):
 
 
 def _login_staff_session(request, user, meta):
-    """职工鉴权通过后写入会话、记日志并跳转工作台。"""
+    """职工鉴权通过后写入会话、记日志并跳转工作台。
+
+    各角色写入独立会话槽位（staff_doctor_id / staff_pharmacist_id / staff_admin_id），
+    避免同一浏览器多开不同职工角色时互相覆盖登录态；共享键 staff_id/role_type/role_cn
+    仅用于顶栏展示与兼容旧会话。
+    """
+    role_slot = {2: 'staff_doctor_id', 3: 'staff_pharmacist_id', 0: 'staff_admin_id'}
+    request.session[role_slot[user.role_type]] = user.user_id
     request.session['user_id'] = user.user_id
     request.session['name'] = user.name
     request.session['role_type'] = user.role_type

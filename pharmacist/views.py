@@ -42,9 +42,11 @@ SORT_ORDERS = {
 
 
 def _current_pharmacist(request):
-    """沿用 staff_id / role_type 会话，核对药师档案与启用账号。"""
-    uid = request.session.get('staff_id')
-    if type(uid) is not int or request.session.get('role_type') != 3:
+    """沿用独立槽位 staff_pharmacist_id（兼容旧 staff_id/role_type 会话），核对药师档案与启用账号。"""
+    uid = request.session.get('staff_pharmacist_id')
+    if uid is None and request.session.get('role_type') == 3:
+        uid = request.session.get('staff_id')
+    if type(uid) is not int:
         return None
     pharmacist = Pharmacist.objects.filter(pharmacist_id=uid).first()
     if not pharmacist:
