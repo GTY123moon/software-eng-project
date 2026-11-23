@@ -202,8 +202,8 @@ def _presc_detail(p):
         'diagnosis': diagnosis or '待医生填写诊断',
         'pickup': PICKUP_METHOD.get(p.pickup_method, '未选择'),
         'pickup_method': p.pickup_method,
-        # 药师审核通过、尚未取药时，患者可选择取药方式与代煎；已完成则锁定
-        'can_choose': p.status == '已通过' and p.pickup_status == 0,
+        # 药师审核通过、尚未取药且未选定取药方式时，患者可选择取药方式与代煎；已选定/已完成则锁定
+        'can_choose': p.status == '已通过' and p.pickup_status == 0 and p.pickup_method is None,
         'audit': p.audit_conclusion or '等待药师审核',
         'time': _format_time(p.created_at),
         'items': detail_items,
@@ -754,7 +754,7 @@ def prescription_pickup_view(request, presc_id):
     if request.method != 'POST':
         return redirect('accounts:prescription_detail', presc_id=presc_id)
 
-    if not (p.status == '已通过' and p.pickup_status == 0):
+    if not (p.status == '已通过' and p.pickup_status == 0 and p.pickup_method is None):
         messages.error(request, '当前处方状态为「%s」，不能选择取药方式。' % p.status)
         return redirect('accounts:prescription_detail', presc_id=presc_id)
 

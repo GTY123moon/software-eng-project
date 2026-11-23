@@ -99,7 +99,10 @@
         </div>
         <button class="btn-primary" type="submit">确认取药方式与代煎</button>
         {% else %}
-        <span>取药方式：{{ prescription.pickup }}</span>
+        <div class="pickup-method">
+            <span>取药方式：{{ prescription.pickup }}</span>
+        </div>
+        <button class="btn-primary btn-disabled" type="button" disabled>已确认取药方式</button>
         {% endif %}
         <span>审核状态：{{ prescription.audit }}</span>
     </div>

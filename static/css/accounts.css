@@ -431,6 +431,22 @@ body:has(.login-wrap) .footer {
     width: 100%;
 }
 
+/* 已确认 / 锁定态按钮：置灰、不可再点 */
+.btn-primary.btn-disabled {
+    background: #e2e8f0;
+    color: #94a3b8;
+    box-shadow: none;
+    border: 1px solid #e2e8f0;
+    cursor: not-allowed;
+    letter-spacing: 1px;
+}
+
+.btn-primary.btn-disabled:hover {
+    background: #e2e8f0;
+    color: #94a3b8;
+    box-shadow: none;
+}
+
 .link-btn {
     color: var(--primary);
     font-size: 13px;
