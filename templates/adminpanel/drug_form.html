@@ -1,15 +1,14 @@
-{% extends 'base.html' %}
+{% extends 'adminpanel/base.html' %}
 {% load static %}
 
 {% block title %}{% if drug %}编辑药品{% else %}新增药品{% endif %} · 管理后台{% endblock %}
+{% block menu_drugs_active %}active{% endblock %}
+{% block crumb %}药品目录{% endblock %}
+{% block tab %}药品{% endblock %}
 
-{% block content %}
-<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+{% block main %}
 
-<div class="dash-layout">
-    <aside class="side">{% include 'adminpanel/_side.html' %}</aside>
 
-    <main class="main">
         <div class="topbar">
             <h2>{% if drug %}编辑药品 #{{ drug.drug_id }}{% else %}新增药品{% endif %}</h2>
             <a class="btn-secondary" href="{% url 'adminpanel:drug_list' %}">返回目录</a>
@@ -70,7 +69,4 @@
         <div class="card">
             <h3>字段约束提示</h3>
             <p class="empty-tip">编码全库唯一；单价、库存均不能为负数（数据库 CHECK 约束）。保存动作会写入 operation_log，可在"操作日志"按日志号回溯。</p>
-        </div>
-    </main>
-</div>
-{% endblock %}
+        </div>{% endblock %}

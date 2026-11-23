@@ -23,6 +23,7 @@ urlpatterns = [
     path('consult/<int:cid>/ai-suggest/', views.ai_suggest, name='ai_suggest'),
     path('consult/<int:cid>/message/', views.send_message, name='send_message'),
     path('consult/<int:cid>/advice/', views.consult_advice, name='consult_advice'),
+    path('consult/<int:cid>/end-request/', views.end_request_decide, name='end_request_decide'),
 
     # 处方：按问诊新建草稿 / 编辑草稿 / AI 预审结果页 / 列表 / 提交审核
     path('consult/<int:cid>/prescription/', views.prescription_new, name='prescription_new'),

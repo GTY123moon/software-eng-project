@@ -329,6 +329,7 @@ def consult_detail(request, cid):
             'final_diagnosis': consult.final_diagnosis or '',
             'is_mine': consult.doctor_id == doctor.doctor_id,
             'accepted': consult.accepted,
+            'end_request': consult.end_request,
         },
         'patient': _patient_card(consult.patient),
         'ai': {
@@ -384,6 +385,7 @@ def consult_chat_view(request, cid):
             'final_diagnosis': consult.final_diagnosis or '',
             'is_mine': consult.doctor_id == doctor.doctor_id,
             'accepted': consult.accepted,
+            'end_request': consult.end_request,
         },
         'patient': _patient_card(consult.patient),
         'ai': {'risk_level': ai.risk_level} if ai else None,
@@ -447,6 +449,11 @@ def review_ai(request, cid):
     ai = AiPreAssessment.objects.filter(consultation_id=consult.consult_id).first()
     if not ai:
         flash.error(request, '该问诊没有 AI 预问诊记录，无法复核。')
+        return redirect('doctor:consult_detail', cid=cid)
+
+    # 已完成复核的问诊锁定结论，不允许重复提交覆盖
+    if ai.review_result:
+        flash.error(request, '该问诊已完成复核（%s），结论已锁定，不可重复提交。' % ai.review_result)
         return redirect('doctor:consult_detail', cid=cid)
 
     action = request.POST.get('result', '').strip()
@@ -574,8 +581,9 @@ def consult_advice(request, cid):
                 consult.advice_type = '无需用药'
                 consult.status = '已结束'
                 consult.end_time = timezone.now()
+                consult.end_request = 0
                 consult.save(update_fields=['status', 'final_diagnosis',
-                                            'advice_type', 'end_time'])
+                                            'advice_type', 'end_time', 'end_request'])
                 # 一医一患：问诊结束释放占号，医生回到在线
                 Doctor.objects.filter(
                     doctor_id=doctor.doctor_id, work_status=2).update(work_status=1)
@@ -600,6 +608,49 @@ def consult_advice(request, cid):
         'form': {'final_diagnosis': consult.final_diagnosis or '', 'advice': ''},
         'draft': {'id': draft.presc_id} if draft else None,
     })
+
+
+@doctor_required
+def end_request_decide(request, cid):
+    """医生回应患者的结束申请：同意则结束问诊并释放占号；拒绝则继续问诊。
+
+    患者不能单方面结束；结束申请须经接诊医生确认（双方同意）后才生效。
+    """
+    if request.method != 'POST':
+        return redirect('doctor:consult_chat', cid=cid)
+
+    doctor = _current_doctor(request)
+    consult = Consultation.objects.filter(
+        consult_id=cid, doctor_id=doctor.doctor_id).first()
+    if not consult:
+        flash.error(request, '无权处理该问诊。')
+        return redirect('doctor:dashboard')
+    if consult.status != '进行中':
+        flash.error(request, '该问诊已结束，无需处理结束申请。')
+        return redirect('doctor:consult_chat', cid=cid)
+
+    action = request.POST.get('action', '').strip()
+    if action == 'approve':
+        with transaction.atomic():
+            consult.status = '已结束'
+            consult.end_time = timezone.now()
+            consult.end_request = 0
+            consult.save(update_fields=['status', 'end_time', 'end_request'])
+            # 一医一患：结束后释放占号，医生回到在线
+            Doctor.objects.filter(
+                doctor_id=doctor.doctor_id, work_status=2).update(work_status=1)
+        write_log(doctor.doctor_id, '医生', '同意结束问诊',
+                  target_type='consultation', target_id=consult.consult_id)
+        flash.success(request, '已同意患者的结束申请，本次问诊结束。')
+    elif action == 'reject':
+        consult.end_request = 0
+        consult.save(update_fields=['end_request'])
+        write_log(doctor.doctor_id, '医生', '拒绝结束申请',
+                  target_type='consultation', target_id=consult.consult_id)
+        flash.success(request, '已拒绝结束申请，继续本次问诊。')
+    else:
+        flash.error(request, '无效的操作，请选择同意或拒绝。')
+    return redirect('doctor:consult_chat', cid=cid)
 
 
 # --------------------------------------------------------------------------
@@ -904,7 +955,8 @@ def prescription_submit(request, presc_id):
         if consult and consult.status == '进行中':
             consult.status = '已结束'
             consult.end_time = timezone.now()
-            consult.save(update_fields=['status', 'end_time'])
+            consult.end_request = 0
+            consult.save(update_fields=['status', 'end_time', 'end_request'])
             Doctor.objects.filter(
                 doctor_id=doctor.doctor_id, work_status=2).update(work_status=1)
         write_log(doctor.doctor_id, '医生', '提交处方审核',

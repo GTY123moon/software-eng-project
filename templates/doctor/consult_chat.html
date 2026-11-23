@@ -29,6 +29,24 @@
 <div class="risk-banner">该问诊为高危，患者尚未确认风险告知，线上对话暂未开启。</div>
 {% endif %}
 
+{% if consult.is_mine and consult.end_request and consult.status == '进行中' %}
+<div class="risk-banner endreq-banner">
+    <div><strong>患者申请结束本次问诊</strong>，需医生确认：同意后问诊结束并释放占号；拒绝则继续本次问诊。</div>
+    <div class="action-row">
+        <form method="post" action="{% url 'doctor:end_request_decide' consult.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="approve">
+            <button class="btn-primary" type="submit">同意结束</button>
+        </form>
+        <form method="post" action="{% url 'doctor:end_request_decide' consult.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reject">
+            <button class="btn-secondary" type="submit">继续问诊（拒绝）</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 <div class="card chat-panel">
     <div class="presc-head">
         <div>

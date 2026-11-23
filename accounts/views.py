@@ -26,6 +26,9 @@ from core.log_service import write_log
 
 PICKUP_METHOD = {0: '院药房取药', 1: '社会药店购药'}
 
+# 单医生待接诊排队上限：accepted=0 的排队问诊至多 3 人，满员后不可再挂
+QUEUE_LIMIT = 3
+
 # 职工角色（医生 / 药师 / 管理员）内部密钥登录口径：
 # 工作账号沿用手机号；内部密钥存 sys_user.password（课设演示明文比对）；
 # 登录后按角色跳转各自占位工作台。
@@ -95,9 +98,12 @@ def _doctor_options(current_dept=''):
         active = active_map.get(d.doctor_id, 0)
         waiting = wait_map.get(d.doctor_id, 0)
         offline = d.work_status == 0
-        available = not offline
+        full = waiting >= QUEUE_LIMIT
+        available = not offline and not full
         if offline:
             label, badge = '离线', 'badge-gray'
+        elif full:
+            label, badge = '队列已满', 'badge-gray'
         elif active > 0:
             label, badge = '接诊中', 'badge-orange'
         elif waiting > 0:
@@ -113,6 +119,7 @@ def _doctor_options(current_dept=''):
             'badge': badge,
             'available': available,
             'queue': waiting,
+            'full': full,
         })
     return options
 
@@ -518,6 +525,20 @@ def consult_create_view(request):
                 'error': error,
             })
 
+        # 待接诊队列达上限（排队人数 ≥ QUEUE_LIMIT）：不再放新患者进入队列
+        waiting = Consultation.objects.filter(
+            doctor_id=doc.doctor_id, status='进行中', accepted=0).count()
+        if waiting >= QUEUE_LIMIT:
+            error = '当前等待队列已满（%d 人在排队），请稍后再试或选择其他医生。' % QUEUE_LIMIT
+            return render(request, 'accounts/consult_create.html', {
+                'active_consult': active,
+                'active_doctor': _user_name(active.doctor_id) if active else '',
+                'active_dept': _doctor_dept(active.doctor_id) if active else '',
+                'active_time': _format_time(active.start_time) if active else '',
+                'doctors': doctors, 'departments': departments, 'current_dept': current_dept,
+                'error': error,
+            })
+
         # 进入排队：先建立问诊记录（accepted=0），病情采集与风险分级在 AI 评估页完成；
         # 医生手动接诊后才置 accepted=1 进入对话，不在挂号时占用医生忙碌态
         consult = Consultation.objects.create(
@@ -865,18 +886,18 @@ def consult_chat_view(request, consult_id):
             return redirect('accounts:consult_chat', consult.consult_id)
 
         if action == 'finish':
-            consult.status = '已结束'
-            consult.end_time = timezone.now()
-            consult.save()
-            # 释放医生接诊状态：该医生无其他已接诊问诊时恢复在线
-            if consult.doctor_id:
-                other_active = Consultation.objects.filter(
-                    doctor_id=consult.doctor_id, status='进行中', accepted=1
-                ).exclude(consult_id=consult.consult_id).count()
-                if other_active == 0:
-                    Doctor.objects.filter(doctor_id=consult.doctor_id).update(work_status=1)
-            write_log(patient.patient_id, '患者', '结束问诊',
-                      target_type='consultation', target_id=consult.consult_id)
+            # 患者不能单方面结束问诊：仅可发起结束申请，待接诊医生确认后才结束；
+            # 医生可主动结束，无需患者确认。
+            if consult.accepted != 1:
+                messages.error(request, '问诊尚未接诊，无法发起结束申请。')
+            elif consult.end_request == 1:
+                messages.info(request, '结束申请已提交，正在等待医生确认。')
+            else:
+                consult.end_request = 1
+                consult.save(update_fields=['end_request'])
+                write_log(patient.patient_id, '患者', '申请结束问诊',
+                          target_type='consultation', target_id=consult.consult_id)
+                messages.success(request, '已向医生发起结束申请，待医生确认后结束本次问诊。')
             return redirect('accounts:consult_chat', consult.consult_id)
 
         # 未解锁发言（未完成知情同意 / 已结束）时不允许发送消息
@@ -912,7 +933,7 @@ def consult_chat_view(request, consult_id):
                   target_type='consultation', target_id=consult.consult_id)
         return redirect('accounts:consult_chat', consult.consult_id)
 
-    messages = ConsultationMessage.objects.filter(
+    msg_list = ConsultationMessage.objects.filter(
         consultation_id=consult.consult_id
     ).exclude(sender_role='AI').exclude(msg_type='pre').order_by('send_time')
 
@@ -931,6 +952,7 @@ def consult_chat_view(request, consult_id):
         },
         'can_chat': can_chat,
         'need_consent': need_consent,
+        'end_request': consult.end_request,
         'messages': [{
             'role': m.sender_role,
             'content': m.content or '',
@@ -938,7 +960,7 @@ def consult_chat_view(request, consult_id):
             'media_url': m.media_url or '',
             'time': _format_time(m.send_time),
             'mine': m.sender_role == '患者',
-        } for m in messages],
+        } for m in msg_list],
         'ai': {
             'risk_level': ai.risk_level,
             'summary': ai.ai_summary,

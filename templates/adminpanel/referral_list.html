@@ -1,15 +1,14 @@
-{% extends 'base.html' %}
+{% extends 'adminpanel/base.html' %}
 {% load static %}
 
 {% block title %}转诊日志 · 管理后台{% endblock %}
+{% block menu_referrals_active %}active{% endblock %}
+{% block crumb %}转诊日志{% endblock %}
+{% block tab %}转诊{% endblock %}
 
-{% block content %}
-<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+{% block main %}
 
-<div class="dash-layout">
-    <aside class="side">{% include 'adminpanel/_side.html' %}</aside>
 
-    <main class="main">
         <div class="topbar">
             <div>
                 <h2>转诊日志</h2>
@@ -51,7 +50,4 @@
             {% else %}
             <p class="empty-tip">暂无转诊记录。患者端触发高危关键词并选择转诊后，这里会出现记录。</p>
             {% endif %}
-        </div>
-    </main>
-</div>
-{% endblock %}
+        </div>{% endblock %}

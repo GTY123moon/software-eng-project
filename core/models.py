@@ -129,6 +129,8 @@ class Consultation(models.Model):
                                     help_text='结束建议：无需用药/需开处方')
     accepted = models.SmallIntegerField(default=0,
                                         help_text='接诊标记：0=排队中，1=已接诊（status 仍为进行中）')
+    end_request = models.SmallIntegerField(default=0,
+                                          help_text='结束申请：0=无申请，1=患者申请结束待医生确认')
     start_time = models.DateTimeField()
     end_time = models.DateTimeField(null=True, blank=True)
 

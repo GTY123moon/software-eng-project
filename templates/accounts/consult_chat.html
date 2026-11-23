@@ -119,12 +119,18 @@
         <textarea name="content" rows="2" placeholder="输入病情或回复医生…"></textarea>
         <button class="btn-primary" type="submit">发送</button>
     </form>
+    {% if end_request %}
+    <div class="chat-finish">
+        <span class="empty-tip">结束申请已提交，等待医生确认…</span>
+    </div>
+    {% else %}
     <form class="chat-finish" method="post" action="{% url 'accounts:consult_chat' consult.id %}"
-          onsubmit="return confirm('确认结束本次问诊？结束后将不能再发送消息或呼叫。');">
+          onsubmit="return confirm('将向医生发起结束申请，需医生确认后才会结束本次问诊。');">
         {% csrf_token %}
         <input type="hidden" name="action" value="finish">
-        <button class="btn-secondary" type="submit">结束问诊</button>
+        <button class="btn-secondary" type="submit">申请结束问诊</button>
     </form>
+    {% endif %}
     {% else %}
     {% if need_consent %}
     <p class="empty-tip">请先完成上方风险告知，再进入线上咨询。</p>

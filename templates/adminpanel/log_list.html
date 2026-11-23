@@ -1,15 +1,14 @@
-{% extends 'base.html' %}
+{% extends 'adminpanel/base.html' %}
 {% load static %}
 
 {% block title %}操作日志 · 管理后台{% endblock %}
+{% block menu_logs_active %}active{% endblock %}
+{% block crumb %}操作日志{% endblock %}
+{% block tab %}日志{% endblock %}
 
-{% block content %}
-<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+{% block main %}
 
-<div class="dash-layout">
-    <aside class="side">{% include 'adminpanel/_side.html' %}</aside>
 
-    <main class="main">
         <div class="topbar">
             <div>
                 <h2>操作日志</h2>
@@ -72,7 +71,4 @@
         <div class="card">
             <h3>审计说明</h3>
             <p class="empty-tip">每条日志由 core.log_service.write_log 写入，记录操作人、动作、目标类型与目标ID；点日志号可回溯到被操作对象当时的记录。AI 不作为操作人写日志。</p>
-        </div>
-    </main>
-</div>
-{% endblock %}
+        </div>{% endblock %}

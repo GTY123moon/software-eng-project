@@ -1,15 +1,14 @@
-{% extends 'base.html' %}
+{% extends 'adminpanel/base.html' %}
 {% load static %}
 
 {% block title %}药品目录 · 管理后台{% endblock %}
+{% block menu_drugs_active %}active{% endblock %}
+{% block crumb %}药品目录{% endblock %}
+{% block tab %}药品{% endblock %}
 
-{% block content %}
-<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+{% block main %}
 
-<div class="dash-layout">
-    <aside class="side">{% include 'adminpanel/_side.html' %}</aside>
 
-    <main class="main">
         <div class="topbar">
             <div>
                 <h2>药品目录</h2>
@@ -80,7 +79,4 @@
             {% else %}
             <p class="empty-tip">没有符合条件的药品。</p>
             {% endif %}
-        </div>
-    </main>
-</div>
-{% endblock %}
+        </div>{% endblock %}

@@ -1,15 +1,14 @@
-{% extends 'base.html' %}
+{% extends 'adminpanel/base.html' %}
 {% load static %}
 
 {% block title %}开通账号 · 管理后台{% endblock %}
+{% block menu_accounts_active %}active{% endblock %}
+{% block crumb %}账号管理{% endblock %}
+{% block tab %}账号{% endblock %}
 
-{% block content %}
-<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+{% block main %}
 
-<div class="dash-layout">
-    <aside class="side">{% include 'adminpanel/_side.html' %}</aside>
 
-    <main class="main">
         <div class="topbar">
             <h2>开通职工账号</h2>
             <a class="btn-secondary" href="{% url 'adminpanel:account_list' %}">返回账号列表</a>
@@ -88,7 +87,4 @@
         <div class="card">
             <h3>开通后如何使用</h3>
             <p class="empty-tip">职工在身份选择页点"医生 / 药师"，输入这里的手机号和内部密钥即可登录对应工作台；停用后立即无法登录。医生账号开通后，还需到"值班排班"为其配置班次，才会进入患者端可选医生与夜间接诊池。</p>
-        </div>
-    </main>
-</div>
-{% endblock %}
+        </div>{% endblock %}

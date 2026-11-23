@@ -199,6 +199,34 @@
 
 .empty-state .empty-box { font-size: 40px; margin-bottom: 10px; }
 
+/* 患者结束申请确认横幅：蓝色提示 + 同意/拒绝按钮 */
+.endreq-banner {
+    background: var(--primary-light, #e8f1ff);
+    border-left: 4px solid var(--primary);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 12px 0;
+}
+.endreq-banner .action-row { margin-top: 10px; }
+.endreq-banner form { display: inline-flex; }
+
+/* 复核已锁定：只读提示块，结论不可再改 */
+.review-locked {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    background: #f5f7fa;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-top: 12px;
+}
+.review-locked .empty-tip { margin: 0; }
+
 /* 窄屏：患者队列与诊疗主区上下堆叠，避免左右挤压溢出 */
 @media (max-width: 768px) {
     .workbench-layout {

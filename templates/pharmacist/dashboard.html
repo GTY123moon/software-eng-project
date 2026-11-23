@@ -6,38 +6,48 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/accounts.css' %}">
 
-<div class="dash-layout">
-    <aside class="side">
-        <div class="side-title">药师工作台</div>
-        <a class="side-item active" href="{% url 'pharmacist:dashboard' %}">首页概览</a>
-        {% for item in menu %}
-        <span class="side-item side-item-disabled">{{ item.0 }}</span>
-        {% endfor %}
-        <a class="side-item" href="{% url 'accounts:logout' %}">退出登录</a>
-    </aside>
+<div class="his-shell">
+    <nav class="his-rail">
+        <a class="his-rail-item active" href="{% url 'pharmacist:dashboard' %}">
+            <span class="rail-icon">🧑‍⚕️</span>
+            <span class="rail-label">药师</span>
+        </a>
+    </nav>
 
-    <main class="main">
-        <div class="topbar">
-            <div>
-                <h2>您好，{{ staff_name }}</h2>
-                <span class="user-info">{{ staff_type }}</span>
+    <div class="his-col">
+        <header class="his-topbar">
+            <div class="his-crumb">
+                <span class="crumb-home">☰</span>
+                <span>首页</span>
+                <span class="crumb-sep">/</span>
+                <span class="crumb-current">药师工作台</span>
             </div>
-        </div>
-
-        <div class="card">
-            <h3>功能模块（待接入）</h3>
-            {% for item in menu %}
-            <div class="list-item">
-                <div>{{ item.0 }}</div>
-                <span class="time">{{ item.1 }}</span>
+            <div class="his-topbar-right">
+                <span class="his-topbar-role">💊 {{ staff_type }} · {{ staff_name }}</span>
+                <a class="his-topbar-link" href="{% url 'accounts:logout' %}">退出登录</a>
             </div>
-            {% endfor %}
+        </header>
+
+        <div class="his-tabs">
+            <span class="his-tab active"><span class="tab-dot"></span>首页概览</span>
         </div>
 
-        <div class="card">
-            <h3>说明</h3>
-            <p>药师端登录鉴权已接通，处方审核、配药发药与药品库存核对等业务模块由后续迭代在此工作台接入。</p>
-        </div>
-    </main>
+        <main class="his-body">
+            <div class="card">
+                <h3>功能模块（待接入）</h3>
+                {% for item in menu %}
+                <div class="list-item">
+                    <div>{{ item.0 }}</div>
+                    <span class="time">{{ item.1 }}</span>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="card">
+                <h3>说明</h3>
+                <p>药师端登录鉴权已接通，处方审核、配药发药与药品库存核对等业务模块由后续迭代在此工作台接入。</p>
+            </div>
+        </main>
+    </div>
 </div>
 {% endblock %}

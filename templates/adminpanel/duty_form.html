@@ -1,15 +1,14 @@
-{% extends 'base.html' %}
+{% extends 'adminpanel/base.html' %}
 {% load static %}
 
 {% block title %}{% if duty %}编辑排班{% else %}新增排班{% endif %} · 管理后台{% endblock %}
+{% block menu_duties_active %}active{% endblock %}
+{% block crumb %}值班排班{% endblock %}
+{% block tab %}排班{% endblock %}
 
-{% block content %}
-<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+{% block main %}
 
-<div class="dash-layout">
-    <aside class="side">{% include 'adminpanel/_side.html' %}</aside>
 
-    <main class="main">
         <div class="topbar">
             <h2>{% if duty %}编辑排班 #{{ duty.duty_code }}{% else %}新增排班{% endif %}</h2>
             <a class="btn-secondary" href="{% url 'adminpanel:duty_list' %}">返回排班表</a>
@@ -71,7 +70,4 @@
         <div class="card">
             <h3>填写提示</h3>
             <p class="empty-tip">白班建议 08:00 - 22:00，夜班 22:00 - 次日 08:00；状态选"停诊"时该班次不参与患者端分流，也不会占用时段。创建人自动记为当前管理员账号。</p>
-        </div>
-    </main>
-</div>
-{% endblock %}
+        </div>{% endblock %}

@@ -58,7 +58,9 @@
                     <div>
                         <div class="doctor-name">{{ d.name }} · {{ d.title }}</div>
                         <div class="doctor-dept">{{ d.department }}</div>
-                        {% if d.queue > 0 %}
+                        {% if d.full %}
+                        <div class="doctor-dept">等待队列已满，暂不可挂号</div>
+                        {% elif d.queue > 0 %}
                         <div class="doctor-dept">前方排队 {{ d.queue }} 人，挂号后进入队列等待接诊</div>
                         {% elif d.status == '接诊中' %}
                         <div class="doctor-dept">医生正在接诊，挂号后排队等待</div>

@@ -28,6 +28,24 @@
     </div>
 </div>
 
+{% if consult.is_mine and consult.end_request and consult.status == '进行中' %}
+<div class="risk-banner endreq-banner">
+    <div><strong>患者申请结束本次问诊</strong>，需医生确认：同意后问诊结束并释放占号；拒绝则继续本次问诊。</div>
+    <div class="action-row">
+        <form method="post" action="{% url 'doctor:end_request_decide' consult.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="approve">
+            <button class="btn-primary" type="submit">同意结束</button>
+        </form>
+        <form method="post" action="{% url 'doctor:end_request_decide' consult.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reject">
+            <button class="btn-secondary" type="submit">继续问诊（拒绝）</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 <div class="card">
     <h3>患者档案与主诉</h3>
     <div class="info-row">
@@ -41,7 +59,7 @@
 
 {% if ai %}
 <div class="card ai-card">
-    <h3>AI 预问诊摘要（待医生复核）</h3>
+    <h3>AI 预问诊摘要（{% if reviewed %}已复核{% else %}待医生复核{% endif %}）</h3>
     <div class="ai-row">
         风险等级：
         <span class="badge {% if ai.risk_level == '高危' %}badge-red{% else %}badge-green{% endif %}">{{ ai.risk_level }}</span>
@@ -82,6 +100,12 @@
     {% endif %}
 
     {% if consult.is_mine and consult.accepted and consult.status == '进行中' %}
+        {% if reviewed %}
+        <div class="review-locked">
+            <span class="badge {{ consult.review_badge }}">已锁定 · {{ ai.review_result }}</span>
+            <p class="empty-tip">本次 AI 摘要已完成复核，结论已锁定保存，不可重复提交或修改。</p>
+        </div>
+        {% else %}
     <div class="ai-help-row">
         <span>AI 辅助：</span>
         <form method="post" action="{% url 'doctor:ai_suggest' consult.id %}" class="form-inline">
@@ -112,6 +136,7 @@
             复核结果仅作为医生判断的参考，最终诊断由医生填写，AI 结果不会直接写入诊断。
         </p>
     </form>
+        {% endif %}
     {% endif %}
 </div>
 {% else %}

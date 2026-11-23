@@ -1,15 +1,14 @@
-{% extends 'base.html' %}
+{% extends 'adminpanel/base.html' %}
 {% load static %}
 
 {% block title %}日志 #{{ log.log_id }} · 管理后台{% endblock %}
+{% block menu_logs_active %}active{% endblock %}
+{% block crumb %}操作日志{% endblock %}
+{% block tab %}日志{% endblock %}
 
-{% block content %}
-<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+{% block main %}
 
-<div class="dash-layout">
-    <aside class="side">{% include 'adminpanel/_side.html' %}</aside>
 
-    <main class="main">
         <div class="topbar">
             <h2>日志 #{{ log.log_id }} 回溯</h2>
             <a class="btn-secondary" href="{% url 'adminpanel:log_list' %}">返回日志列表</a>
@@ -46,7 +45,4 @@
             {% else %}
             <p class="empty-tip">该日志没有可回溯的目标对象（或目标记录已被删除）。</p>
             {% endif %}
-        </div>
-    </main>
-</div>
-{% endblock %}
+        </div>{% endblock %}

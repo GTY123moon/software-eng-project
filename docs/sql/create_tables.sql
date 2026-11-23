@@ -168,6 +168,7 @@ CREATE TABLE `consultation` (
     `final_diagnosis` text COMMENT '最终诊断（不能由 AI 直接写入）',
     `advice_type` varchar(20) DEFAULT NULL COMMENT '结束建议：无需用药/需开处方',
     `accepted` smallint NOT NULL DEFAULT 0 COMMENT '接诊标记：0=排队中，1=已接诊（status 仍为进行中）',
+    `end_request` smallint NOT NULL DEFAULT 0 COMMENT '结束申请：0=无申请，1=患者申请结束待医生确认',
     `start_time` datetime NOT NULL COMMENT '问诊发起时间',
     `end_time` datetime DEFAULT NULL COMMENT '问诊结束时间',
     PRIMARY KEY (`consult_id`),
@@ -180,7 +181,8 @@ CREATE TABLE `consultation` (
     CONSTRAINT `fk_consult_patient` FOREIGN KEY (`patient_id`) REFERENCES `patient` (`patient_id`),
     CONSTRAINT `chk_consult_review` CHECK ((`doctor_review_status` in ('待复核','已采纳','已修正','已否决'))),
     CONSTRAINT `chk_consult_status` CHECK ((`status` in ('进行中','已结束','已转诊','已取消'))),
-    CONSTRAINT `chk_consult_accepted` CHECK ((`accepted` in (0,1)))
+    CONSTRAINT `chk_consult_accepted` CHECK ((`accepted` in (0,1))),
+    CONSTRAINT `chk_consult_endreq` CHECK ((`end_request` in (0,1)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='问诊记录表';
 
 
