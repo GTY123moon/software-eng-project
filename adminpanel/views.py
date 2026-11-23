@@ -17,8 +17,8 @@ from django.utils.dateparse import parse_date, parse_datetime
 
 from core.log_service import write_log
 from core.models import (
-    Admin, Consultation, Doctor, Drug, DutySchedule, OperationLog, Pharmacist,
-    Prescription, ReferralLog, SysUser,
+    Admin, AiPreAssessment, Consultation, Doctor, Drug, DutySchedule, OperationLog,
+    Patient, Pharmacist, Prescription, PrescriptionItem, ReferralLog, SysUser,
 )
 
 # 角色枚举（与 README / 建表脚本一致）
@@ -29,14 +29,19 @@ ROLE_CN = {ROLE_ADMIN: '管理员', ROLE_PATIENT: '患者', ROLE_DOCTOR: '医生
 LOW_STOCK_THRESHOLD = 100
 
 OPERATOR_TYPES = ['患者', '医生', '药师', '管理员']
-TARGET_TYPES = ['consultation', 'prescription', 'duty', 'drug', 'sys_user']
+TARGET_TYPES = ['consultation', 'prescription', 'duty', 'drug', 'sys_user',
+                'patient', 'doctor', 'pharmacist', 'ai_pre_assessment']
 # 目标类型中文名：筛选值仍用英文代码，页面展示用中文
 TARGET_CN = {
     'consultation': '问诊', 'prescription': '处方', 'duty': '排班',
-    'drug': '药品', 'sys_user': '账号',
+    'drug': '药品', 'sys_user': '账号', 'patient': '患者档案',
+    'doctor': '医生档案', 'pharmacist': '药师档案',
+    'ai_pre_assessment': 'AI 预评估',
 }
 SHIFT_TYPES = ['白班', '夜班']
 DUTY_STATUS = ['正常', '调班', '停诊']
+# 取药方式枚举（与患者端选择口径一致）
+PICKUP_METHOD = {0: '院药房取药', 1: '社会药店购药'}
 
 
 # --------------------------------------------------------------------------
@@ -583,14 +588,80 @@ def _target_detail(log):
     elif log.target_type == 'prescription':
         obj = Prescription.objects.filter(pk=log.target_id).first()
         if obj:
-            return [('处方ID', obj.presc_id), ('处方状态', obj.status),
-                    ('取药方式', obj.pickup_method), ('取药状态', obj.pickup_status)]
+            related_ids = {obj.doctor_id, obj.patient_id}
+            if obj.pharmacist_id:
+                related_ids.add(obj.pharmacist_id)
+            names = _names(related_ids)
+            items = list(PrescriptionItem.objects.filter(prescription_id=obj.presc_id))
+            total = sum((i.subtotal for i in items), Decimal('0'))
+            if items:
+                drug_text = '；'.join(
+                    '%s ×%d（用法：%s，小计 ¥%s）' % (
+                        i.drug_name, i.qty, i.dosage or '—', i.subtotal)
+                    for i in items
+                )
+            else:
+                drug_text = '（无药品明细）'
+            detail = [
+                ('处方ID', obj.presc_id),
+                ('处方状态', obj.status),
+                ('开方医生', names.get(obj.doctor_id, '未知')),
+                ('患者', names.get(obj.patient_id, '未知')),
+                ('所属问诊', obj.consultation_id),
+                ('药品明细', drug_text),
+                ('合计金额', '¥%s' % total),
+                ('AI 校验结论', obj.ai_check_result or '—'),
+            ]
+            if obj.pharmacist_id:
+                detail.append(('审方药师', names.get(obj.pharmacist_id, '未知')))
+            if obj.audit_time:
+                detail.append(('审方时间', _fmt_show(obj.audit_time)))
+            detail.append(('审方结论', obj.audit_conclusion or '—'))
+            detail.append(('取药方式', PICKUP_METHOD.get(obj.pickup_method, '未选择')))
+            detail.append(('取药状态', '已取药' if obj.pickup_status else '未取药'))
+            detail.append(('开方时间', _fmt_show(obj.created_at)))
+            return detail
     elif log.target_type == 'sys_user':
         obj = SysUser.objects.filter(pk=log.target_id).first()
         if obj:
             return [('姓名', obj.name), ('手机号', obj.phone),
                     ('角色', ROLE_CN.get(obj.role_type, obj.role_type)),
                     ('账号状态', '启用' if obj.status == 1 else '停用')]
+    elif log.target_type == 'doctor':
+        obj = Doctor.objects.filter(pk=log.target_id).first()
+        if obj:
+            names = _names({obj.doctor_id})
+            return [('医生ID', obj.doctor_id),
+                    ('姓名', names.get(obj.doctor_id, '未知')),
+                    ('科室', obj.department or '—'),
+                    ('职称', obj.title or '—'),
+                    ('擅长', obj.skill or '—'),
+                    ('在岗状态', '在岗' if obj.work_status == 1 else '停诊')]
+    elif log.target_type == 'pharmacist':
+        obj = Pharmacist.objects.filter(pk=log.target_id).first()
+        if obj:
+            names = _names({obj.pharmacist_id})
+            return [('药师ID', obj.pharmacist_id),
+                    ('姓名', names.get(obj.pharmacist_id, '未知')),
+                    ('药师类型', obj.pharmacist_type or '—'),
+                    ('在岗状态', '在岗' if obj.pharmacist_status == 1 else '停用')]
+    elif log.target_type == 'patient':
+        obj = Patient.objects.filter(pk=log.target_id).first()
+        if obj:
+            names = _names({obj.patient_id})
+            return [('患者ID', obj.patient_id),
+                    ('姓名', names.get(obj.patient_id, '未知')),
+                    ('病历号', obj.medical_no or '—'),
+                    ('档案建立时间', _fmt_show(obj.created_at))]
+    elif log.target_type == 'ai_pre_assessment':
+        obj = AiPreAssessment.objects.filter(pk=log.target_id).first()
+        if obj:
+            return [('预评估ID', obj.pre_id),
+                    ('所属问诊', obj.consultation_id),
+                    ('风险等级', obj.risk_level),
+                    ('命中关键词', obj.matched_keyword or '—'),
+                    ('复核结果', obj.review_result or '—'),
+                    ('生成时间', _fmt_show(obj.created_at))]
     return []
 
 
@@ -695,15 +766,19 @@ def _read_account_form(post):
         errors.append('角色只能选医生或药师')
     if not name:
         errors.append('姓名不能为空')
-    if not (phone.isdigit() and len(phone) == 11 and phone.startswith('1')):
-        errors.append('手机号必须是 11 位、以 1 开头')
+    if not (phone.isdigit() and len(phone) == 8):
+        errors.append('工作账号必须是 8 位数字（首位区分角色：患者 1、医生 2、药师 3、管理员 4）')
+    elif role == '2' and not phone.startswith('2'):
+        errors.append('医生账号首位必须是 2，例如 20000015')
+    elif role == '3' and not phone.startswith('3'):
+        errors.append('药师账号首位必须是 3，例如 30000015')
     if len(password) < 6:
         errors.append('内部密钥至少 6 位')
     if role == '2' and not department:
         errors.append('医生必须填写所属科室')
 
-    if phone.isdigit() and len(phone) == 11 and SysUser.objects.filter(phone=phone).exists():
-        errors.append('手机号 %s 已被占用，请换一个' % phone)
+    if phone.isdigit() and len(phone) == 8 and SysUser.objects.filter(phone=phone).exists():
+        errors.append('工作账号 %s 已被占用，请换一个' % phone)
 
     return {
         'role': int(role) if role in ('2', '3') else None,
