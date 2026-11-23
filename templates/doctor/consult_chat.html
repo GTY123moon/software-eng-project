@@ -2,14 +2,18 @@
 {% load static %}
 
 {% block title %}图文沟通 · 医生工作台{% endblock %}
+{% block menu_workbench_active %}active{% endblock %}
+{% block crumb %}图文沟通{% endblock %}
+{% block tab %}沟通{% endblock %}
 
 {% block main %}
-<div class="topbar">
-    <div>
-        <h2>与 {{ patient.name }} 的问诊</h2>
-        <span class="user-info">{{ patient.gender }} · {{ patient.age }} 岁 · {{ consult.time }} 开始</span>
-    </div>
-    <div class="head-actions">
+<div class="his-info-bar">
+    <span class="info-arrow">›</span>
+    <span class="info-label">当前病人</span>
+    <span class="his-info-field">姓名：<b>{{ patient.name }}</b></span>
+    <span class="his-info-field">{{ patient.gender }} · {{ patient.age }} 岁</span>
+    <span class="his-info-field">开始：<b>{{ consult.time }}</b></span>
+    <div class="info-actions">
         <span class="badge {{ consult.badge }}">{{ consult.status }}</span>
         {% if ai.risk_level == '高危' %}
         <span class="badge badge-red">高危</span>

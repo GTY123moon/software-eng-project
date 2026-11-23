@@ -2,16 +2,18 @@
 {% load static %}
 
 {% block title %}预审结果 · 医生工作台{% endblock %}
+{% block menu_presc_active %}active{% endblock %}
+{% block crumb %}处方预审 {{ presc.no }}{% endblock %}
+{% block tab %}预审{% endblock %}
 
 {% block main %}
-<div class="topbar">
-    <div>
-        <h2>处方 AI 预审结果 {{ presc.no }}</h2>
-        <span class="user-info">
-            {{ doctor.department }} · {{ doctor.name }}　患者：{{ patient.name }}（{{ patient.gender }} · {{ patient.age }} 岁）
-        </span>
-    </div>
-    <div class="head-actions">
+<div class="his-info-bar">
+    <span class="info-arrow">›</span>
+    <span class="info-label">当前病人</span>
+    <span class="his-info-field">姓名：<b>{{ patient.name }}</b></span>
+    <span class="his-info-field">{{ patient.gender }} · {{ patient.age }} 岁</span>
+    <span class="his-info-field">医生：{{ doctor.department }} · {{ doctor.name }}</span>
+    <div class="info-actions">
         <span class="badge {{ presc.badge }}">{{ presc.status }}</span>
         <a class="btn-secondary" href="{% url 'doctor:dashboard' %}">返回接诊台</a>
     </div>

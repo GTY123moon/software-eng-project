@@ -1,100 +1,88 @@
-{% extends 'base.html' %}
+{% extends 'accounts/base.html' %}
 {% load static %}
 
 {% block title %}问诊对话 · 患者工作台{% endblock %}
+{% block menu_messages_active %}active{% endblock %}
+{% block crumb %}问诊对话{% endblock %}
+{% block tab %}对话{% endblock %}
 
-{% block content %}
-<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+{% block main %}
+<div class="his-info-bar">
+    <span class="info-arrow">›</span>
+    <span class="info-label">与 {{ consult.doctor }} 的问诊</span>
+    <span class="his-info-field">{{ consult.department }}</span>
+    <span class="his-info-field">开始：<b>{{ consult.time }}</b></span>
+    <div class="info-actions">
+        <span class="badge badge-blue">{{ consult.status }}</span>
+        {% if can_chat %}
+        <button class="btn-secondary" id="openVoice" type="button"
+                onclick="alert('语音通话为课设占位，需接入实时音视频服务。')">语音通话</button>
+        <button class="btn-secondary" id="openVideo" type="button">视频通话</button>
+        {% endif %}
+    </div>
+</div>
 
-<div class="dash-layout">
-    <aside class="side">
-        <div class="side-title">患者工作台</div>
-        <a class="side-item" href="{% url 'accounts:dashboard' %}">首页概览</a>
-        <a class="side-item" href="{% url 'accounts:consult_create' %}">线上问诊</a>
-        <a class="side-item" href="{% url 'accounts:prescription_list' %}">我的处方</a>
-        <a class="side-item active" href="{% url 'accounts:messages' %}">消息记录</a>
-        <a class="side-item" href="{% url 'accounts:profile' %}">个人中心</a>
-    </aside>
+{% if ai %}
+<div class="card ai-card">
+    <h3>AI 预问诊评估</h3>
+    <div class="ai-row">
+        风险等级：
+        <span class="badge {% if ai.risk_level == '高危' %}badge-red{% else %}badge-green{% endif %}">{{ ai.risk_level }}</span>
+    </div>
+    <div class="ai-summary">{{ ai.summary }}</div>
+    {% if ai.keyword %}
+    <div class="ai-keyword">命中高危词：{{ ai.keyword }}</div>
+    {% endif %}
+    <div class="ai-time">生成时间：{{ ai.time }}</div>
+</div>
+{% if ai.risk_level == '高危' %}
+<div class="risk-banner">本次为高危急症：线上医生仅能提供健康建议，不能替代线下面诊、检查与急救处置，请及时就近就医。</div>
+{% endif %}
+{% endif %}
 
-    <main class="main">
-        <div class="topbar">
-            <div>
-                <h2>与 {{ consult.doctor }} 的问诊</h2>
-                <span class="user-info">{{ consult.department }} · {{ consult.time }}</span>
-            </div>
-            <div class="head-actions">
-                <span class="badge badge-blue">{{ consult.status }}</span>
-                {% if can_chat %}
-                <button class="btn-secondary" id="openVoice" type="button"
-                        onclick="alert('语音通话为课设占位，需接入实时音视频服务。')">语音通话</button>
-                <button class="btn-secondary" id="openVideo" type="button">视频通话</button>
+<div class="card chat-panel">
+    <div class="msg-list">
+        {% for m in messages %}
+        <div class="msg-row {% if m.mine %}mine{% endif %}">
+            <div class="msg-bubble">
+                <div class="msg-role">{{ m.role }}</div>
+                {% if m.msg_type == 'image' %}
+                <img class="msg-image" src="{{ m.media_url }}" alt="图片消息">
+                {% if m.content %}<div class="msg-content">{{ m.content }}</div>{% endif %}
+                {% elif m.msg_type == 'video' %}
+                <div class="msg-content">[视频消息]</div>
+                {% else %}
+                <div class="msg-content">{{ m.content }}</div>
                 {% endif %}
+                <div class="msg-time">{{ m.time }}</div>
             </div>
         </div>
-
-        {% if ai %}
-        <div class="card ai-card">
-            <h3>AI 预问诊评估</h3>
-            <div class="ai-row">
-                风险等级：
-                <span class="badge {% if ai.risk_level == '高危' %}badge-red{% else %}badge-green{% endif %}">{{ ai.risk_level }}</span>
-            </div>
-            <div class="ai-summary">{{ ai.summary }}</div>
-            {% if ai.keyword %}
-            <div class="ai-keyword">命中高危词：{{ ai.keyword }}</div>
-            {% endif %}
-            <div class="ai-time">生成时间：{{ ai.time }}</div>
-        </div>
-        {% if ai.risk_level == '高危' %}
-        <div class="risk-banner">本次为高危急症：线上医生仅能提供健康建议，不能替代线下面诊、检查与急救处置，请及时就近就医。</div>
-        {% endif %}
-        {% endif %}
-
-        <div class="card chat-panel">
-            <div class="msg-list">
-                {% for m in messages %}
-                <div class="msg-row {% if m.mine %}mine{% endif %}">
-                    <div class="msg-bubble">
-                        <div class="msg-role">{{ m.role }}</div>
-                        {% if m.msg_type == 'image' %}
-                        <img class="msg-image" src="{{ m.media_url }}" alt="图片消息">
-                        {% if m.content %}<div class="msg-content">{{ m.content }}</div>{% endif %}
-                        {% elif m.msg_type == 'video' %}
-                        <div class="msg-content">[视频消息]</div>
-                        {% else %}
-                        <div class="msg-content">{{ m.content }}</div>
-                        {% endif %}
-                        <div class="msg-time">{{ m.time }}</div>
-                    </div>
-                </div>
-                {% empty %}
-                <p class="empty-tip">暂无消息，发送第一条消息开始对话。</p>
-                {% endfor %}
-            </div>
-            {% if can_chat %}
-            <form class="chat-input" method="post" enctype="multipart/form-data" action="{% url 'accounts:consult_chat' consult.id %}">
-                {% csrf_token %}
-                <label class="img-upload" for="imageInput">图片
-                    <input type="file" id="imageInput" name="image" accept="image/*" hidden>
-                </label>
-                <textarea name="content" rows="2" placeholder="输入病情或回复医生…"></textarea>
-                <button class="btn-primary" type="submit">发送</button>
-            </form>
-            <form class="chat-finish" method="post" action="{% url 'accounts:consult_chat' consult.id %}"
-                  onsubmit="return confirm('确认结束本次问诊？结束后将不能再发送消息或呼叫。');">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="finish">
-                <button class="btn-secondary" type="submit">结束问诊</button>
-            </form>
-            {% else %}
-            {% if need_consent %}
-            <p class="empty-tip">请先完成上方风险告知，再进入线上咨询。</p>
-            {% else %}
-            <p class="empty-tip">本次问诊已结束，仅可查看历史记录，不能再发消息或呼叫。</p>
-            {% endif %}
-            {% endif %}
-        </div>
-    </main>
+        {% empty %}
+        <p class="empty-tip">暂无消息，发送第一条消息开始对话。</p>
+        {% endfor %}
+    </div>
+    {% if can_chat %}
+    <form class="chat-input" method="post" enctype="multipart/form-data" action="{% url 'accounts:consult_chat' consult.id %}">
+        {% csrf_token %}
+        <label class="img-upload" for="imageInput">图片
+            <input type="file" id="imageInput" name="image" accept="image/*" hidden>
+        </label>
+        <textarea name="content" rows="2" placeholder="输入病情或回复医生…"></textarea>
+        <button class="btn-primary" type="submit">发送</button>
+    </form>
+    <form class="chat-finish" method="post" action="{% url 'accounts:consult_chat' consult.id %}"
+          onsubmit="return confirm('确认结束本次问诊？结束后将不能再发送消息或呼叫。');">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="finish">
+        <button class="btn-secondary" type="submit">结束问诊</button>
+    </form>
+    {% else %}
+    {% if need_consent %}
+    <p class="empty-tip">请先完成上方风险告知，再进入线上咨询。</p>
+    {% else %}
+    <p class="empty-tip">本次问诊已结束，仅可查看历史记录，不能再发消息或呼叫。</p>
+    {% endif %}
+    {% endif %}
 </div>
 
 {% if need_consent %}

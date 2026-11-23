@@ -1,43 +1,31 @@
-{% extends 'base.html' %}
+{% extends 'accounts/base.html' %}
 {% load static %}
 
 {% block title %}我的处方 · 患者工作台{% endblock %}
+{% block menu_presc_active %}active{% endblock %}
+{% block crumb %}我的处方{% endblock %}
+{% block tab %}处方{% endblock %}
 
-{% block content %}
-<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
-
-<div class="dash-layout">
-    <aside class="side">
-        <div class="side-title">患者工作台</div>
-        <a class="side-item" href="{% url 'accounts:dashboard' %}">首页概览</a>
-        <a class="side-item" href="{% url 'accounts:consult_create' %}">线上问诊</a>
-        <a class="side-item active" href="{% url 'accounts:prescription_list' %}">我的处方</a>
-        <a class="side-item" href="{% url 'accounts:messages' %}">消息记录</a>
-        <a class="side-item" href="{% url 'accounts:profile' %}">个人中心</a>
-    </aside>
-
-    <main class="main">
-        <div class="topbar">
-            <h2>我的处方</h2>
-            <a class="btn-secondary" href="{% url 'accounts:dashboard' %}">返回工作台</a>
-        </div>
-
-        {% for p in prescriptions %}
-        <div class="card">
-            <div class="presc-head">
-                <div>
-                    <div class="presc-title">处方号 {{ p.id }}</div>
-                    <div class="presc-meta">{{ p.doctor }} · {{ p.department }} · {{ p.time }}</div>
-                </div>
-                <span class="badge {% if p.status == '已完成' %}badge-green{% else %}badge-orange{% endif %}">{{ p.status }}</span>
-            </div>
-            <div class="presc-items">{{ p.items }}</div>
-            <div class="presc-foot">
-                <span>取药方式：{{ p.pickup }}</span>
-                <a class="btn-secondary" href="{% url 'accounts:prescription_detail' p.presc_id %}">查看处方详情</a>
-            </div>
-        </div>
-        {% endfor %}
-    </main>
+{% block main %}
+<div class="topbar">
+    <h2>我的处方</h2>
+    <a class="btn-secondary" href="{% url 'accounts:dashboard' %}">返回工作台</a>
 </div>
+
+{% for p in prescriptions %}
+<div class="card">
+    <div class="presc-head">
+        <div>
+            <div class="presc-title">处方号 {{ p.id }}</div>
+            <div class="presc-meta">{{ p.doctor }} · {{ p.department }} · {{ p.time }}</div>
+        </div>
+        <span class="badge {% if p.status == '已完成' %}badge-green{% else %}badge-orange{% endif %}">{{ p.status }}</span>
+    </div>
+    <div class="presc-items">{{ p.items }}</div>
+    <div class="presc-foot">
+        <span>取药方式：{{ p.pickup }}</span>
+        <a class="btn-secondary" href="{% url 'accounts:prescription_detail' p.presc_id %}">查看处方详情</a>
+    </div>
+</div>
+{% endfor %}
 {% endblock %}

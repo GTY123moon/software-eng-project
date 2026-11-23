@@ -1,62 +1,50 @@
-{% extends 'base.html' %}
+{% extends 'accounts/base.html' %}
 {% load static %}
 
 {% block title %}AI 引导式预问诊 · 患者工作台{% endblock %}
+{% block menu_consult_active %}active{% endblock %}
+{% block crumb %}AI 引导式预问诊{% endblock %}
+{% block tab %}预问诊{% endblock %}
 
-{% block content %}
-<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+{% block main %}
+<div class="his-info-bar">
+    <span class="info-arrow">›</span>
+    <span class="info-label">接诊医生</span>
+    <span class="his-info-field"><b>{{ consult.doctor }}</b> · {{ consult.department }}</span>
+    <span class="his-info-field">开始时间：<b>{{ consult.time }}</b></span>
+</div>
 
-<div class="dash-layout">
-    <aside class="side">
-        <div class="side-title">患者工作台</div>
-        <a class="side-item" href="{% url 'accounts:dashboard' %}">首页概览</a>
-        <a class="side-item" href="{% url 'accounts:consult_create' %}">线上问诊</a>
-        <a class="side-item" href="{% url 'accounts:prescription_list' %}">我的处方</a>
-        <a class="side-item" href="{% url 'accounts:messages' %}">消息记录</a>
-        <a class="side-item" href="{% url 'accounts:profile' %}">个人中心</a>
-    </aside>
+<div class="card ai-card">
+    <h3>就诊引导</h3>
+    <div class="ai-summary">
+        AI 助手会逐项了解您的不适部位、持续时间、症状性质、诱因、外伤与既往作息等情况；信息收集完整后，将自动整理成病情摘要并完成风险分级，之后即可进入与医生的图文对话。
+    </div>
+</div>
 
-    <main class="main">
-        <div class="topbar">
-            <div>
-                <h2>AI 引导式预问诊</h2>
-                <span class="user-info">接诊医生：{{ consult.doctor }} · {{ consult.department }} · {{ consult.time }}</span>
+<div class="card chat-panel">
+    <div class="msg-list">
+        {% for m in messages %}
+        <div class="msg-row {% if m.mine %}mine{% endif %}">
+            <div class="msg-bubble">
+                <div class="msg-role">{% if m.role == 'AI' %}AI 助手{% else %}我{% endif %}</div>
+                <div class="msg-content">{{ m.content }}</div>
+                <div class="msg-time">{{ m.time }}</div>
             </div>
         </div>
+        {% empty %}
+        <p class="empty-tip">正在初始化问诊引导…</p>
+        {% endfor %}
+    </div>
 
-        <div class="card ai-card">
-            <h3>就诊引导</h3>
-            <div class="ai-summary">
-                AI 助手会逐项了解您的不适部位、持续时间、症状性质、诱因、外伤与既往作息等情况；信息收集完整后，将自动整理成病情摘要并完成风险分级，之后即可进入与医生的图文对话。
-            </div>
-        </div>
-
-        <div class="card chat-panel">
-            <div class="msg-list">
-                {% for m in messages %}
-                <div class="msg-row {% if m.mine %}mine{% endif %}">
-                    <div class="msg-bubble">
-                        <div class="msg-role">{% if m.role == 'AI' %}AI 助手{% else %}我{% endif %}</div>
-                        <div class="msg-content">{{ m.content }}</div>
-                        <div class="msg-time">{{ m.time }}</div>
-                    </div>
-                </div>
-                {% empty %}
-                <p class="empty-tip">正在初始化问诊引导…</p>
-                {% endfor %}
-            </div>
-
-            <form class="chat-input" method="post" action="{% url 'accounts:consult_assess' consult.id %}">
-                {% csrf_token %}
-                <textarea name="answer" rows="2" placeholder="根据 AI 助手的提问回答…" required></textarea>
-                <button class="btn-primary" type="submit">发送</button>
-            </form>
-            <form class="chat-finish" method="post" action="{% url 'accounts:consult_assess' consult.id %}">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="finish">
-                <button class="btn-secondary" type="submit">病情已补充完，生成评估</button>
-            </form>
-        </div>
-    </main>
+    <form class="chat-input" method="post" action="{% url 'accounts:consult_assess' consult.id %}">
+        {% csrf_token %}
+        <textarea name="answer" rows="2" placeholder="根据 AI 助手的提问回答…" required></textarea>
+        <button class="btn-primary" type="submit">发送</button>
+    </form>
+    <form class="chat-finish" method="post" action="{% url 'accounts:consult_assess' consult.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="finish">
+        <button class="btn-secondary" type="submit">病情已补充完，生成评估</button>
+    </form>
 </div>
 {% endblock %}

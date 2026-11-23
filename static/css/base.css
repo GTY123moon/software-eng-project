@@ -32,6 +32,13 @@
     --his-side-active: #1f7384;
     --his-head: #d8f0ea;
     --his-head-text: #1c5c52;
+    /* ===== HIS 三层壳：深蓝灰图标竖栏 / 顶栏 / 标签页 ===== */
+    --rail: #2c3e50;
+    --rail-deep: #1f2d3d;
+    --rail-text: #c8d4e0;
+    --rail-active: #3a7ca5;
+    --his-blue: #2080d0;
+    --shell-bg: #f4f6f9;
 }
 
 * {

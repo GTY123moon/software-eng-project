@@ -2,16 +2,19 @@
 {% load static %}
 
 {% block title %}预问诊 · 医生工作台{% endblock %}
+{% block menu_workbench_active %}active{% endblock %}
+{% block crumb %}预问诊复核{% endblock %}
+{% block tab %}预问诊{% endblock %}
 
 {% block main %}
-<div class="topbar">
-    <div>
-        <h2>与 {{ patient.name }} 的问诊</h2>
-        <span class="user-info">
-            病历号 {{ patient.medical_no }} · {{ patient.gender }} · {{ patient.age }} 岁 · 开始 {{ consult.time }}
-        </span>
-    </div>
-    <div class="head-actions">
+<div class="his-info-bar">
+    <span class="info-arrow">›</span>
+    <span class="info-label">当前病人</span>
+    <span class="his-info-field">姓名：<b>{{ patient.name }}</b></span>
+    <span class="his-info-field">病历号：<b>{{ patient.medical_no }}</b></span>
+    <span class="his-info-field">{{ patient.gender }} · {{ patient.age }} 岁</span>
+    <span class="his-info-field">开始：<b>{{ consult.time }}</b></span>
+    <div class="info-actions">
         <span class="badge {{ consult.badge }}">{{ consult.status }}</span>
         <span class="badge {{ consult.review_badge }}">AI {{ consult.review_status }}</span>
         {% if consult.is_mine %}

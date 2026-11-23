@@ -6,19 +6,10 @@
     <title>{% block title %}智慧医疗在线问诊与处方流转平台{% endblock %}</title>
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/his-layout.css' %}">
 </head>
 <body>
-    <!-- 顶部导航：公共框架，由组长统一维护，各角色页面在此基础上扩展 -->
-    <header class="top-nav">
-        <div class="brand">智慧医疗在线问诊与处方流转平台</div>
-        <nav class="nav-links">
-            <!-- 登录后按角色展示对应入口 -->
-        </nav>
-    </header>
-
-    <main class="content">
-        {% block content %}{% endblock %}
-    </main>
+    {% block content %}{% endblock %}
 
     <footer class="footer">
         <p>电子处方经执业药师审核后生效，AI 结果仅供参考，最终诊断由执业医生负责。</p>

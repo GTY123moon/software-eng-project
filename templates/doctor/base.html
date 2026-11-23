@@ -5,28 +5,56 @@
 <link rel="stylesheet" href="{% static 'css/accounts.css' %}">
 <link rel="stylesheet" href="{% static 'css/doctor.css' %}">
 
-{% if messages %}
-<div class="flash-bar">
-    {% for m in messages %}
-    <div class="form-error flash-msg {% if 'success' in m.tags %}flash-ok{% endif %}">{{ m }}</div>
-    {% endfor %}
-</div>
-{% endif %}
+<div class="his-shell">
+    <!-- 最左：图标竖栏 -->
+    <nav class="his-rail">
+        <a class="his-rail-item {% block menu_workbench_active %}{% endblock %}"
+           href="{% url 'doctor:dashboard' %}">
+            <span class="rail-icon">🏠</span>
+            <span class="rail-label">接诊台</span>
+        </a>
+        <a class="his-rail-item {% block menu_presc_active %}{% endblock %}"
+           href="{% url 'doctor:prescription_list' %}">
+            <span class="rail-icon">📄</span>
+            <span class="rail-label">处方</span>
+        </a>
+        <a class="his-rail-item {% block menu_profile_active %}{% endblock %}"
+           href="{% url 'doctor:profile' %}">
+            <span class="rail-icon">👤</span>
+            <span class="rail-label">我的</span>
+        </a>
+    </nav>
 
-<div class="dash-layout">
-    <aside class="side">
-        <div class="side-title">医生工作台</div>
-        <a class="side-item {% if nav == 'workbench' %}active{% endif %}"
-           href="{% url 'doctor:dashboard' %}">首页概览</a>
-        <a class="side-item {% if nav == 'prescriptions' %}active{% endif %}"
-           href="{% url 'doctor:prescription_list' %}">我的处方</a>
-        <a class="side-item {% if nav == 'profile' %}active{% endif %}"
-           href="{% url 'doctor:profile' %}">个人中心</a>
-        <a class="side-item" href="{% url 'accounts:logout' %}">退出登录</a>
-    </aside>
+    <!-- 右侧列：顶栏 + 标签页 + 内容 -->
+    <div class="his-col">
+        <header class="his-topbar">
+            <div class="his-crumb">
+                <span class="crumb-home">☰</span>
+                <span>首页</span>
+                <span class="crumb-sep">/</span>
+                <span class="crumb-current">{% block crumb %}医生工作台{% endblock %}</span>
+            </div>
+            <div class="his-topbar-right">
+                <span class="his-topbar-role">🩺 医生</span>
+                <a class="his-topbar-link" href="{% url 'accounts:logout' %}">退出登录</a>
+            </div>
+        </header>
 
-    <main class="main">
-        {% block main %}{% endblock %}
-    </main>
+        <div class="his-tabs">
+            <a class="his-tab" href="{% url 'doctor:dashboard' %}">首页</a>
+            <span class="his-tab active"><span class="tab-dot"></span>{% block tab %}工作台{% endblock %}</span>
+        </div>
+
+        <main class="his-body">
+            {% if messages %}
+            <div class="flash-bar">
+                {% for m in messages %}
+                <div class="form-error flash-msg {% if 'success' in m.tags %}flash-ok{% endif %}">{{ m }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% block main %}{% endblock %}
+        </main>
+    </div>
 </div>
 {% endblock %}

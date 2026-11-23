@@ -2,16 +2,18 @@
 {% load static %}
 
 {% block title %}开方 · 医生工作台{% endblock %}
+{% block menu_presc_active %}active{% endblock %}
+{% block crumb %}{% if presc %}处方 {{ presc.no }}{% else %}开具处方{% endif %}{% endblock %}
+{% block tab %}开方{% endblock %}
 
 {% block main %}
-<div class="topbar">
-    <div>
-        <h2>{% if presc %}{% if presc.editable %}编辑处方 {{ presc.no }}{% else %}查看处方 {{ presc.no }}{% endif %}{% else %}开具处方{% endif %}</h2>
-        <span class="user-info">
-            {{ doctor.department }} · {{ doctor.name }}　患者：{{ patient.name }}（{{ patient.gender }} · {{ patient.age }} 岁）
-        </span>
-    </div>
-    <div class="head-actions">
+<div class="his-info-bar">
+    <span class="info-arrow">›</span>
+    <span class="info-label">当前病人</span>
+    <span class="his-info-field">姓名：<b>{{ patient.name }}</b></span>
+    <span class="his-info-field">{{ patient.gender }} · {{ patient.age }} 岁</span>
+    <span class="his-info-field">医生：{{ doctor.department }} · {{ doctor.name }}</span>
+    <div class="info-actions">
         {% if presc %}<span class="badge {{ presc.badge }}">{{ presc.status }}</span>{% endif %}
         <a class="btn-secondary" href="{% url 'doctor:dashboard' %}">返回接诊台</a>
     </div>

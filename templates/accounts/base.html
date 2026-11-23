@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+
+<div class="his-shell">
+    <!-- 最左：图标竖栏 -->
+    <nav class="his-rail">
+        <a class="his-rail-item {% block menu_dashboard_active %}{% endblock %}"
+           href="{% url 'accounts:dashboard' %}">
+            <span class="rail-icon">🏠</span>
+            <span class="rail-label">首页</span>
+        </a>
+        <a class="his-rail-item {% block menu_consult_active %}{% endblock %}"
+           href="{% url 'accounts:consult_create' %}">
+            <span class="rail-icon">💬</span>
+            <span class="rail-label">问诊</span>
+        </a>
+        <a class="his-rail-item {% block menu_presc_active %}{% endblock %}"
+           href="{% url 'accounts:prescription_list' %}">
+            <span class="rail-icon">📄</span>
+            <span class="rail-label">处方</span>
+        </a>
+        <a class="his-rail-item {% block menu_messages_active %}{% endblock %}"
+           href="{% url 'accounts:messages' %}">
+            <span class="rail-icon">✉️</span>
+            <span class="rail-label">消息</span>
+        </a>
+        <a class="his-rail-item {% block menu_profile_active %}{% endblock %}"
+           href="{% url 'accounts:profile' %}">
+            <span class="rail-icon">👤</span>
+            <span class="rail-label">我的</span>
+        </a>
+    </nav>
+
+    <!-- 右侧列：顶栏 + 标签页 + 内容 -->
+    <div class="his-col">
+        <header class="his-topbar">
+            <div class="his-crumb">
+                <span class="crumb-home">☰</span>
+                <span>首页</span>
+                <span class="crumb-sep">/</span>
+                <span class="crumb-current">{% block crumb %}患者工作台{% endblock %}</span>
+            </div>
+            <div class="his-topbar-right">
+                <span class="his-topbar-role">👤 患者</span>
+                <a class="his-topbar-link" href="{% url 'accounts:logout' %}">退出登录</a>
+            </div>
+        </header>
+
+        <div class="his-tabs">
+            <a class="his-tab" href="{% url 'accounts:dashboard' %}">首页</a>
+            <span class="his-tab active"><span class="tab-dot"></span>{% block tab %}工作台{% endblock %}</span>
+        </div>
+
+        <main class="his-body">
+            {% block main %}{% endblock %}
+        </main>
+    </div>
+</div>
+{% endblock %}

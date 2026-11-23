@@ -1,101 +1,88 @@
-{% extends 'base.html' %}
+{% extends 'accounts/base.html' %}
 {% load static %}
 
 {% block title %}患者工作台 · 智慧医疗在线问诊与处方流转平台{% endblock %}
+{% block menu_dashboard_active %}active{% endblock %}
+{% block crumb %}患者工作台{% endblock %}
+{% block tab %}工作台{% endblock %}
 
-{% block content %}
-<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
+{% block main %}
+<div class="topbar">
+    <div>
+        <h2>您好，{{ patient.name }}</h2>
+        <span class="user-info">病历号：{{ patient.medical_no }}</span>
+    </div>
+</div>
 
-<div class="dash-layout">
-    <aside class="side">
-        <div class="side-title">患者工作台</div>
-        <a class="side-item active" href="{% url 'accounts:dashboard' %}">首页概览</a>
-        <a class="side-item" href="{% url 'accounts:consult_create' %}">线上问诊</a>
-        <a class="side-item" href="{% url 'accounts:prescription_list' %}">我的处方</a>
-        <a class="side-item" href="{% url 'accounts:messages' %}">消息记录</a>
-        <a class="side-item" href="{% url 'accounts:profile' %}">个人中心</a>
-        <a class="side-item" href="{% url 'accounts:logout' %}">退出登录</a>
-    </aside>
-
-    <main class="main">
-        <div class="topbar">
-            <div>
-                <h2>您好，{{ patient.name }}</h2>
-                <span class="user-info">病历号：{{ patient.medical_no }}</span>
-            </div>
-        </div>
-
-        {% if active %}
-        <div class="card active-consult">
-            <h3>当前问诊</h3>
-            <div class="presc-meta">与 {{ active.doctor }} · {{ active.department }} · {{ active.time }}</div>
-            <div class="form-actions">
-                {% if active.assessed %}
-                <a class="btn-primary" href="{% url 'accounts:consult_chat' active.id %}">进入对话 / 视频</a>
-                {% else %}
-                <a class="btn-primary" href="{% url 'accounts:consult_assess' active.id %}">继续 AI 预问诊</a>
-                {% endif %}
-            </div>
-        </div>
+{% if active %}
+<div class="card active-consult">
+    <h3>当前问诊</h3>
+    <div class="presc-meta">与 {{ active.doctor }} · {{ active.department }} · {{ active.time }}</div>
+    <div class="form-actions">
+        {% if active.assessed %}
+        <a class="btn-primary" href="{% url 'accounts:consult_chat' active.id %}">进入对话 / 视频</a>
+        {% else %}
+        <a class="btn-primary" href="{% url 'accounts:consult_assess' active.id %}">继续 AI 预问诊</a>
         {% endif %}
+    </div>
+</div>
+{% endif %}
 
-        <div class="entry-grid">
-            <a class="entry-card" href="{% url 'accounts:consult_create' %}">
-                <div class="entry-icon">问诊</div>
-                <div class="entry-body">
-                    <div class="entry-title">发起新问诊</div>
-                    <div class="entry-desc">选择医生，描述病情并提交问诊</div>
-                </div>
-            </a>
-            <a class="entry-card" href="{% url 'accounts:prescription_list' %}">
-                <div class="entry-icon">处方</div>
-                <div class="entry-body">
-                    <div class="entry-title">查看我的处方</div>
-                    <div class="entry-desc">查看处方状态、药品明细与取药方式</div>
-                </div>
-            </a>
+<div class="entry-grid">
+    <a class="entry-card" href="{% url 'accounts:consult_create' %}">
+        <div class="entry-icon">问诊</div>
+        <div class="entry-body">
+            <div class="entry-title">发起新问诊</div>
+            <div class="entry-desc">选择医生，描述病情并提交问诊</div>
         </div>
+    </a>
+    <a class="entry-card" href="{% url 'accounts:prescription_list' %}">
+        <div class="entry-icon">处方</div>
+        <div class="entry-body">
+            <div class="entry-title">查看我的处方</div>
+            <div class="entry-desc">查看处方状态、药品明细与取药方式</div>
+        </div>
+    </a>
+</div>
 
-        <div class="card">
-            <h3>个人信息 <a class="link-btn profile-edit" href="{% url 'accounts:profile' %}">编辑资料</a></h3>
-            <div class="info-row">
-                <span>性别：{{ patient.gender }}</span>
-                <span>年龄：{{ patient.age }}</span>
-                <span>手机号：{{ patient.phone }}</span>
-            </div>
-            <div class="info-row">
-                <span>过敏史：{{ patient.allergy }}</span>
-                <span>既往病史：{{ patient.history }}</span>
-                <span>联系地址：{{ patient.address }}</span>
-            </div>
-        </div>
+<div class="card">
+    <h3>个人信息 <a class="link-btn profile-edit" href="{% url 'accounts:profile' %}">编辑资料</a></h3>
+    <div class="info-row">
+        <span>性别：{{ patient.gender }}</span>
+        <span>年龄：{{ patient.age }}</span>
+        <span>手机号：{{ patient.phone }}</span>
+    </div>
+    <div class="info-row">
+        <span>过敏史：{{ patient.allergy }}</span>
+        <span>既往病史：{{ patient.history }}</span>
+        <span>联系地址：{{ patient.address }}</span>
+    </div>
+</div>
 
-        <div class="card">
-            <h3>历史问诊</h3>
-            {% for c in history %}
-            <div class="list-item">
-                <div>{{ c.doctor }} · {{ c.department }}</div>
-                <div class="item-right">
-                    <span class="badge badge-blue">{{ c.status }}</span>
-                    <span class="time">{{ c.time }}</span>
-                    <a class="link-btn" href="{% url 'accounts:consult_chat' c.id %}">对话</a>
-                </div>
-            </div>
-            {% endfor %}
+<div class="card">
+    <h3>历史问诊</h3>
+    {% for c in history %}
+    <div class="list-item">
+        <div>{{ c.doctor }} · {{ c.department }}</div>
+        <div class="item-right">
+            <span class="badge badge-blue">{{ c.status }}</span>
+            <span class="time">{{ c.time }}</span>
+            <a class="link-btn" href="{% url 'accounts:consult_chat' c.id %}">对话</a>
         </div>
+    </div>
+    {% endfor %}
+</div>
 
-        <div class="card">
-            <h3>我的处方</h3>
-            {% for p in prescriptions %}
-            <div class="list-item">
-                <div>处方号 {{ p.id }} · {{ p.doctor }}</div>
-                <div class="item-right">
-                    <span class="badge badge-orange">{{ p.status }}</span>
-                    <span class="time">{{ p.pickup }} · {{ p.time }}</span>
-                </div>
-            </div>
-            {% endfor %}
+<div class="card">
+    <h3>我的处方</h3>
+    {% for p in prescriptions %}
+    <div class="list-item">
+        <div>处方号 {{ p.id }} · {{ p.doctor }}</div>
+        <div class="item-right">
+            <span class="badge badge-orange">{{ p.status }}</span>
+            <span class="time">{{ p.pickup }} · {{ p.time }}</span>
         </div>
-    </main>
+    </div>
+    {% endfor %}
 </div>
 {% endblock %}
