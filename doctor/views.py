@@ -37,6 +37,8 @@ REVIEW_BADGE = {'待复核': 'badge-orange', '已采纳': 'badge-green',
                 '已修正': 'badge-blue', '已否决': 'badge-red'}
 PRESC_BADGE = {'草稿': 'badge-gray', '待审核': 'badge-orange', '已通过': 'badge-green',
                '已驳回': 'badge-red', '待配药': 'badge-blue', '已完成': 'badge-green'}
+# 草稿可继续编辑；被药师驳回的处方允许医生修改明细后重新保存为草稿再提交
+EDITABLE_STATUSES = ('草稿', '已驳回')
 
 REVIEW_MAP = {'采纳': '已采纳', '修正': '已修正', '否决': '已否决'}
 
@@ -707,7 +709,7 @@ def _prescription_form(request, cid=None, presc_id=None):
     } for d in drugs]
 
     if request.method == 'POST':
-        if presc and presc.status != '草稿':
+        if presc and presc.status not in EDITABLE_STATUSES:
             flash.error(request, '该处方已提交审核，不可再修改。')
             return redirect('doctor:prescription_edit', presc_id=presc.presc_id)
         rows, errors = parse_rows(request.POST)
@@ -743,14 +745,25 @@ def _prescription_form(request, cid=None, presc_id=None):
 
         with transaction.atomic():
             if presc:
-                if presc.status != '草稿':
+                if presc.status not in EDITABLE_STATUSES:
                     flash.error(request, '该处方状态为「%s」，已不能修改，请新建草稿。' % presc.status)
                     return redirect('doctor:prescription_list')
+                # 驳回单退回草稿：释放原药师归属、清空旧审核结论与取药记录，重新预审后再提交
                 presc.status = '草稿'
+                presc.doctor_confirm = 0
+                presc.pharmacist = None
+                presc.audit_conclusion = None
+                presc.audit_time = None
+                presc.pickup_method = None
+                presc.pickup_status = 0
+                presc.dispensed_at = None
                 presc.ai_check_result = ai_result
                 presc.ai_check_comment = ai_comment
                 presc.updated_at = now
-                presc.save(update_fields=['status', 'ai_check_result', 'ai_check_comment', 'updated_at'])
+                presc.save(update_fields=['status', 'doctor_confirm', 'pharmacist',
+                                          'audit_conclusion', 'audit_time', 'pickup_method',
+                                          'pickup_status', 'dispensed_at', 'ai_check_result',
+                                          'ai_check_comment', 'updated_at'])
             else:
                 presc = Prescription.objects.create(
                     consultation_id=consult.consult_id,
@@ -820,14 +833,15 @@ def _render_form(request, doctor, consult, presc, patient, drugs_json, rows=None
             'badge': PRESC_BADGE.get(presc.status, 'badge-gray'),
             'ai_result': presc.ai_check_result or '未校验',
             'ai_comment': presc.ai_check_comment or '',
+            'audit_comment': presc.audit_conclusion or '',
             'time': _fmt_time(presc.created_at),
-            'editable': presc.status == '草稿',
+            'editable': presc.status in EDITABLE_STATUSES,
         } if presc else None,
         'rows': rows,
         'row_count': max(len(rows), 1),
         'drugs': drugs_json,
         'total': round(items_total, 2),
-        'editable': presc.status == '草稿' if presc else True,
+        'editable': presc.status in EDITABLE_STATUSES if presc else True,
     }
     return render(request, 'doctor/prescription_form.html', context)
 
@@ -856,7 +870,8 @@ def prescription_list(request):
             'time': _fmt_time(p.created_at),
             'items': '；'.join('%s×%d' % (i.drug_name, i.qty) for i in items) or '暂无明细',
             'amount': round(sum(float(i.subtotal) for i in items), 2),
-            'editable': p.status == '草稿',
+            'editable': p.status in EDITABLE_STATUSES,
+            'audit_comment': p.audit_conclusion or '',
             'cid': p.consultation_id,
         })
 
@@ -889,8 +904,10 @@ def prescription_review(request, presc_id):
         prescription_id=presc.presc_id).select_related('drug'))
     total = round(sum(float(i.subtotal) for i in items), 2)
     ai_result = presc.ai_check_result or '未校验'
-    can_submit = ai_result in ('通过', '超时降级')
-    is_risk = ai_result == '风险提示'
+    is_draft = presc.status == '草稿'
+    # 仅草稿可提交药师审核；被驳回的处方须先返回修改、保存为草稿后再提交
+    can_submit = is_draft and ai_result in ('通过', '超时降级')
+    is_risk = is_draft and ai_result == '风险提示'
 
     consult = presc.consultation
     context = {
@@ -902,8 +919,9 @@ def prescription_review(request, presc_id):
             'badge': PRESC_BADGE.get(presc.status, 'badge-gray'),
             'ai_result': ai_result,
             'ai_comment': presc.ai_check_comment or '—',
+            'audit_comment': presc.audit_conclusion or '',
             'time': _fmt_time(presc.created_at),
-            'editable': presc.status == '草稿',
+            'editable': presc.status in EDITABLE_STATUSES,
         },
         'patient': _patient_card(presc.patient),
         'consult': {

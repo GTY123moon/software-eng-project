@@ -39,6 +39,9 @@
         <span class="badge {{ p.badge }}">{{ p.status }}</span>
     </div>
     <div class="presc-items">{{ p.items }}</div>
+    {% if p.audit_comment %}
+    <div class="ai-summary">药师驳回：{{ p.audit_comment|cut:"驳回：" }}</div>
+    {% endif %}
     {% if p.ai_comment %}
     <div class="ai-summary">AI 预审（{{ p.ai_result }}）：{{ p.ai_comment }}</div>
     {% endif %}
@@ -46,9 +49,9 @@
         <span>合计 ￥{{ p.amount }}</span>
         <span>
             <a class="link-btn" href="{% url 'doctor:prescription_edit' p.id %}">
-                {% if p.editable %}编辑草稿{% else %}查看处方{% endif %}
+                {% if p.status == '已驳回' %}修改处方{% elif p.editable %}编辑草稿{% else %}查看处方{% endif %}
             </a>
-            {% if p.editable %}
+            {% if p.editable and p.status == '草稿' %}
             <a class="link-btn" href="{% url 'doctor:prescription_review' p.id %}">预审结果与提交</a>
             {% endif %}
         </span>

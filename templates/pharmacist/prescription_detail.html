@@ -34,16 +34,33 @@
     </section>
     {% if can_approve %}
     <section class="pharmacist-detail-section"><h3>药师审核</h3>
-        <form class="pharmacist-action-form" method="post" action="{% url 'pharmacist:prescription_audit' prescription.presc_id %}">
-            {% csrf_token %}<input type="hidden" name="version" value="{{ audit_token }}"><input type="hidden" name="decision" value="approve">
-            <button class="btn-primary" type="submit">审核通过</button>
-        </form>
-        <form class="pharmacist-action-form" method="post" action="{% url 'pharmacist:prescription_audit' prescription.presc_id %}">
+        <div class="form-actions">
+            <form class="pharmacist-action-form" method="post" action="{% url 'pharmacist:prescription_audit' prescription.presc_id %}">
+                {% csrf_token %}<input type="hidden" name="version" value="{{ audit_token }}"><input type="hidden" name="decision" value="approve">
+                <button class="btn-primary" type="submit">审核通过</button>
+            </form>
+            <button class="btn-secondary" type="button" id="rejectToggle" onclick="toggleReject(true)">驳回处方</button>
+        </div>
+        <form class="pharmacist-action-form" id="rejectForm" method="post" action="{% url 'pharmacist:prescription_audit' prescription.presc_id %}" hidden>
             {% csrf_token %}<input type="hidden" name="version" value="{{ audit_token }}"><input type="hidden" name="decision" value="reject">
             <label for="audit-reason">驳回理由（必填）</label><textarea id="audit-reason" name="reason" rows="3" required maxlength="252" placeholder="请说明需要医生修改的内容"></textarea>
-            <button class="btn-secondary" type="submit">驳回处方</button>
+            <div class="form-actions">
+                <button class="btn-secondary" type="button" onclick="toggleReject(false)">取消</button>
+                <button class="btn-danger" type="submit">确认驳回</button>
+            </div>
         </form>
     </section>
+    <script>
+        function toggleReject(open) {
+            var form = document.getElementById('rejectForm');
+            var toggle = document.getElementById('rejectToggle');
+            var reason = document.getElementById('audit-reason');
+            form.hidden = !open;
+            toggle.hidden = open;
+            if (open) { reason.focus(); }
+            else if (reason) { reason.value = ''; }
+        }
+    </script>
     {% elif can_dispense %}
     <section class="pharmacist-detail-section"><h3>配药与发药</h3>
         {% if not pickup_selected %}<p class="pharmacist-hint">等待患者选择取药方式后才能发药。</p>{% else %}

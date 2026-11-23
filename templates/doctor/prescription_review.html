@@ -62,6 +62,14 @@
     </table>
 </div>
 
+{% if presc.status == '已驳回' and presc.audit_comment %}
+<div class="card ai-card">
+    <h3>药师驳回意见</h3>
+    <div class="info-row"><span>驳回结论</span><strong class="pre-wrap">{{ presc.audit_comment }}</strong></div>
+    <p class="ai-time">处方已被驳回，须返回修改明细并保存为草稿后，才能重新提交药师审核。</p>
+</div>
+{% endif %}
+
 <div class="card ai-card">
     <h3>处方 AI 校验结果</h3>
     <div class="info-row"><span>校验结论</span><strong>{{ presc.ai_result }}</strong></div>
