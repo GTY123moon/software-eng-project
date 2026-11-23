@@ -21,6 +21,8 @@ from core.models import (
 )
 from core.ai_service import assess_risk, next_guide_question, guide_history_text, GUIDE_TOPICS, _local_guide_next
 from core.log_service import write_log
+from pharmacist.services import choose_pickup, version_token, WorkflowError
+from django.db import DatabaseError
 
 
 PICKUP_METHOD = {0: '院药房取药', 1: '社会药店购药'}
@@ -155,8 +157,11 @@ def _presc_detail(p):
         'pickup': PICKUP_METHOD.get(p.pickup_method, '未选择'),
         'pickup_method': p.pickup_method,
         # 药师审核通过、尚未取药时，患者可选择取药方式与代煎；已完成则锁定
-        'can_choose': p.status == '已通过' and p.pickup_status == 0,
+        'can_choose': p.status == '已通过' and p.pickup_status == 0 and p.pickup_method is None,
         'audit': p.audit_conclusion or '等待药师审核',
+        'pickup_status': p.pickup_status,
+        'dispensed_at': p.dispensed_at,
+        'pickup_token': version_token(p, 'pickup'),
         'time': _format_time(p.created_at),
         'items': detail_items,
     }
@@ -675,47 +680,18 @@ def prescription_pickup_view(request, presc_id):
     if not patient:
         return redirect('accounts:login')
 
-    p = Prescription.objects.filter(presc_id=presc_id, patient_id=patient.patient_id).first()
-    if not p:
-        messages.error(request, '未找到该处方信息。')
-        return redirect('accounts:prescription_list')
-
     if request.method != 'POST':
         return redirect('accounts:prescription_detail', presc_id=presc_id)
 
-    if not (p.status == '已通过' and p.pickup_status == 0):
-        messages.error(request, '当前处方状态为「%s」，不能选择取药方式。' % p.status)
-        return redirect('accounts:prescription_detail', presc_id=presc_id)
-
-    pickup_method = request.POST.get('pickup_method')
-    if pickup_method not in ('0', '1'):
-        messages.error(request, '请选择取药方式（院药房取药 / 社会药店购药）。')
-        return redirect('accounts:prescription_detail', presc_id=presc_id)
-
-    p.pickup_method = int(pickup_method)
-    p.updated_at = timezone.now()
-    p.save(update_fields=['pickup_method', 'updated_at'])
-
-    # 逐行回写代煎：按药品明细匹配，数组按提交顺序对齐。
-    # 注意：明细表在 ORM 里主键映射到处方外键，对象 save 会按处方 id 命中多行，
-    # 因此这里用 filter().update() 按 (presc_id, drug_id) 精确定位单行更新。
-    drug_ids = request.POST.getlist('item_drug_id')
-    decoctions = request.POST.getlist('item_decoction')
-    decoction_nums = request.POST.getlist('item_decoction_num')
-    for idx, raw in enumerate(drug_ids):
-        if not raw.isdigit():
-            continue
-        drug_id = int(raw)
-        is_dec = 1 if idx < len(decoctions) and decoctions[idx] == '1' else 0
-        num_raw = (decoction_nums[idx] if idx < len(decoction_nums) else '').strip()
-        decoction_num = int(num_raw) if is_dec == 1 and num_raw.isdigit() else None
-        PrescriptionItem.objects.filter(
-            prescription_id=p.presc_id, drug_id=drug_id
-        ).update(is_decoction=is_dec, decoction_num=decoction_num)
-
-    write_log(patient.patient_id, '患者', '选择取药方式与代煎',
-              target_type='prescription', target_id=p.presc_id)
-    messages.success(request, '取药方式与代煎选择已提交，药房将按此配药。')
+    try:
+        p = choose_pickup(presc_id, patient.patient_id, request.POST)
+    except WorkflowError as error:
+        messages.error(request, error.message)
+    except DatabaseError:
+        messages.error(request, '数据库暂不可用，取药选择未提交，请刷新核对后重试。')
+    else:
+        messages.success(request, '已进入院内待配药队列。' if p.pickup_method == 0
+                         else '已登记社会药店外购，可凭本页电子处方购药；不扣院内库存。')
     return redirect('accounts:prescription_detail', presc_id=presc_id)
 
 

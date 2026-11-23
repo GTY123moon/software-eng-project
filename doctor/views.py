@@ -26,6 +26,7 @@ from core.models import (
 
 from . import ai_client
 from .services import build_items, check_prescription, parse_rows
+from pharmacist.services import version_token, check_version, WorkflowError
 
 # 问诊状态与处方状态的展示样式（不改变库中取值）
 DOCTOR_STATUS_TEXT = {0: '离线', 1: '在线', 2: '忙碌'}
@@ -621,7 +622,7 @@ def _prescription_form(request, cid=None, presc_id=None):
         if not presc:
             flash.error(request, '处方不存在或不属于当前医生。')
             return redirect('doctor:prescription_list')
-        # 草稿可编辑；已提交（待审核及以后）的处方只读查看，由药师端接手后续流程
+        # 草稿和药师驳回的处方可编辑；其余状态由药师端接手后只读查看。
         consult = presc.consultation
 
     patient = consult.patient if consult else (presc.patient if presc else None)
@@ -637,7 +638,7 @@ def _prescription_form(request, cid=None, presc_id=None):
     } for d in drugs]
 
     if request.method == 'POST':
-        if presc and presc.status != '草稿':
+        if presc and presc.status not in ('草稿', '已驳回'):
             flash.error(request, '该处方已提交审核，不可再修改。')
             return redirect('doctor:prescription_edit', presc_id=presc.presc_id)
         rows, errors = parse_rows(request.POST)
@@ -673,15 +674,34 @@ def _prescription_form(request, cid=None, presc_id=None):
 
         with transaction.atomic():
             if presc:
-                if presc.status != '草稿':
+                presc = Prescription.objects.select_for_update().get(
+                    pk=presc.pk, doctor_id=doctor.doctor_id)
+                if presc.status not in ('草稿', '已驳回'):
                     flash.error(request, '该处方状态为「%s」，已不能修改，请新建草稿。' % presc.status)
                     return redirect('doctor:prescription_list')
+                try:
+                    check_version(presc, request.POST.get('version'), 'edit')
+                except WorkflowError as error:
+                    flash.error(request, error.message)
+                    return redirect('doctor:prescription_edit', presc_id=presc.pk)
                 presc.status = '草稿'
+                # 驳回后重新提交是一轮新的审核，清除上一轮药师归属和确认标记。
+                presc.pharmacist_id = None
+                # 上次驳回原因保留至下一轮审核，医生修改过程中仍可核对。
+                presc.audit_time = None
+                presc.doctor_confirm = 0
                 presc.ai_check_result = ai_result
                 presc.ai_check_comment = ai_comment
                 presc.updated_at = now
-                presc.save(update_fields=['status', 'ai_check_result', 'ai_check_comment', 'updated_at'])
+                presc.save(update_fields=['status', 'pharmacist', 'audit_conclusion',
+                                          'audit_time', 'doctor_confirm',
+                                          'ai_check_result', 'ai_check_comment', 'updated_at'])
             else:
+                Consultation.objects.select_for_update().get(pk=consult.pk)
+                if Prescription.objects.filter(consultation_id=consult.pk,
+                                               doctor_id=doctor.doctor_id).exists():
+                    flash.error(request, '该问诊已存在处方，请从我的处方继续处理，勿重复创建。')
+                    return redirect('doctor:prescription_list')
                 presc = Prescription.objects.create(
                     consultation_id=consult.consult_id,
                     doctor_id=doctor.doctor_id,
@@ -695,7 +715,10 @@ def _prescription_form(request, cid=None, presc_id=None):
                     updated_at=now,
                 )
             # 明细联合主键 (presc_id, drug_id)，整单重写最稳妥
-            PrescriptionItem.objects.filter(prescription_id=presc.presc_id).delete()
+            # 明确只删此处方的明细，不用联合主键实例的 delete/save。
+            from django.db import connection
+            with connection.cursor() as cursor:
+                cursor.execute('DELETE FROM prescription_item WHERE presc_id = %s', [presc.pk])
             for item in items:
                 PrescriptionItem.objects.create(
                     prescription_id=presc.presc_id,
@@ -751,13 +774,15 @@ def _render_form(request, doctor, consult, presc, patient, drugs_json, rows=None
             'ai_result': presc.ai_check_result or '未校验',
             'ai_comment': presc.ai_check_comment or '',
             'time': _fmt_time(presc.created_at),
-            'editable': presc.status == '草稿',
+            'editable': presc.status in ('草稿', '已驳回'),
         } if presc else None,
         'rows': rows,
         'row_count': max(len(rows), 1),
         'drugs': drugs_json,
         'total': round(items_total, 2),
-        'editable': presc.status == '草稿' if presc else True,
+        'editable': presc.status in ('草稿', '已驳回') if presc else True,
+        'version': version_token(presc, 'edit') if presc else '',
+        'audit_conclusion': presc.audit_conclusion if presc else '',
     }
     return render(request, 'doctor/prescription_form.html', context)
 
@@ -783,10 +808,11 @@ def prescription_list(request):
             'badge': PRESC_BADGE.get(p.status, 'badge-gray'),
             'ai_result': p.ai_check_result or '未校验',
             'ai_comment': p.ai_check_comment or '',
+            'audit_conclusion': p.audit_conclusion or '',
             'time': _fmt_time(p.created_at),
             'items': '；'.join('%s×%d' % (i.drug_name, i.qty) for i in items) or '暂无明细',
             'amount': round(sum(float(i.subtotal) for i in items), 2),
-            'editable': p.status == '草稿',
+            'editable': p.status in ('草稿', '已驳回'),
             'cid': p.consultation_id,
         })
 
@@ -851,6 +877,7 @@ def prescription_review(request, presc_id):
         'total': total,
         'can_submit': can_submit,
         'is_risk': is_risk,
+        'version': version_token(presc, 'submit'),
     }
     return render(request, 'doctor/prescription_review.html', context)
 
@@ -862,20 +889,27 @@ def prescription_submit(request, presc_id):
         return redirect('doctor:prescription_list')
 
     doctor = _current_doctor(request)
-    presc = Prescription.objects.filter(presc_id=presc_id, doctor_id=doctor.doctor_id).first()
-    if not presc:
-        flash.error(request, '处方不存在或不属于当前医生。')
-        return redirect('doctor:prescription_list')
-
-    if presc.status != '草稿':
-        flash.error(request, '该处方当前状态为「%s」，不能重复提交。' % presc.status)
-        return redirect('doctor:prescription_list')
-
-    if not PrescriptionItem.objects.filter(prescription_id=presc.presc_id).exists():
-        flash.error(request, '处方没有药品明细，不能提交审核。')
-        return redirect('doctor:prescription_edit', presc_id=presc.presc_id)
-
     with transaction.atomic():
+        presc = Prescription.objects.select_for_update().filter(
+            presc_id=presc_id, doctor_id=doctor.doctor_id).first()
+        if not presc or presc.status != '草稿':
+            flash.error(request, '处方不存在、无权操作或已提交，不能重复提交。')
+            return redirect('doctor:prescription_list')
+        try:
+            check_version(presc, request.POST.get('version'), 'submit')
+        except WorkflowError as error:
+            flash.error(request, error.message)
+            return redirect('doctor:prescription_review', presc_id=presc.pk)
+        if not PrescriptionItem.objects.filter(prescription_id=presc.pk).exists():
+            flash.error(request, '处方没有药品明细，不能提交审核。')
+            return redirect('doctor:prescription_edit', presc_id=presc.pk)
+        if not (presc.consultation.final_diagnosis or '').strip():
+            flash.error(request, '请先在问诊处置建议中填写最终诊断。')
+            return redirect('doctor:prescription_edit', presc_id=presc.pk)
+        if (presc.ai_check_result not in ('通过', '风险提示', '超时降级')
+                or (presc.ai_check_result == '风险提示' and request.POST.get('ack_risk') != '1')):
+            flash.error(request, '请完成预审，并明确确认风险后再提交。')
+            return redirect('doctor:prescription_review', presc_id=presc.pk)
         presc.status = '待审核'
         presc.doctor_confirm = 1
         presc.updated_at = timezone.now()

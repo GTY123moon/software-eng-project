@@ -1,43 +1,29 @@
-{% extends 'base.html' %}
-{% load static %}
-
-{% block title %}药师工作台 · 智慧医疗在线问诊与处方流转平台{% endblock %}
-
-{% block content %}
-<link rel="stylesheet" href="{% static 'css/accounts.css' %}">
-
-<div class="dash-layout">
-    <aside class="side">
-        <div class="side-title">药师工作台</div>
-        <a class="side-item active" href="{% url 'pharmacist:dashboard' %}">首页概览</a>
-        {% for item in menu %}
-        <span class="side-item side-item-disabled">{{ item.0 }}</span>
-        {% endfor %}
-        <a class="side-item" href="{% url 'accounts:logout' %}">退出登录</a>
-    </aside>
-
-    <main class="main">
-        <div class="topbar">
-            <div>
-                <h2>您好，{{ staff_name }}</h2>
-                <span class="user-info">{{ staff_type }}</span>
-            </div>
-        </div>
-
-        <div class="card">
-            <h3>功能模块（待接入）</h3>
-            {% for item in menu %}
-            <div class="list-item">
-                <div>{{ item.0 }}</div>
-                <span class="time">{{ item.1 }}</span>
-            </div>
-            {% endfor %}
-        </div>
-
-        <div class="card">
-            <h3>说明</h3>
-            <p>药师端登录鉴权已接通，处方审核、配药发药与药品库存核对等业务模块由后续迭代在此工作台接入。</p>
-        </div>
-    </main>
+{% extends 'pharmacist/base.html' %}
+{% block page_actions %}<a class="btn-secondary" href="{% url 'pharmacist:dashboard' %}" data-refresh>刷新数据</a>{% endblock %}
+{% block pharmacist_content %}
+<div class="stat-grid" aria-label="处方统计">
+    <a class="stat-card pharmacist-stat" href="{% url 'pharmacist:pending_review' %}">
+        <h2 class="stat-label">待审核</h2>
+        <div class="stat-num">{% if data_error %}—{% else %}{{ counts.pending_review }}{% endif %}</div>
+        <p class="pharmacist-hint">共享待办及本人待审核</p><span class="pharmacist-stat-link">查看待审核处方 →</span>
+    </a>
+    <a class="stat-card pharmacist-stat" href="{% url 'pharmacist:pending_dispense' %}">
+        <h2 class="stat-label">待配药</h2>
+        <div class="stat-num">{% if data_error %}—{% else %}{{ counts.pending_dispense }}{% endif %}</div>
+        <p class="pharmacist-hint">共享待办及本人待配药</p><span class="pharmacist-stat-link">查看待配药处方 →</span>
+    </a>
+    <a class="stat-card pharmacist-stat" href="{% url 'pharmacist:processed' %}">
+        <h2 class="stat-label">本人已处理</h2>
+        <div class="stat-num">{% if data_error %}—{% else %}{{ counts.processed }}{% endif %}</div>
+        <p class="pharmacist-hint">本人审核及后续流转记录</p><span class="pharmacist-stat-link">查看本人记录 →</span>
+    </a>
 </div>
+<details class="pharmacist-explanation"><summary>统计范围说明</summary><p>待审核、待配药包含未分配或分配给本人的对应处方。“本人已处理”包含本人名下已通过、已驳回、待配药、已完成记录，与待配药数量可能重叠；统计未限定日期。</p></details>
+<section class="pharmacist-panel" aria-labelledby="recent-title">
+    <div class="pharmacist-section-head"><div><h2 id="recent-title">最近处方</h2><p class="pharmacist-hint">共享待办及本人记录，按开方时间展示最近 5 条</p></div><a class="link-btn" href="{% url 'pharmacist:prescription_list' %}">查看全部处方 →</a></div>
+    {% if data_error %}<p class="empty-tip">处方列表暂不可用，请稍后刷新。</p>
+    {% elif recent_prescriptions %}{% include 'pharmacist/_prescription_table.html' with rows=recent_prescriptions %}
+    {% else %}<div class="pharmacist-empty"><h3>暂无处方数据</h3><p>当前没有共享待办或本人记录。医生提交处方后，可刷新查看。</p></div>{% endif %}
+</section>
+{% if not data_error %}<p class="pharmacist-updated">本次数据读取时间：{{ loaded_at|date:"Y-m-d H:i:s" }}</p>{% endif %}
 {% endblock %}

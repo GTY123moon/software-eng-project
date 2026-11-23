@@ -53,6 +53,7 @@
             {% if prescription.can_choose %}
             <form method="post" action="{% url 'accounts:prescription_pickup' prescription.presc_id %}">
                 {% csrf_token %}
+                <input type="hidden" name="version" value="{{ prescription.pickup_token }}">
             {% endif %}
 
             <table class="presc-table">
@@ -83,7 +84,7 @@
                                 <option value="0" {% if not item.is_decoction %}selected{% endif %}>否</option>
                                 <option value="1" {% if item.is_decoction %}selected{% endif %}>是</option>
                             </select>
-                            <input type="number" name="item_decoction_num" min="0"
+                            <input type="number" name="item_decoction_num" min="1" max="9999"
                                    value="{{ item.decoction_num|default:'' }}" placeholder="剂数" class="decoction-num">
                             {% else %}
                             {{ item.decoction_text }}
@@ -113,6 +114,12 @@
                 {% endif %}
                 <span>审核状态：{{ prescription.audit }}</span>
             </div>
+            {% if prescription.pickup_method == 1 %}
+            <p>电子处方外购凭证：请凭处方号 {{ prescription.id }} 到社会药店购药。院内系统不代确认外购完成，不扣院内库存。</p>
+            {% else %}
+            <p>取药状态：{% if prescription.pickup_status %}已取药{% else %}未取药{% endif %} · 发药时间：{{ prescription.dispensed_at|date:"Y-m-d H:i:s"|default:"尚未发药" }}</p>
+            {% endif %}
+            {% if prescription.can_choose %}<p class="ai-time">院内取药选择后进入待配药；社会药店外购不提供院内代煎。代煎剂数须为 1–9999 的整数。</p>{% endif %}
 
             {% if prescription.can_choose %}
             </form>

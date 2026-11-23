@@ -27,6 +27,7 @@
 </div>
 
 {% if presc %}
+{% if audit_conclusion %}<p class="form-error">上次药师审核：{{ audit_conclusion }}</p>{% endif %}
 <div class="card ai-card">
     <h3>处方 AI 校验结果</h3>
     <div class="info-row"><span>校验结论</span><strong>{{ presc.ai_result }}</strong></div>
@@ -39,6 +40,7 @@
       action="{% if presc %}{% url 'doctor:prescription_edit' presc.id %}{% else %}{% url 'doctor:prescription_new' consult.id %}{% endif %}"
       id="prescForm">
     {% csrf_token %}
+    <input type="hidden" name="version" value="{{ version }}">
     <div class="card">
         <h3>药品明细</h3>
         <table class="presc-table" id="itemTable">

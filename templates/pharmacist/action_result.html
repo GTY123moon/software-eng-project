@@ -1,0 +1,5 @@
+{% extends 'pharmacist/base.html' %}
+{% block pharmacist_content %}
+<p>请先返回处方详情核对当前内容。不要反复提交旧页面。</p>
+<a class="btn-secondary" href="{{ retry_url }}">返回处方详情</a>
+{% endblock %}

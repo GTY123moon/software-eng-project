@@ -39,6 +39,7 @@
     {% if p.ai_comment %}
     <div class="ai-summary">AI 预审（{{ p.ai_result }}）：{{ p.ai_comment }}</div>
     {% endif %}
+    {% if p.audit_conclusion %}<div class="ai-summary">药师审核：{{ p.audit_conclusion }}</div>{% endif %}
     <div class="presc-foot">
         <span>合计 ￥{{ p.amount }}</span>
         <span>

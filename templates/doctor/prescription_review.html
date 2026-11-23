@@ -81,6 +81,7 @@
         <form method="post" action="{% url 'doctor:prescription_submit' presc.id %}"
               onsubmit="return confirm('确认提交该处方给药师审核？提交后不可再修改。');">
             {% csrf_token %}
+            <input type="hidden" name="version" value="{{ version }}">
             <button class="btn-primary" type="submit">提交药师审核</button>
         </form>
         {% endif %}
@@ -88,6 +89,8 @@
         <form method="post" action="{% url 'doctor:prescription_submit' presc.id %}"
               onsubmit="return confirm('该处方存在 AI 提示风险，确认仍要提交药师审核吗？提交后不可再修改。');">
             {% csrf_token %}
+            <input type="hidden" name="version" value="{{ version }}">
+            <input type="hidden" name="ack_risk" value="1">
             <button class="btn-secondary" type="submit">已知悉风险，仍提交药师审核</button>
         </form>
         {% endif %}
