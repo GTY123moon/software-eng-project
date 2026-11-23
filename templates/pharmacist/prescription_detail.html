@@ -34,32 +34,41 @@
     </section>
     {% if can_approve %}
     <section class="pharmacist-detail-section"><h3>药师审核</h3>
-        <div class="form-actions">
+        <div class="form-actions audit-btn-row">
             <form class="pharmacist-action-form" method="post" action="{% url 'pharmacist:prescription_audit' prescription.presc_id %}">
                 {% csrf_token %}<input type="hidden" name="version" value="{{ audit_token }}"><input type="hidden" name="decision" value="approve">
                 <button class="btn-primary" type="submit">审核通过</button>
             </form>
-            <button class="btn-secondary" type="button" id="rejectToggle" onclick="toggleReject(true)">驳回处方</button>
+            <button class="btn-secondary" type="button" id="rejectToggle" onclick="openRejectModal()">驳回处方</button>
         </div>
-        <form class="pharmacist-action-form" id="rejectForm" method="post" action="{% url 'pharmacist:prescription_audit' prescription.presc_id %}" hidden>
-            {% csrf_token %}<input type="hidden" name="version" value="{{ audit_token }}"><input type="hidden" name="decision" value="reject">
-            <label for="audit-reason">驳回理由（必填）</label><textarea id="audit-reason" name="reason" rows="3" required maxlength="252" placeholder="请说明需要医生修改的内容"></textarea>
-            <div class="form-actions">
-                <button class="btn-secondary" type="button" onclick="toggleReject(false)">取消</button>
-                <button class="btn-danger" type="submit">确认驳回</button>
+
+        <!-- 驳回弹窗：填写必填理由后确认驳回 -->
+        <div class="queue-mask" id="rejectMask" hidden>
+            <div class="queue-modal reject-modal">
+                <div class="queue-modal-title">驳回处方</div>
+                <p>请填写需要医生修改的内容，驳回后处方退回医生修改。</p>
+                <form id="rejectForm" method="post" action="{% url 'pharmacist:prescription_audit' prescription.presc_id %}">
+                    {% csrf_token %}<input type="hidden" name="version" value="{{ audit_token }}"><input type="hidden" name="decision" value="reject">
+                    <div class="form-group">
+                        <label for="audit-reason">驳回理由（必填）</label>
+                        <textarea class="form-textarea" id="audit-reason" name="reason" rows="3" required maxlength="252" placeholder="请说明需要医生修改的内容"></textarea>
+                    </div>
+                    <div class="form-actions reject-modal-actions">
+                        <button class="btn-secondary" type="button" onclick="closeRejectModal()">取消</button>
+                        <button class="btn-danger" type="submit">确认驳回</button>
+                    </div>
+                </form>
             </div>
-        </form>
+        </div>
     </section>
     <script>
-        function toggleReject(open) {
-            var form = document.getElementById('rejectForm');
-            var toggle = document.getElementById('rejectToggle');
-            var reason = document.getElementById('audit-reason');
-            form.hidden = !open;
-            toggle.hidden = open;
-            if (open) { reason.focus(); }
-            else if (reason) { reason.value = ''; }
-        }
+    (function () {
+        var mask = document.getElementById('rejectMask');
+        var reason = document.getElementById('audit-reason');
+        window.openRejectModal = function () { mask.hidden = false; reason.focus(); };
+        window.closeRejectModal = function () { mask.hidden = true; reason.value = ''; };
+        mask.addEventListener('click', function (e) { if (e.target === mask) closeRejectModal(); });
+    })();
     </script>
     {% elif can_dispense %}
     <section class="pharmacist-detail-section"><h3>配药与发药</h3>

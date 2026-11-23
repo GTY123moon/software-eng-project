@@ -1383,6 +1383,33 @@
     line-height: 1.6;
 }
 
+/* 药师审核：通过 / 驳回按钮等大 */
+.audit-btn-row .btn-primary,
+.audit-btn-row .btn-secondary {
+    min-width: 140px;
+    height: 42px;
+    padding: 10px 20px;
+}
+
+.reject-modal {
+    max-width: 420px;
+    text-align: left;
+}
+
+.reject-modal .queue-modal-title,
+.reject-modal p {
+    text-align: center;
+}
+
+.reject-modal .form-group {
+    text-align: left;
+    margin: 12px 0;
+}
+
+.reject-modal-actions {
+    justify-content: flex-end;
+}
+
 @media (max-width: 768px) {
     .dash-layout {
         flex-direction: column;
