@@ -2,18 +2,17 @@
 AI 风险分级服务（core）。
 
 接入说明：
-- 远程：火山引擎方舟（豆包大模型），OpenAI 兼容接口；API Key 与模型 ID 走环境变量，
-  不在代码里写死。未配置 Key / 模型，或接口超时、报错时，自动降级到本地关键词规则，
-  保证课设离线也能跑通流程。
+- 远程：走 core.ai_provider 的通用 OpenAI 兼容接口（火山方舟 / 智谱 / 硅基流动 /
+  阿里百炼等均可）；API Key 与模型走环境变量或不进 Git 的 local_settings.py。
+  未配置 Key / 模型，或接口超时、报错时，自动降级到本地关键词规则，保证课设离线可跑。
 - AI 仅做预问诊风险分级与病情摘要，不替代医生诊断；结果在 ai_pre_assessment 表留痕，
   由医生复核。
 """
 
 import json
-import os
 import re
-import urllib.request
-import urllib.error
+
+from core.ai_provider import chat_completion, provider_label
 
 # 高危关键词：命中任一即判高危，用于本地降级规则与远程结果兜底对照
 HIGH_RISK_KEYWORDS = [
@@ -21,39 +20,6 @@ HIGH_RISK_KEYWORDS = [
     '意识模糊', '昏迷', '意识障碍', '抽搐', '休克', '紫绀', '半身不遂',
     '言语不清', '剧烈腹痛', '高热不退', '过敏性休克', '喉头水肿',
 ]
-
-ARK_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions'
-
-
-def _request_chat(payload: dict, timeout: int) -> dict:
-    """发一次 chat/completions。
-
-    优先走低延迟（Fast）档位；若账号未开通 fast（404 ModelNotOpen），
-    自动去掉 service_tier 重试常规档位，避免远程调用整体失效。
-    """
-    api_key = os.environ.get('ARK_API_KEY')
-
-    def _open(pl: dict) -> dict:
-        body = json.dumps(pl, ensure_ascii=False).encode('utf-8')
-        request = urllib.request.Request(
-            ARK_BASE_URL, data=body,
-            headers={
-                'Authorization': f'Bearer {api_key}',
-                'Content-Type': 'application/json',
-            },
-            method='POST',
-        )
-        with urllib.request.urlopen(request, timeout=timeout) as resp:
-            return json.loads(resp.read().decode('utf-8'))
-
-    try:
-        return _open(payload)
-    except urllib.error.HTTPError as e:
-        if e.code == 404 and 'service_tier' in payload:
-            fallback = {k: v for k, v in payload.items() if k != 'service_tier'}
-            return _open(fallback)
-        raise
-
 
 
 def _local_assess(symptom: str) -> dict:
@@ -108,30 +74,18 @@ def _as_bool(value) -> bool:
 
 
 def _remote_assess(symptom: str, timeout: int = 12) -> dict | None:
-    """调用方舟豆包大模型；未配置凭据或失败时返回 None。"""
-    api_key = os.environ.get('ARK_API_KEY')
-    model = os.environ.get('ARK_MODEL')
-    if not api_key or not model:
-        return None
-
+    """调用远程大模型；未配置凭据或失败时返回 None。"""
     system_prompt = (
         '你是在线问诊平台的预问诊辅助助手，只做风险分级和病情摘要，不做疾病诊断。'
         '根据患者描述，仅输出 JSON：risk_level（高危/中低危）、'
         'ai_summary（100 字以内病情摘要）、matched_keyword（命中的高危关键词，无则空字符串）。'
     )
-    payload = {
-        'model': model,
-        'messages': [
+    content = chat_completion(
+        messages=[
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': symptom},
         ],
-        'temperature': 0.2,
-        # 走低延迟（Fast）推理档位，输出更快；超限/不支持时自动降级常规档位
-        'service_tier': 'fast',
-    }
-    data = _request_chat(payload, timeout)
-
-    content = data['choices'][0]['message']['content']
+        temperature=0.2, timeout=timeout)
     parsed = _parse_model_json(content)
     if not parsed:
         return None
@@ -152,18 +106,15 @@ def _remote_assess(symptom: str, timeout: int = 12) -> dict | None:
 
 
 def assess_risk(symptom: str) -> dict:
-    """统一入口：优先远程豆包，失败降级本地规则。
+    """统一入口：优先远程大模型，失败降级本地规则。
 
-    返回：risk_level / ai_summary / matched_keyword / source（豆包方舟 或 本地规则降级）
+    返回：risk_level / ai_summary / matched_keyword / source（远程平台名 或 本地规则降级）
     """
     symptom = (symptom or '').strip()
-    try:
-        remote = _remote_assess(symptom)
-    except (urllib.error.URLError, TimeoutError, ValueError, KeyError, OSError):
-        remote = None
+    remote = _remote_assess(symptom)
 
     if remote:
-        return {**remote, 'source': '豆包方舟'}
+        return {**remote, 'source': provider_label()}
     return {**_local_assess(symptom), 'source': '本地规则降级'}
 
 
@@ -220,11 +171,6 @@ def _local_guide_next(qa: list[dict]) -> dict:
 
 def _remote_guide_next(qa: list[dict], timeout: int = 10) -> dict | None:
     """远程模型动态判断下一问；失败/解析异常返回 None。"""
-    api_key = os.environ.get('ARK_API_KEY')
-    model = os.environ.get('ARK_MODEL')
-    if not api_key or not model:
-        return None
-
     system_prompt = (
         '你是在线问诊预问诊助手，通过多轮对话逐步收集病情。'
         '已关注维度：症状部位、持续时间、疼痛/不适性质、诱因与饮食、外伤史、作息与既往史/过敏史。'
@@ -233,19 +179,12 @@ def _remote_guide_next(qa: list[dict], timeout: int = 10) -> dict | None:
         '{"question": "下一个要问的一句话问题（口语化）", "done": true或false, "missing": ["仍缺失维度"]}。'
         '信息已足够时 done=true、question 留空；否则 done=false，question 只问最关键的一项。'
     )
-    payload = {
-        'model': model,
-        'messages': [
+    content = chat_completion(
+        messages=[
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': guide_history_text(qa) or '（尚无回答）'},
         ],
-        'temperature': 0.3,
-        # 走低延迟（Fast）推理档位，输出更快；超限/不支持时自动降级常规档位
-        'service_tier': 'fast',
-    }
-    data = _request_chat(payload, timeout)
-
-    content = data['choices'][0]['message']['content']
+        temperature=0.3, timeout=timeout)
     parsed = _parse_model_json(content)
     if not parsed:
         return None
@@ -253,15 +192,15 @@ def _remote_guide_next(qa: list[dict], timeout: int = 10) -> dict | None:
     question = str(parsed.get('question') or '').strip()
     if not done and not question:
         return None
-    return {'question': question, 'done': done, 'source': '豆包方舟'}
+    return {'question': question, 'done': done, 'source': provider_label()}
 
 
 def next_guide_question(qa: list[dict]) -> dict:
     """逐轮下一问：默认走本地清单即时出题。
 
-    说明：当前接入点模型每轮生成引导问题需近 10 秒，实时阻塞会拖慢对话，
+    说明：早期接入点模型每轮生成引导问题需近 10 秒，实时阻塞会拖慢对话，
     因此逐轮追问不调远程；远程模型保留在收尾阶段做风险分级与病情摘要
-    （见 assess_risk）。_remote_guide_next 保留备用，将来接入点提速后可切回。
+    （见 assess_risk）。_remote_guide_next 保留备用，将来远程提速后可切回。
 
     返回：question / done / source
     """

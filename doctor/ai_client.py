@@ -1,83 +1,31 @@
-"""医生端 AI 辅助客户端（火山引擎方舟 / 豆包大模型，OpenAI 兼容接口）。
+"""医生端 AI 辅助客户端（通用 OpenAI 兼容接口，可切换方舟 / 智谱 / 硅基流动 / 百炼等）。
 
 设计原则：
 - 只做「AI 摘要复核建议」和「处方合理性预审」，最终结论始终由医生出具，
   AI 结果不会自动写入 final_diagnosis；
-- 凭据优先取环境变量 ARK_API_KEY / ARK_MODEL（ARK_MODEL 填接入点 ID，如 ep-xxxx）；
-  未设置环境变量时，再读 **不进 Git** 的 medical_platform/local_settings.py，
-  便于本地演示又不会把密钥提交到仓库；
+- 凭据与模型由 core.ai_provider 统一读取（环境变量优先，其次不进 Git 的
+  medical_platform/local_settings.py），切换平台只改配置，不改这里的业务逻辑；
 - 未配置或调用失败一律返回 None，由调用方降级到本地规则，保证离线也能跑；
-- 与 core.ai_service 的分工：那里负责患者端预问诊风险分级，这里负责医生端的复核与开方辅助，
-  两者共用同一套方舟接口，但不互相依赖，避免改动公共文件。
+- 与 core.ai_service 的分工：那里负责患者端预问诊风险分级，这里负责医生端的
+  复核与开方辅助，两者共用同一套接入层，但不互相依赖。
 """
 
 import json
-import os
 import re
-import urllib.error
-import urllib.request
 
-ARK_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions'
-
-# 本地演示凭据从 local_settings.py 读取（该文件已在 .gitignore 中，不会进仓库）。
-# 没有配置时留空，_chat_json 会直接返回 None，页面按「AI 不可用」降级。
-try:
-    from medical_platform.local_settings import ARK_API_KEY as LOCAL_API_KEY
-    from medical_platform.local_settings import ARK_MODEL as LOCAL_MODEL
-except ImportError:
-    LOCAL_API_KEY = ''
-    LOCAL_MODEL = ''
+from core.ai_provider import chat_completion
 
 TIMEOUT = 20
 
 
-def _credentials():
-    """环境变量优先，其次本地配置；两者都没有就返回空串，调用方据此降级。"""
-    api_key = os.environ.get('ARK_API_KEY') or LOCAL_API_KEY
-    model = os.environ.get('ARK_MODEL') or LOCAL_MODEL
-    return api_key, model
-
-
 def _chat_json(system_prompt, user_prompt, timeout=TIMEOUT):
-    """调一次方舟 chat/completions，从返回文本里抠出第一个 JSON 对象。失败返回 None。"""
-    api_key, model = _credentials()
-    if not api_key or not model:
-        return None
-
-    payload = {
-        'model': model,
-        'messages': [
+    """调一次兼容 chat/completions，从返回文本里抠出第一个 JSON 对象。失败返回 None。"""
+    content = chat_completion(
+        messages=[
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': user_prompt},
         ],
-        'temperature': 0.2,
-        'max_tokens': 700,
-        # 走低延迟（Fast）推理档位，输出更快；超限/不支持时自动降级常规档位
-        'service_tier': 'fast',
-    }
-    def _open(pl):
-        body = json.dumps(pl, ensure_ascii=False).encode('utf-8')
-        req = urllib.request.Request(
-            ARK_BASE_URL, data=body,
-            headers={'Authorization': 'Bearer %s' % api_key,
-                     'Content-Type': 'application/json'},
-            method='POST')
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read().decode('utf-8'))
-
-    try:
-        try:
-            data = _open(payload)
-        except urllib.error.HTTPError as e:
-            # fast 档位未开通时，去掉 service_tier 走常规档重试一次
-            if e.code == 404 and 'service_tier' in payload:
-                data = _open({k: v for k, v in payload.items() if k != 'service_tier'})
-            else:
-                raise
-        content = data['choices'][0]['message']['content']
-    except (urllib.error.URLError, TimeoutError, ValueError, KeyError, OSError):
-        return None
-
+        temperature=0.2, max_tokens=700, timeout=timeout)
     if not content:
         return None
     match = re.search(r'\{.*\}', content, re.S)
