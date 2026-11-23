@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 
 from django.core.paginator import Paginator
 from django.contrib import messages
-from django.db import DatabaseError
+from django.db import DatabaseError, transaction
 from django.db.models import Count, Q
 from django.http import Http404
 from django.shortcuts import render, redirect
@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST, require_safe
 
 from core.models import Drug, SysUser, Pharmacist, Prescription, PrescriptionItem
+from core.log_service import write_log
 from . import services
 
 
@@ -288,3 +289,55 @@ def prescription_dispense(request, presc_id):
     return _action_result(request, presc_id, lambda: services.dispense(
         presc_id, request.pharmacist_staff[1].pharmacist_id, request.POST),
         '实际发药已确认，库存已扣减，处方已完成。')
+
+
+@pharmacist_required
+def profile(request):
+    """药师个人中心：查看并维护本人基础信息与药师档案（类型/性别）。"""
+    user, pharmacist = request.pharmacist_staff
+    errors = []
+
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        gender = request.POST.get('gender', '').strip() or None
+        pharmacist_type = request.POST.get('pharmacist_type', '').strip() or None
+
+        if not name:
+            errors.append('姓名不能为空')
+        if not phone or len(phone) != 8:
+            errors.append('请输入 8 位工作手机号')
+        elif SysUser.objects.filter(phone=phone).exclude(
+                user_id=pharmacist.pharmacist_id).exists():
+            errors.append('该手机号已被其他账号使用')
+        if gender and gender not in ('男', '女', '其他'):
+            gender = None
+
+        if errors:
+            context = _base_context(request, '个人中心', 'profile')
+            context.update(
+                form={'name': name, 'phone': phone, 'gender': gender or '',
+                      'pharmacist_type': pharmacist_type or ''},
+                errors=errors, saved=False)
+            return render(request, 'pharmacist/profile.html', context)
+
+        with transaction.atomic():
+            user.name = name
+            user.phone = phone
+            user.save(update_fields=['name', 'phone'])
+            Pharmacist.objects.filter(pharmacist_id=pharmacist.pharmacist_id).update(
+                gender=gender, pharmacist_type=pharmacist_type)
+        write_log(pharmacist.pharmacist_id, '药师', '修改个人资料',
+                  target_type='pharmacist', target_id=pharmacist.pharmacist_id)
+        messages.success(request, '资料已保存。')
+        return redirect(reverse('pharmacist:profile') + '?saved=1')
+
+    form = {
+        'name': user.name,
+        'phone': user.phone,
+        'gender': pharmacist.gender or '',
+        'pharmacist_type': pharmacist.pharmacist_type or '',
+    }
+    context = _base_context(request, '个人中心', 'profile')
+    context.update(form=form, errors=[], saved=request.GET.get('saved') == '1')
+    return render(request, 'pharmacist/profile.html', context)

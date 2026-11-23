@@ -17,6 +17,7 @@ from django.contrib import messages as flash
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import render, redirect, reverse
+from django.http import JsonResponse
 from django.utils import timezone
 
 from core.log_service import write_log
@@ -397,6 +398,17 @@ def consult_chat_view(request, cid):
         'draft': {'id': draft.presc_id} if draft else None,
     }
     return render(request, 'doctor/consult_chat.html', context)
+
+
+@doctor_required
+def messages_poll(request, cid):
+    """对话态消息轮询：返回最新医患消息，供医生端自动加载患者新回复，无需手动刷新。"""
+    doctor = _current_doctor(request)
+    consult = Consultation.objects.filter(consult_id=cid).first()
+    if not consult or (consult.doctor_id and consult.doctor_id != doctor.doctor_id):
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    messages = _message_list(consult.consult_id)
+    return JsonResponse({'count': len(messages), 'messages': messages})
 
 
 @doctor_required
@@ -878,6 +890,7 @@ def prescription_list(request):
     context = {
         'doctor': {'name': _user_name(doctor.doctor_id), 'department': doctor.department},
         'prescriptions': rows,
+        'rejected_rows': [r for r in rows if r['status'] == '已驳回'],
         'current_status': status,
         'status_tabs': ['', '草稿', '待审核', '已通过', '已驳回', '待配药', '已完成'],
     }

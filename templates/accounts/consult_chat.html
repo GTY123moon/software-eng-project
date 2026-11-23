@@ -28,7 +28,7 @@
     <div class="queue-avatar">🩺</div>
     <h3>正在排队等待接诊</h3>
     <p class="queue-tip">您已完成 AI 预问诊，医生按挂号顺序依次接诊，请耐心等待。</p>
-    <div class="queue-count">前方还有 <b id="queueAhead">{{ ahead }}</b> 位患者</div>
+    <div class="queue-count">{% if ahead > 0 %}前方还有 <b id="queueAhead">{{ ahead }}</b> 位患者{% else %}前方已无其他患者{% endif %}</div>
     <p class="empty-tip" id="queueHint">轮到您时将自动弹出提示，点击即可进入对话。</p>
     <form method="post" action="{% url 'accounts:consult_chat' consult.id %}"
           onsubmit="return confirm('确认放弃本次线上咨询？排队将取消，咨询置为已取消。');">
@@ -62,10 +62,10 @@
                     mask.hidden = false;
                     return;
                 }
-                if (typeof data.ahead === 'number' && aheadEl) {
-                    aheadEl.textContent = data.ahead;
+                if (typeof data.ahead === 'number') {
+                    if (aheadEl) { aheadEl.textContent = data.ahead; }
                     if (data.ahead === 0 && hintEl) {
-                        hintEl.textContent = '已排到您前面一位，医生即将接诊，请稍候。';
+                        hintEl.textContent = '前方已无其他患者，马上为您接诊，请稍候。';
                     }
                 }
                 setTimeout(poll, 5000);
@@ -96,9 +96,9 @@
 {% endif %}
 
 <div class="card chat-panel">
-    <div class="msg-list">
+    <div class="msg-list" id="msgList">
         {% for m in messages %}
-        <div class="msg-row {% if m.mine %}mine{% endif %}">
+        <div class="msg-row {% if m.mine %}mine{% endif %}" data-key="{{ m.role }}|{{ m.time }}|{{ m.content }}">
             <div class="msg-bubble">
                 <div class="msg-role">{{ m.role }}</div>
                 {% if m.msg_type == 'image' %}
@@ -204,5 +204,84 @@
 </div>
 
 <script src="{% static 'js/video_call.js' %}"></script>
+
+{% if can_chat %}
+<script>
+/* 对话态：定时拉取最新医患消息，自动追加医生新回复，无需患者手动刷新整页 */
+(function () {
+    var list = document.getElementById('msgList');
+    if (!list) return;
+    var msgUrl = "{% url 'accounts:consult_messages' consult.id %}";
+    var known = {};
+    Array.prototype.forEach.call(list.querySelectorAll('.msg-row'), function (row) {
+        known[row.getAttribute('data-key')] = true;
+    });
+
+    function renderOne(m) {
+        var row = document.createElement('div');
+        row.className = 'msg-row' + (m.mine ? ' mine' : '');
+        row.setAttribute('data-key', m.role + '|' + m.time + '|' + m.content);
+        var bubble = document.createElement('div');
+        bubble.className = 'msg-bubble';
+
+        var role = document.createElement('div');
+        role.className = 'msg-role';
+        role.textContent = m.role;
+        bubble.appendChild(role);
+
+        if (m.msg_type === 'image' && m.media_url) {
+            var img = document.createElement('img');
+            img.className = 'msg-image';
+            img.src = m.media_url;
+            img.alt = '图片消息';
+            bubble.appendChild(img);
+            if (m.content) {
+                var cap = document.createElement('div');
+                cap.className = 'msg-content';
+                cap.textContent = m.content;
+                bubble.appendChild(cap);
+            }
+        } else if (m.msg_type === 'video') {
+            var vd = document.createElement('div');
+            vd.className = 'msg-content';
+            vd.textContent = '[视频消息]';
+            bubble.appendChild(vd);
+        } else {
+            var tx = document.createElement('div');
+            tx.className = 'msg-content';
+            tx.textContent = m.content;
+            bubble.appendChild(tx);
+        }
+
+        var t = document.createElement('div');
+        t.className = 'msg-time';
+        t.textContent = m.time;
+        bubble.appendChild(t);
+        row.appendChild(bubble);
+
+        var empty = list.querySelector('.empty-tip');
+        if (empty) list.removeChild(empty);
+        list.appendChild(row);
+        list.scrollTop = list.scrollHeight;
+    }
+
+    function poll() {
+        fetch(msgUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.messages) {
+                    data.messages.forEach(function (m) {
+                        var key = m.role + '|' + m.time + '|' + m.content;
+                        if (!known[key]) { known[key] = true; renderOne(m); }
+                    });
+                }
+                setTimeout(poll, 4000);
+            })
+            .catch(function () { setTimeout(poll, 8000); });
+    }
+    setTimeout(poll, 2500);
+})();
+</script>
+{% endif %}
 {% endif %}
 {% endblock %}

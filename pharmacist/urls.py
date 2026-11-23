@@ -19,4 +19,5 @@ urlpatterns = [
          name='prescription_audit'),
     path('prescriptions/<int:presc_id>/dispense/', views.prescription_dispense,
          name='prescription_dispense'),
+    path('profile/', views.profile, name='profile'),
 ]

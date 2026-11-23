@@ -35,6 +35,11 @@
             <span class="rail-icon">📄</span>
             <span class="rail-label">全部处方</span>
         </a>
+        <a class="his-rail-item {% block menu_profile_active %}{% endblock %}"
+           href="{% url 'pharmacist:profile' %}">
+            <span class="rail-icon">👤</span>
+            <span class="rail-label">我的</span>
+        </a>
     </nav>
 
     <!-- 右侧列：顶栏 + 标签页 + 内容 -->
@@ -47,7 +52,7 @@
                 <span class="crumb-current">{{ page_title|default:'药师工作台' }}</span>
             </div>
             <div class="his-topbar-right">
-                <span class="his-topbar-role">💊 药师{% if staff_name %} · {{ staff_name }}{% endif %}</span>
+                <span class="his-topbar-role">💊 药师</span>
                 <a class="his-topbar-link" href="{% url 'accounts:logout' %}">退出登录</a>
             </div>
         </header>

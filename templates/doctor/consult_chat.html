@@ -45,6 +45,27 @@
         </form>
     </div>
 </div>
+
+{# 结束申请弹窗：进入沟通页自动弹出，供医生确认同意或拒绝 #}
+<div class="queue-mask" id="endReqMask" hidden>
+    <div class="queue-modal">
+        <div class="queue-modal-title endreq-modal-title">患者申请结束问诊</div>
+        <p>患者希望结束本次问诊。<br>同意后问诊结束并释放占号；拒绝则继续本次问诊沟通。</p>
+        <div class="action-row endreq-modal-actions">
+            <form method="post" action="{% url 'doctor:end_request_decide' consult.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="approve">
+                <button class="btn-primary" type="submit">同意结束</button>
+            </form>
+            <form method="post" action="{% url 'doctor:end_request_decide' consult.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="reject">
+                <button class="btn-secondary" type="submit">继续问诊（拒绝）</button>
+            </form>
+            <button class="btn-secondary" type="button" id="closeEndReq">稍后处理</button>
+        </div>
+    </div>
+</div>
 {% endif %}
 
 <div class="card chat-panel">
@@ -55,9 +76,9 @@
         </div>
     </div>
 
-    <div class="msg-list">
+    <div class="msg-list" id="msgList">
         {% for m in chats %}
-        <div class="msg-row {% if m.mine %}mine{% endif %}">
+        <div class="msg-row {% if m.mine %}mine{% endif %}" data-key="{{ m.role }}|{{ m.time }}|{{ m.content }}">
             <div class="msg-bubble">
                 <div class="msg-role">{{ m.role }}</div>
                 {% if m.msg_type == 'image' %}
@@ -138,5 +159,94 @@
     </div>
 </div>
 
+<script>
+(function () {
+    var mask = document.getElementById('endReqMask');
+    if (mask) {
+        mask.hidden = false;
+        var close = document.getElementById('closeEndReq');
+        if (close) { close.addEventListener('click', function () { mask.hidden = true; }); }
+    }
+})();
+</script>
 <script src="{% static 'js/video_call.js' %}"></script>
+
+{% if can_chat %}
+<script>
+/* 对话态：定时拉取最新医患消息，自动追加患者新回复，无需医生手动刷新整页 */
+(function () {
+    var list = document.getElementById('msgList');
+    if (!list) return;
+    var msgUrl = "{% url 'doctor:messages_poll' consult.id %}";
+    var known = {};
+    Array.prototype.forEach.call(list.querySelectorAll('.msg-row'), function (row) {
+        known[row.getAttribute('data-key')] = true;
+    });
+
+    function renderOne(m) {
+        var row = document.createElement('div');
+        row.className = 'msg-row' + (m.mine ? ' mine' : '');
+        row.setAttribute('data-key', m.role + '|' + m.time + '|' + m.content);
+        var bubble = document.createElement('div');
+        bubble.className = 'msg-bubble';
+
+        var role = document.createElement('div');
+        role.className = 'msg-role';
+        role.textContent = m.role;
+        bubble.appendChild(role);
+
+        if (m.msg_type === 'image' && m.media_url) {
+            var img = document.createElement('img');
+            img.className = 'msg-image';
+            img.src = m.media_url;
+            img.alt = '图片消息';
+            bubble.appendChild(img);
+            if (m.content) {
+                var cap = document.createElement('div');
+                cap.className = 'msg-content';
+                cap.textContent = m.content;
+                bubble.appendChild(cap);
+            }
+        } else if (m.msg_type === 'video') {
+            var vd = document.createElement('div');
+            vd.className = 'msg-content';
+            vd.textContent = '[视频消息]';
+            bubble.appendChild(vd);
+        } else {
+            var tx = document.createElement('div');
+            tx.className = 'msg-content';
+            tx.textContent = m.content;
+            bubble.appendChild(tx);
+        }
+
+        var t = document.createElement('div');
+        t.className = 'msg-time';
+        t.textContent = m.time;
+        bubble.appendChild(t);
+        row.appendChild(bubble);
+
+        var empty = list.querySelector('.empty-tip');
+        if (empty) list.removeChild(empty);
+        list.appendChild(row);
+        list.scrollTop = list.scrollHeight;
+    }
+
+    function poll() {
+        fetch(msgUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.messages) {
+                    data.messages.forEach(function (m) {
+                        var key = m.role + '|' + m.time + '|' + m.content;
+                        if (!known[key]) { known[key] = true; renderOne(m); }
+                    });
+                }
+                setTimeout(poll, 4000);
+            })
+            .catch(function () { setTimeout(poll, 8000); });
+    }
+    setTimeout(poll, 2500);
+})();
+</script>
+{% endif %}
 {% endblock %}

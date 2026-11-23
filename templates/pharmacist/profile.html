@@ -1,0 +1,51 @@
+{% extends 'pharmacist/base.html' %}
+{% block menu_profile_active %}active{% endblock %}
+{% block title %}个人中心 · 智慧医疗在线问诊与处方流转平台{% endblock %}
+{% block pharmacist_content %}
+<section class="pharmacist-panel">
+    <div class="pharmacist-section-head">
+        <div><h2>个人中心</h2><p class="pharmacist-hint">查看并维护本人基础信息与药师档案。</p></div>
+        <a class="btn-secondary" href="{% url 'pharmacist:dashboard' %}">返回工作台</a>
+    </div>
+
+    {% if saved %}<div class="form-success">资料已保存。</div>{% endif %}
+    {% if errors %}<div class="form-error">{% for e in errors %}<div>{{ e }}</div>{% endfor %}</div>{% endif %}
+
+    <form method="post" action="{% url 'pharmacist:profile' %}">
+        {% csrf_token %}
+        <div class="card">
+            <h3>基础信息</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>姓名</label>
+                    <input type="text" name="name" placeholder="请输入真实姓名"
+                           value="{{ form.name|default:'' }}" required>
+                </div>
+                <div class="form-group">
+                    <label>工作手机号（登录账号）</label>
+                    <input type="text" name="phone" placeholder="8 位工作手机号"
+                           value="{{ form.phone|default:'' }}" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>性别</label>
+                    <select name="gender">
+                        <option value="男" {% if form.gender == '男' %}selected{% endif %}>男</option>
+                        <option value="女" {% if form.gender == '女' %}selected{% endif %}>女</option>
+                        <option value="其他" {% if form.gender == '其他' %}selected{% endif %}>其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>药师类型</label>
+                    <input type="text" name="pharmacist_type" placeholder="如：主管药师、药师、药师助理"
+                           value="{{ form.pharmacist_type|default:'' }}">
+                </div>
+            </div>
+            <div class="form-actions">
+                <button class="btn-primary" type="submit">保存资料</button>
+            </div>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -62,4 +62,33 @@
     <p class="empty-tip">该状态下暂无处方。可在问诊详情页点击“开方”新建草稿。</p>
 </div>
 {% endfor %}
+
+{% if rejected_rows %}
+<div class="queue-mask" id="rejectMask" hidden>
+    <div class="queue-modal reject-modal">
+        <div class="queue-modal-title endreq-modal-title">处方被药师驳回</div>
+        <p>以下处方未通过审核，请按驳回意见修改明细后，保存为草稿再重新提交。</p>
+        <div class="reject-list">
+            {% for r in rejected_rows %}
+            <div class="reject-item">
+                <div class="reject-no">{{ r.no }}</div>
+                <div class="reject-reason">{{ r.audit_comment|cut:"驳回：" }}</div>
+                <a class="btn-secondary" href="{% url 'doctor:prescription_edit' r.id %}">去修改</a>
+            </div>
+            {% endfor %}
+        </div>
+        <button class="btn-secondary" type="button" id="closeReject">我知道了</button>
+    </div>
+</div>
+<script>
+(function () {
+    var mask = document.getElementById('rejectMask');
+    if (mask) {
+        mask.hidden = false;
+        var close = document.getElementById('closeReject');
+        if (close) { close.addEventListener('click', function () { mask.hidden = true; }); }
+    }
+})();
+</script>
+{% endif %}
 {% endblock %}

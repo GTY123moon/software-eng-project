@@ -213,6 +213,27 @@
 .endreq-banner .action-row { margin-top: 10px; }
 .endreq-banner form { display: inline-flex; }
 
+/* 结束申请弹窗：标题用主色，按钮行居中排列 */
+.endreq-modal-title { color: var(--primary); }
+.endreq-modal-actions { justify-content: center; }
+
+/* 处方驳回提醒弹窗：多条驳回单纵向排列，超出可滚动 */
+.reject-modal { max-width: 480px; text-align: left; }
+.reject-modal .queue-modal-title,
+.reject-modal p { text-align: center; }
+.reject-list { max-height: 260px; overflow-y: auto; margin-bottom: 16px; }
+.reject-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+}
+.reject-no { font-weight: 600; min-width: 108px; }
+.reject-reason { flex: 1 1 200px; font-size: 13px; color: var(--text); line-height: 1.6; }
+.reject-item .btn-secondary { min-width: 88px; }
+
 /* 复核已锁定：只读提示块，结论不可再改 */
 .review-locked {
     display: flex;

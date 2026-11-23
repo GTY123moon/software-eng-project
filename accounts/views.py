@@ -804,6 +804,20 @@ def prescription_pickup_view(request, presc_id):
 # 排队状态轮询接口
 # ---------------------------------------------------------------------------
 
+def _serialize_chat_messages(consult, mine_role):
+    """正式医患对话消息：过滤 AI 预问诊引导，按时间排序并标注本方气泡。"""
+    rows = ConsultationMessage.objects.filter(consultation_id=consult.consult_id) \
+        .exclude(sender_role='AI').exclude(msg_type='pre').order_by('send_time')
+    return [{
+        'role': m.sender_role,
+        'content': m.content or '',
+        'msg_type': m.msg_type,
+        'media_url': m.media_url or '',
+        'time': _format_time(m.send_time),
+        'mine': m.sender_role == mine_role,
+    } for m in rows]
+
+
 def consult_status_view(request, consult_id):
     """供患者等待页定时刷新：返回前方人数、是否已接诊叫号、可否进入对话。"""
     patient = _current_patient(request)
@@ -824,6 +838,23 @@ def consult_status_view(request, consult_id):
         'assessed': assessed,
         'can_enter': can_enter,
     })
+
+
+def consult_messages_view(request, consult_id):
+    """对话态消息轮询：返回最新医患消息，供患者端自动加载医生回复，无需手动刷新。"""
+    patient = _current_patient(request)
+    if not patient:
+        return JsonResponse({'error': 'unauthorized'}, status=401)
+    consult = Consultation.objects.filter(
+        consult_id=consult_id, patient_id=patient.patient_id).first()
+    if not consult:
+        return JsonResponse({'error': 'not_found'}, status=404)
+    messages = _serialize_chat_messages(consult, '患者')
+    # 轮询到医生新消息时顺带标记已读，未读角标随之清零
+    ConsultationMessage.objects.filter(
+        consultation_id=consult.consult_id, sender_role='医生', read_status=0
+    ).update(read_status=1)
+    return JsonResponse({'count': len(messages), 'messages': messages})
 
 
 # ---------------------------------------------------------------------------
@@ -987,9 +1018,7 @@ def consult_chat_view(request, consult_id):
                   target_type='consultation', target_id=consult.consult_id)
         return redirect('accounts:consult_chat', consult.consult_id)
 
-    msg_list = ConsultationMessage.objects.filter(
-        consultation_id=consult.consult_id
-    ).exclude(sender_role='AI').exclude(msg_type='pre').order_by('send_time')
+    messages = _serialize_chat_messages(consult, '患者')
 
     # 进入会话即把医生发来的未读消息标记为已读，工作台未读数与列表未读角标随之清零
     ConsultationMessage.objects.filter(
@@ -1007,14 +1036,7 @@ def consult_chat_view(request, consult_id):
         'can_chat': can_chat,
         'need_consent': need_consent,
         'end_request': consult.end_request,
-        'messages': [{
-            'role': m.sender_role,
-            'content': m.content or '',
-            'msg_type': m.msg_type,
-            'media_url': m.media_url or '',
-            'time': _format_time(m.send_time),
-            'mine': m.sender_role == '患者',
-        } for m in msg_list],
+        'messages': messages,
         'ai': {
             'risk_level': ai.risk_level,
             'summary': ai.ai_summary,
