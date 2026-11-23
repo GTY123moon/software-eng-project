@@ -122,9 +122,17 @@ software-eng-project/
 python -m pip install -r requirements.txt
 ```
 
-2. 初始化数据库：在本机 MySQL 按顺序执行 `docs/sql/` 下脚本（`create_tables.sql` → `seed_data.sql` → `seed_business_extra.sql`），创建 `medical_platform` 库与 14 张表并灌入演示数据（管理员 2 / 患者 80 / 医生 55 / 药师 50 / 药品 95，及排班、问诊、处方等业务数据）。`seed_data.sql` 与 `seed_business_extra.sql` 可重复执行（先清空再灌入）。
+2. 初始化数据库：在本机 MySQL 按顺序执行 `docs/sql/` 下脚本（`create_tables.sql` → `seed_data.sql` → `seed_business_extra.sql`），创建 `medical_platform` 库与 14 张表并灌入演示数据（管理员 2 / 患者 100 / 医生 100 / 药师 100 / 药品 95，及排班、问诊、处方等业务数据）。`create_tables.sql` 自带 `DROP DATABASE` 重建，后两个种子脚本可重复执行（先清空再灌入）。
 
-3. 填写本机私有配置：在 `medical_platform/` 下新建 `local_settings.py`，填写本机 MySQL 密码（该文件已被 `.gitignore` 排除，不提交）。
+   Windows 命令行（在项目根目录执行；若 `mysql` 未加入 PATH，改用 MySQL 安装目录 `bin\mysql.exe` 的全路径）：
+
+   ```
+   mysql -uroot -p < docs/sql/create_tables.sql
+   mysql -uroot -p < docs/sql/seed_data.sql
+   mysql -uroot -p < docs/sql/seed_business_extra.sql
+   ```
+
+3. 填写本机私有配置：把 `medical_platform/local_settings.example.py` 复制为同目录 `local_settings.py`，填入本机 MySQL 密码（AI Key 可选，不填走本地降级）。`local_settings.py` 已被 `.gitignore` 排除，不提交。
 
 4. 初始化 Django 内置框架表：业务 14 张表由 SQL 直建（`managed=False`），**不要**执行 `makemigrations`；首次启动前执行一次 `python manage.py migrate`，创建 session / auth / admin 等内置框架表（登录态依赖 session 表），该操作不会改动业务表。
 
