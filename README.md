@@ -161,7 +161,7 @@ python manage.py runserver
 | 平台 | 模型 ID | 接口地址（chat/completions 完整路径） | 备注 |
 |---|---|---|---|
 | 智谱（默认） | `glm-4.7-flash` | `https://open.bigmodel.cn/api/paas/v4/chat/completions` | 永久免费，中文轻量，注册即给 Key |
-| 硅基流动 | `Qwen/Qwen3-8B` | `https://api.siliconflow.cn/v1/chat/completions` | 免费，国内站需实名 |
+| 硅基流动 | `Qwen/Qwen2.5-7B-Instruct` | `https://api.siliconflow.cn/v1/chat/completions` | 免费档，非思考链响应快，国内站需实名 |
 | 阿里百炼 | `qwen-turbo` | `https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions` | 按量付费，稳定 |
 | 火山方舟 | `ep-xxxx`（接入点 ID） | `https://ark.cn-beijing.volces.com/api/v3/chat/completions` | 付费；fast 档位未开通时自动回退常规档 |
 
