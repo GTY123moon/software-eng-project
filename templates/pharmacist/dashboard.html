@@ -4,7 +4,7 @@
 <div class="stat-grid" aria-label="处方统计">
     <a class="stat-card pharmacist-stat" href="{% url 'pharmacist:pending_review' %}">
         <h2 class="stat-label">待审核</h2>
-        <div class="stat-num pharmacist-pending">{% if data_error %}—{% else %}{{ counts.pending_review }}{% endif %}</div>
+        <div class="stat-num">{% if data_error %}—{% else %}{{ counts.pending_review }}{% endif %}</div>
         <p class="pharmacist-hint">共享待办及本人待审核</p><span class="pharmacist-stat-link">查看待审核处方 →</span>
     </a>
     <a class="stat-card pharmacist-stat" href="{% url 'pharmacist:pending_dispense' %}">
@@ -14,7 +14,7 @@
     </a>
     <a class="stat-card pharmacist-stat" href="{% url 'pharmacist:processed' %}">
         <h2 class="stat-label">本人已处理</h2>
-        <div class="stat-num pharmacist-processed">{% if data_error %}—{% else %}{{ counts.processed }}{% endif %}</div>
+        <div class="stat-num">{% if data_error %}—{% else %}{{ counts.processed }}{% endif %}</div>
         <p class="pharmacist-hint">本人审核及后续流转记录</p><span class="pharmacist-stat-link">查看本人记录 →</span>
     </a>
 </div>

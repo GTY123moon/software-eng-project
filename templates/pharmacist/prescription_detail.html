@@ -17,7 +17,7 @@
     </dl>
     <section class="pharmacist-detail-section"><h3>临床诊断</h3><p class="pharmacist-prewrap">{{ prescription.consultation.final_diagnosis|default:"医生尚未填写最终诊断" }}</p></section>
     <section class="pharmacist-detail-section"><h3>药品明细</h3>
-        {% if items %}<div class="pharmacist-table-wrap" tabindex="0" role="region" aria-label="药品明细，可横向滚动"><table class="pharmacist-table pharmacist-items">
+        {% if items %}<p class="pharmacist-table-hint">可左右滑动表格，核对完整药品明细。</p><div class="pharmacist-table-wrap" tabindex="0" role="region" aria-label="药品明细，可横向滚动"><table class="pharmacist-table pharmacist-items">
             <caption class="pharmacist-visually-hidden">处方 {{ prescription.presc_id }} 药品明细</caption>
             <thead><tr><th scope="col">药品／规格</th><th scope="col">数量</th><th scope="col">库存</th><th scope="col">用法用量</th><th scope="col" class="pharmacist-money">单价（元）</th><th scope="col" class="pharmacist-money">小计（元）</th><th scope="col">代煎</th></tr></thead>
             <tbody>{% for item in items %}<tr><td>{{ item.drug_name }}<span class="pharmacist-cell-sub">{{ item.drug__specification }}</span></td><td>{{ item.qty }}</td><td>{% if item.stock_qty is not None %}{{ item.stock_qty }}{% else %}未知{% endif %}</td><td class="pharmacist-dosage">{{ item.dosage }}</td><td class="pharmacist-money">{{ item.unit_price|floatformat:2 }}</td><td class="pharmacist-money">{{ item.subtotal|floatformat:2 }}</td><td>{% if item.is_decoction %}是 · {{ item.decoction_num|default_if_none:"未填" }} 剂{% else %}否{% endif %}</td></tr>{% endfor %}</tbody>

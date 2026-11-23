@@ -44,7 +44,8 @@ def create_isolated_database():
     connection.settings_dict['NAME'] = name
     assert_isolated()
     source = (Path(settings.BASE_DIR) / 'docs/sql/create_tables.sql').read_text(encoding='utf-8')
-    statements = re.findall(r'CREATE TABLE\s+\w+\s*\(.*?\)\s*ENGINE\s*=\s*InnoDB[^;]*;',
+    # 兼容 main 导出的反引号表名；仍仅提取建表语句，不执行脚本内 DROP / USE / 种子。
+    statements = re.findall(r'CREATE TABLE\s+(?:`\w+`|\w+)\s*\(.*?\)\s*ENGINE\s*=\s*InnoDB[^;]*;',
                             source, re.S | re.I)
     if len(statements) != 14:
         drop_isolated_database(original, name)
