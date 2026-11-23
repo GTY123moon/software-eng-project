@@ -92,6 +92,7 @@ AI 是系统的辅助组件，不替代医生做最终诊疗判断。在流程�
 ```
 software-eng-project/
 ├── manage.py                  # Django 命令入口
+├── check_ai.py                # AI 链路连通性自测（python check_ai.py）
 ├── requirements.txt           # 依赖清单
 ├── README.md                  # 项目说明（本文件）
 ├── .gitignore                 # 忽略规则
@@ -142,6 +143,33 @@ python manage.py runserver
   - 医生：`13700000083`
   - 药师：`13600000138`
   - 管理员：`13800000001`（后台账号 `admin`）
+
+### 8.1 AI 大模型接入（可选，不配也能离线跑）
+
+系统通过平台无关的 OpenAI 兼容接口接大模型，切换平台只改三个配置项，业务代码不动；未填 Key 或接口超时时，预问诊分级摘要、医生复核建议、处方预审三条链路自动降级本地规则，演示流程不报错。
+
+**选型建议（课设演示）**：首推智谱 `glm-4.7-flash`——永久免费、中文表现好、响应快，注册开放平台即可领取 Key；现有默认端点与模型 ID 已配好，只需填 Key。其余平台对照如下：
+
+| 平台 | 模型 ID | 接口地址（chat/completions 完整路径） | 备注 |
+|---|---|---|---|
+| 智谱（默认） | `glm-4.7-flash` | `https://open.bigmodel.cn/api/paas/v4/chat/completions` | 永久免费，中文轻量，注册即给 Key |
+| 硅基流动 | `Qwen/Qwen3-8B` | `https://api.siliconflow.cn/v1/chat/completions` | 免费，国内站需实名 |
+| 阿里百炼 | `qwen-turbo` | `https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions` | 按量付费，稳定 |
+| 火山方舟 | `ep-xxxx`（接入点 ID） | `https://ark.cn-beijing.volces.com/api/v3/chat/completions` | 付费；fast 档位未开通时自动回退常规档 |
+
+**配置方式**（二选一，环境变量优先于本地文件）：
+
+- 在 `medical_platform/local_settings.py` 写（该文件已被 `.gitignore` 排除，不进仓库）：
+
+```python
+os.environ.setdefault('AI_BASE_URL', 'https://open.bigmodel.cn/api/paas/v4/chat/completions')
+os.environ.setdefault('AI_API_KEY', '你的密钥')
+os.environ.setdefault('AI_MODEL', 'glm-4.7-flash')
+```
+
+- 或在系统环境变量中设置同名 `AI_BASE_URL / AI_API_KEY / AI_MODEL`。
+
+**连通性自测**：工程根目录执行 `python check_ai.py`，逐条打印配置识别、患者端分级摘要、医生端复核建议、处方草稿预审走的是远程平台还是本地降级；填好 Key 后重跑，远程条目应显示对应平台来源。
 
 ---
 
