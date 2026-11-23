@@ -12,7 +12,7 @@
         <p class="sub">请选择登录身份</p>
 
         <div class="role-grid">
-            <a class="role-card" href="{% url 'accounts:login' %}">
+            <a class="role-card role-card--patient" href="{% url 'accounts:login' %}">
                 <div class="entry-icon">患</div>
                 <div class="entry-body">
                     <div class="entry-title">患者</div>
@@ -20,7 +20,7 @@
                 </div>
             </a>
 
-            <a class="role-card" href="{% url 'accounts:staff_entry' %}">
+            <a class="role-card role-card--staff" href="{% url 'accounts:staff_entry' %}">
                 <div class="entry-icon">职</div>
                 <div class="entry-body">
                     <div class="entry-title">职工</div>

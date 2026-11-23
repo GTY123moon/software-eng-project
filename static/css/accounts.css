@@ -13,55 +13,74 @@
     justify-content: center;
     gap: 24px;
     overflow: hidden;
-    background: linear-gradient(135deg, #123a63 0%, #1f6fa8 55%, #14505f 100%);
+    /* 深蓝医疗科技底：左上冷蓝 → 中部主蓝 → 右下青蓝，多层径向高光叠加 */
+    background:
+        radial-gradient(1200px 700px at 12% 8%, rgba(76, 164, 224, 0.28) 0, transparent 55%),
+        radial-gradient(1000px 640px at 88% 92%, rgba(38, 158, 168, 0.30) 0, transparent 55%),
+        linear-gradient(135deg, #0c2a49 0%, #15557f 48%, #135a68 100%);
     padding: 24px 16px;
 }
 
-/* 科技感背景：光斑 + 散点点阵 + 底部网格（纯 CSS，无图片） */
+/* 科技感背景：光斑 + 散点点阵（纯 CSS，无图片） */
 .login-wrap::before {
     content: "";
     position: absolute;
     inset: 0;
     pointer-events: none;
     background:
-        radial-gradient(circle at 18% 22%, rgba(64, 156, 224, 0.35) 0, transparent 34%),
-        radial-gradient(circle at 78% 78%, rgba(31, 115, 132, 0.30) 0, transparent 36%),
-        radial-gradient(rgba(255, 255, 255, 0.16) 1.5px, transparent 1.6px);
-    background-size: auto, auto, 34px 34px;
+        radial-gradient(circle at 20% 20%, rgba(96, 178, 236, 0.38) 0, transparent 32%),
+        radial-gradient(circle at 76% 74%, rgba(46, 176, 189, 0.32) 0, transparent 34%),
+        radial-gradient(rgba(255, 255, 255, 0.18) 1.5px, transparent 1.6px);
+    background-size: auto, auto, 32px 32px;
 }
 
+/* 底部网格：向上渐隐，叠加一层柔和地面光带 */
 .login-wrap::after {
     content: "";
     position: absolute;
     left: 0;
     right: 0;
     bottom: 0;
-    height: 38%;
+    height: 42%;
     pointer-events: none;
     background:
-        repeating-linear-gradient(90deg, rgba(143, 216, 255, 0.10) 0 1px, transparent 1px 46px),
-        repeating-linear-gradient(0deg, rgba(143, 216, 255, 0.10) 0 1px, transparent 1px 46px);
-    -webkit-mask-image: linear-gradient(transparent, #000 70%);
-    mask-image: linear-gradient(transparent, #000 70%);
+        radial-gradient(60% 60% at 50% 100%, rgba(127, 227, 208, 0.12) 0, transparent 70%),
+        repeating-linear-gradient(90deg, rgba(143, 216, 255, 0.12) 0 1px, transparent 1px 46px),
+        repeating-linear-gradient(0deg, rgba(143, 216, 255, 0.12) 0 1px, transparent 1px 46px);
+    -webkit-mask-image: linear-gradient(transparent, #000 72%);
+    mask-image: linear-gradient(transparent, #000 72%);
+}
+
+/* 登录族页面底部免责小字适配深蓝背景 */
+body:has(.login-wrap) .footer {
+    color: rgba(226, 240, 252, 0.66);
 }
 
 .login-card {
     position: relative;
     z-index: 1;
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    border-radius: 16px;
-    padding: 32px 36px;
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    border-radius: 18px;
+    padding: 36px 38px;
     width: 420px;
-    box-shadow: 0 24px 70px rgba(6, 32, 64, 0.40);
-    backdrop-filter: blur(8px);
+    max-width: 92vw;
+    box-shadow: 0 30px 80px rgba(4, 26, 52, 0.45);
+    backdrop-filter: blur(10px);
+}
+
+/* 注册页表单项较多，卡片略加宽 */
+.login-card--register {
+    width: 460px;
 }
 
 .login-card h1 {
-    font-size: 19px;
+    font-size: 20px;
+    font-weight: 700;
     color: var(--text);
     text-align: center;
     margin-bottom: 8px;
+    letter-spacing: 1px;
 }
 
 .login-card h2 {
@@ -75,11 +94,11 @@
     text-align: center;
     color: var(--text-muted);
     font-size: 13px;
-    margin-bottom: 24px;
+    margin-bottom: 26px;
 }
 
 .login-card-narrow {
-    width: 380px;
+    width: 396px;
 }
 
 /* 参考图9：深蓝科技背景 + 右侧白色圆角卡片，左侧为品牌插画装饰区 */
@@ -106,24 +125,31 @@
 .login-side .login-logo {
     display: flex;
     align-items: center;
-    gap: 12px;
-    font-size: 24px;
+    gap: 14px;
+    font-size: 22px;
     font-weight: 700;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
+    color: #fff;
 }
 
+/* 品牌徽标：渐变圆角方块 + 内嵌白色医疗十字（纯 CSS 拼合） */
 .login-side .login-logo::before {
     content: "";
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.16);
-    box-shadow: inset 0 0 0 8px rgba(255, 255, 255, 0.10);
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    border-radius: 11px;
+    background:
+        linear-gradient(#fff, #fff) center / 14px 4px no-repeat,
+        linear-gradient(#fff, #fff) center / 4px 14px no-repeat,
+        linear-gradient(135deg, #3d9be0 0%, #1f6fc4 100%);
+    box-shadow: 0 8px 18px rgba(13, 54, 96, 0.4),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.25);
 }
 
 .login-side .login-slogan {
-    font-size: 16px;
-    color: rgba(255, 255, 255, 0.82);
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.85);
     max-width: 420px;
     line-height: 1.9;
 }
@@ -156,9 +182,15 @@
     color: #eaf4ff;
     padding: 7px 14px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.13);
+    border: 1px solid rgba(255, 255, 255, 0.22);
     backdrop-filter: blur(4px);
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.login-features li:hover {
+    background: rgba(255, 255, 255, 0.23);
+    border-color: rgba(255, 255, 255, 0.34);
 }
 
 .login-wrap.split .login-card {
@@ -170,25 +202,42 @@
 .login-card .btn-primary,
 .role-panel .btn-primary {
     background: linear-gradient(135deg, #2f7ed8 0%, #206bc4 100%);
-    box-shadow: 0 8px 20px rgba(32, 107, 196, 0.30);
-    letter-spacing: 2px;
+    box-shadow: 0 10px 24px rgba(32, 107, 196, 0.32);
+    letter-spacing: 3px;
+    font-weight: 600;
+    padding: 12px 20px;
+    border-radius: 10px;
+    transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
 }
 
 .login-card .btn-primary:hover,
 .role-panel .btn-primary:hover {
     background: linear-gradient(135deg, #2a6fc0 0%, #1a5fa8 100%);
+    box-shadow: 0 14px 28px rgba(26, 95, 168, 0.36);
 }
 
-.login-card input,
-.role-panel input,
-.login-card select,
-.role-panel select {
-    background: #f5f8fc;
+.login-card .btn-primary:active,
+.role-panel .btn-primary:active {
+    transform: translateY(1px);
+    box-shadow: 0 6px 16px rgba(26, 95, 168, 0.30);
+}
+
+.login-card .form-group input,
+.role-panel .form-group input,
+.login-card .form-group select,
+.role-panel .form-group select {
+    background: #f7f9fc;
 }
 
 .login-card input::placeholder,
 .role-panel input::placeholder {
-    color: #b3bdcc;
+    color: #aab6c6;
+}
+
+.login-card .form-group label,
+.role-panel .form-group label {
+    color: #334155;
+    font-weight: 500;
 }
 
 .form-row {
@@ -560,6 +609,16 @@
     font-size: 13px;
     color: var(--text-muted);
     margin-top: 4px;
+    line-height: 1.6;
+}
+
+/* 身份选择卡片内的入口图标：尺寸放大、圆角加大（不影响工作台其它 entry-icon） */
+.role-card .entry-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    font-size: 18px;
+    font-weight: 700;
 }
 
 /* ===== 通用卡片 ===== */
@@ -1243,46 +1302,89 @@
 .role-panel {
     position: relative;
     z-index: 1;
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    border-radius: 16px;
-    padding: 32px 36px;
-    width: 640px;
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    border-radius: 18px;
+    padding: 38px 40px;
+    width: 620px;
     max-width: 92vw;
-    box-shadow: 0 24px 70px rgba(6, 32, 64, 0.40);
-    backdrop-filter: blur(8px);
+    box-shadow: 0 30px 80px rgba(4, 26, 52, 0.45);
+    backdrop-filter: blur(10px);
 }
 
 .role-panel h1 {
-    font-size: 19px;
+    font-size: 20px;
+    font-weight: 700;
     color: var(--text);
     text-align: center;
     margin-bottom: 8px;
+    letter-spacing: 1px;
+}
+
+.role-panel .sub {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
 }
 
 .role-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-top: 24px;
+    gap: 18px;
+    margin-top: 26px;
 }
 
 .role-card {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 16px;
     background: #fff;
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 22px 20px;
+    padding: 24px 22px;
     text-decoration: none;
     transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
 
 .role-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-4px);
     box-shadow: var(--shadow-hover);
     border-color: var(--primary-light);
+}
+
+/* 卡片右侧进入箭头，悬停时显现并右移 */
+.role-card::after {
+    content: "→";
+    position: absolute;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%) translateX(-4px);
+    color: var(--primary);
+    font-size: 18px;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.role-card:hover::after {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+}
+
+.entry-body {
+    flex: 1;
+    min-width: 0;
+}
+
+/* 两类入口徽标配色：患者医疗蓝 / 职工青 */
+.role-card--patient .entry-icon {
+    background: linear-gradient(135deg, #3d9be0 0%, #206bc4 100%);
+    color: #fff;
+}
+
+.role-card--staff .entry-icon {
+    background: linear-gradient(135deg, #23a3ad 0%, #14606e 100%);
+    color: #fff;
 }
 
 .side-item-disabled {
@@ -1456,5 +1558,11 @@
         margin: 0;
         width: 100%;
         max-width: 420px;
+    }
+
+    /* 注册 / 身份选择卡片窄屏自适应 */
+    .login-card--register,
+    .role-panel {
+        width: 100%;
     }
 }
