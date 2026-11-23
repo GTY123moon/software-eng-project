@@ -13,7 +13,7 @@
     <span class="his-info-field">{{ consult.department }}</span>
     <span class="his-info-field">开始：<b>{{ consult.time }}</b></span>
     <div class="info-actions">
-        <span class="badge {% if queuing %}badge-orange{% else %}badge-blue{% endif %}">{{ consult.status }}</span>
+        <span class="badge {% if consult.status == '进行中' and queuing %}badge-orange{% elif consult.status == '进行中' %}badge-blue{% else %}badge-gray{% endif %}">{{ consult.status }}</span>
         {% if can_chat %}
         <button class="btn-secondary" id="openVoice" type="button"
                 onclick="alert('语音通话为课设占位，需接入实时音视频服务。')">语音通话</button>
@@ -30,6 +30,12 @@
     <p class="queue-tip">您已完成 AI 预问诊，医生按挂号顺序依次接诊，请耐心等待。</p>
     <div class="queue-count">前方还有 <b id="queueAhead">{{ ahead }}</b> 位患者</div>
     <p class="empty-tip" id="queueHint">轮到您时将自动弹出提示，点击即可进入对话。</p>
+    <form method="post" action="{% url 'accounts:consult_chat' consult.id %}"
+          onsubmit="return confirm('确认放弃本次线上咨询？排队将取消，咨询置为已取消。');">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="abandon">
+        <button class="btn-secondary" type="submit">放弃线上咨询</button>
+    </form>
 </div>
 
 {# 叫号弹窗：轮询到已接诊后弹出 #}
@@ -134,6 +140,8 @@
     {% else %}
     {% if need_consent %}
     <p class="empty-tip">请先完成上方风险告知，再进入线上咨询。</p>
+    {% elif consult.status == '已取消' %}
+    <p class="empty-tip">您已主动放弃本次线上咨询，状态为已取消，仅可查看历史记录；如需就诊请前往线下医院。</p>
     {% else %}
     <p class="empty-tip">本次问诊已结束，仅可查看历史记录，不能再发消息或呼叫。</p>
     {% endif %}
@@ -148,10 +156,11 @@
         <p class="risk-warn">AI 预问诊评估判定当前症状为<span>高危急症</span>。</p>
         <p>强烈建议您立即前往就近医院就诊，或拨打 120 急救电话。线上咨询无法完成急救处置、当面查体与辅助检查，请优先线下就医。</p>
         <div class="risk-actions">
-            <form method="post" action="{% url 'accounts:consult_chat' consult.id %}" class="risk-form">
+            <form method="post" action="{% url 'accounts:consult_chat' consult.id %}" class="risk-form"
+                  onsubmit="return confirm('确认放弃本次线上咨询？咨询将置为已取消，不可再继续对话。');">
                 {% csrf_token %}
-                <input type="hidden" name="action" value="finish">
-                <button class="btn-secondary" type="submit">前往线下就诊，结束咨询</button>
+                <input type="hidden" name="action" value="abandon">
+                <button class="btn-secondary" type="submit">放弃线上咨询，前往线下就诊</button>
             </form>
             <form method="post" action="{% url 'accounts:consult_chat' consult.id %}" class="risk-form" id="consentForm">
                 {% csrf_token %}

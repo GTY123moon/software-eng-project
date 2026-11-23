@@ -142,6 +142,23 @@ def _queue_ahead(consult):
     return earlier + active
 
 
+def _cancel_consultation(consult, patient):
+    """患者主动放弃线上咨询：置「已取消」，释放已接诊医生的忙碌占号，并写操作日志。
+
+    与「结束申请」区分：结束申请需医生确认后才结束；放弃为患者单方动作，直接取消。
+    调用方需先校验 consult.status == '进行中'。
+    """
+    consult.status = '已取消'
+    consult.end_request = 0
+    consult.end_time = timezone.now()
+    consult.save(update_fields=['status', 'end_request', 'end_time'])
+    if consult.accepted == 1 and consult.doctor_id:
+        Doctor.objects.filter(
+            doctor_id=consult.doctor_id, work_status=2).update(work_status=1)
+    write_log(patient.patient_id, '患者', '主动放弃线上咨询',
+              target_type='consultation', target_id=consult.consult_id)
+
+
 def _presc_brief(p):
     """把处方 ORM 对象适配成列表模板期望的字典。"""
     items = PrescriptionItem.objects.filter(prescription_id=p.presc_id)
@@ -874,6 +891,10 @@ def consult_chat_view(request, consult_id):
     # 排队中：尚未被医生接诊，只展示排队等待与前方人数，不开放对话 / 发言
     if consult.status == '进行中' and consult.accepted == 0:
         if request.method == 'POST':
+            # 排队中也可主动放弃线上咨询：直接置已取消，无需等待接诊或医生确认
+            if request.POST.get('action') == 'abandon':
+                _cancel_consultation(consult, patient)
+                messages.info(request, '已放弃本次线上咨询，状态置为已取消；如需就诊请前往线下医院。')
             return redirect('accounts:consult_chat', consult.consult_id)
         return render(request, 'accounts/consult_chat.html', {
             'consult': {
@@ -921,6 +942,16 @@ def consult_chat_view(request, consult_id):
                 write_log(patient.patient_id, '患者', '申请结束问诊',
                           target_type='consultation', target_id=consult.consult_id)
                 messages.success(request, '已向医生发起结束申请，待医生确认后结束本次问诊。')
+            return redirect('accounts:consult_chat', consult.consult_id)
+
+        if action == 'abandon':
+            # 患者主动放弃线上咨询：单方取消，无需医生确认；仅进行中可放弃。
+            # 与「结束申请」区分：结束申请需医生确认后才结束，放弃则直接置为已取消。
+            if consult.status != '进行中':
+                messages.error(request, '当前问诊状态为「%s」，不能放弃。' % consult.status)
+            else:
+                _cancel_consultation(consult, patient)
+                messages.info(request, '已放弃本次线上咨询，状态置为已取消；如需就诊请前往线下医院。')
             return redirect('accounts:consult_chat', consult.consult_id)
 
         # 未解锁发言（未完成知情同意 / 已结束）时不允许发送消息

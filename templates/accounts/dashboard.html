@@ -96,7 +96,13 @@
     <div class="list-item">
         <div>{{ c.doctor }} · {{ c.department }}</div>
         <div class="item-right">
-            <span class="badge badge-blue">{{ c.status }}</span>
+            {% if c.status == '已取消' %}
+            <span class="badge badge-gray">{{ c.status }}</span>
+            {% elif c.status == '已转诊' %}
+            <span class="badge badge-orange">{{ c.status }}</span>
+            {% else %}
+            <span class="badge badge-green">{{ c.status }}</span>
+            {% endif %}
             <span class="time">{{ c.time }}</span>
             <a class="link-btn" href="{% url 'accounts:consult_chat' c.id %}">对话</a>
         </div>
