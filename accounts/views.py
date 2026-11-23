@@ -26,6 +26,9 @@ from core.log_service import write_log
 
 PICKUP_METHOD = {0: '院药房取药', 1: '社会药店购药'}
 
+# 患者端可见的处方状态：药师审核通过后的流转态；草稿 / 待审核 / 已驳回不对患者展示
+PATIENT_VISIBLE_STATUS = ('已通过', '待配药', '已完成')
+
 # 单医生待接诊排队上限：accepted=0 的排队问诊至多 3 人，满员后不可再挂
 QUEUE_LIMIT = 3
 
@@ -152,6 +155,8 @@ def _presc_brief(p):
         'pickup': PICKUP_METHOD.get(p.pickup_method, '未选择'),
         'time': _format_time(p.created_at),
         'items': items_text,
+        # 审核通过、患者尚未选取药方式：视为新到待查收处方
+        'pending_receive': p.status == '已通过' and p.pickup_method is None,
     }
 
 
@@ -379,9 +384,11 @@ def dashboard_view(request):
     history = [c for c in consultations if c['status'] != '进行中']
     active_count = sum(1 for c in consultations if c['status'] == '进行中')
 
-    prescs = Prescription.objects.filter(patient_id=patient.patient_id) \
+    prescs = Prescription.objects.filter(
+        patient_id=patient.patient_id, status__in=PATIENT_VISIBLE_STATUS) \
         .select_related('doctor', 'consultation').order_by('-created_at')
     prescriptions = [_presc_brief(p) for p in prescs]
+    pending_receives = [p for p in prescriptions if p['pending_receive']]
 
     unread = ConsultationMessage.objects.filter(
         consultation__patient_id=patient.patient_id,
@@ -404,6 +411,7 @@ def dashboard_view(request):
         'active': active,
         'active_count': active_count,
         'prescriptions': prescriptions,
+        'pending_receives': pending_receives,
         'unread': unread,
     }
     return render(request, 'accounts/dashboard.html', context)
@@ -679,7 +687,8 @@ def prescription_list_view(request):
     if not patient:
         return redirect('accounts:login')
 
-    prescs = Prescription.objects.filter(patient_id=patient.patient_id) \
+    prescs = Prescription.objects.filter(
+        patient_id=patient.patient_id, status__in=PATIENT_VISIBLE_STATUS) \
         .select_related('doctor', 'consultation').order_by('-created_at')
     prescriptions = [_presc_brief(p) for p in prescs]
     return render(request, 'accounts/prescription_list.html',
@@ -691,8 +700,10 @@ def prescription_detail_view(request, presc_id):
     if not patient:
         return redirect('accounts:login')
 
-    # 仅允许查看本人处方
-    p = Prescription.objects.filter(presc_id=presc_id, patient_id=patient.patient_id) \
+    # 仅允许查看本人、且已审核通过后的处方；草稿 / 待审核 / 已驳回不对患者展示
+    p = Prescription.objects.filter(
+        presc_id=presc_id, patient_id=patient.patient_id,
+        status__in=PATIENT_VISIBLE_STATUS) \
         .select_related('doctor', 'consultation', 'pharmacist').first()
 
     if not p:
@@ -756,9 +767,19 @@ def prescription_pickup_view(request, presc_id):
             prescription_id=p.presc_id, drug_id=drug_id
         ).update(is_decoction=is_dec, decoction_num=decoction_num)
 
-    write_log(patient.patient_id, '患者', '选择取药方式与代煎',
+    method_label = PICKUP_METHOD.get(p.pickup_method, '未选择')
+    presc_no = f"P{p.presc_id:09d}"
+    write_log(patient.patient_id, '患者',
+              f'选择取药方式（{method_label}）与代煎',
               target_type='prescription', target_id=p.presc_id)
-    messages.success(request, '取药方式与代煎选择已提交，药房将按此配药。')
+    if pickup_method == '0':
+        messages.success(
+            request,
+            f'处方 {presc_no} 取药方式已更新为「{method_label}」，已通知药师核对库存并安排配药发药。')
+    else:
+        messages.success(
+            request,
+            f'处方 {presc_no} 取药方式已更新为「{method_label}」，无需院内配药、药师无需处理，请凭电子处方到社会药店取药。')
     return redirect('accounts:prescription_detail', presc_id=presc_id)
 
 

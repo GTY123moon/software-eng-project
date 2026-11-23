@@ -1016,6 +1016,11 @@
     border-left: 4px solid var(--primary);
 }
 
+.presc-notice {
+    border-left: 4px solid var(--orange);
+    background: var(--orange-light);
+}
+
 .ai-row {
     display: flex;
     align-items: center;

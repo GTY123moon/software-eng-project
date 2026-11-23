@@ -45,6 +45,20 @@
 </div>
 {% endif %}
 
+{% if pending_receives %}
+<div class="card presc-notice">
+    <h3>请查收处方 <span class="badge badge-orange">待查收</span></h3>
+    {% for p in pending_receives %}
+    <div class="list-item">
+        <div>处方号 {{ p.id }} · {{ p.doctor }} · {{ p.department }}</div>
+        <div class="item-right">
+            <a class="btn-primary" href="{% url 'accounts:prescription_detail' p.presc_id %}">查收处方</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
 <div class="entry-grid">
     <a class="entry-card" href="{% url 'accounts:consult_create' %}">
         <div class="entry-icon">问诊</div>

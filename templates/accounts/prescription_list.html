@@ -24,7 +24,12 @@
     <div class="presc-items">{{ p.items }}</div>
     <div class="presc-foot">
         <span>取药方式：{{ p.pickup }}</span>
-        <a class="btn-secondary" href="{% url 'accounts:prescription_detail' p.presc_id %}">查看处方详情</a>
+        {% if p.pending_receive %}
+        <span class="badge badge-orange">待查收</span>
+        {% endif %}
+        <a class="btn-secondary" href="{% url 'accounts:prescription_detail' p.presc_id %}">
+            {% if p.pending_receive %}查收处方{% else %}查看处方详情{% endif %}
+        </a>
     </div>
 </div>
 {% endfor %}
