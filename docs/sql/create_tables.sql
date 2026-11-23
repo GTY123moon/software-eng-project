@@ -137,6 +137,7 @@ CREATE TABLE `duty_schedule` (
     `start_time` datetime NOT NULL COMMENT '班次开始时刻',
     `end_time` datetime NOT NULL COMMENT '班次结束时刻',
     `status` varchar(200) NOT NULL DEFAULT '正常' COMMENT '状态：正常/调班/停诊',
+    `weekday` tinyint DEFAULT NULL COMMENT '循环星期：0=周一…6=周日；NULL 为单次手动排班',
     `updated_at` datetime DEFAULT NULL COMMENT '更新时间',
     `created_by` bigint NOT NULL COMMENT '创建人，关联 admin',
     PRIMARY KEY (`duty_code`),

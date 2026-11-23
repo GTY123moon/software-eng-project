@@ -104,6 +104,8 @@ class DutySchedule(models.Model):
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
     status = models.CharField(max_length=200, default='正常')
+    # weekday 为空表示单次手动排班（按具体日期时间）；0-6 表示每周循环的星期几（0=周一）
+    weekday = models.IntegerField(null=True, blank=True)
     created_by = models.BigIntegerField()
     updated_at = models.DateTimeField(null=True, blank=True)
 

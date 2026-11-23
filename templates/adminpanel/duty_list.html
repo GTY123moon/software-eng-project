@@ -53,13 +53,14 @@
             {% if rows %}
             <table class="presc-table">
                 <thead>
-                    <tr><th>值班编号</th><th>医生</th><th>班次</th><th>开始</th><th>结束</th><th>状态</th><th>操作</th></tr>
+                    <tr><th>值班编号</th><th>医生</th><th>方式</th><th>班次</th><th>开始</th><th>结束</th><th>状态</th><th>操作</th></tr>
                 </thead>
                 <tbody>
                     {% for d in rows %}
                     <tr>
                         <td>#{{ d.duty_code }}</td>
                         <td>{{ d.doctor_name }}</td>
+                        <td>{% if d.is_weekly %}<span class="badge badge-blue">{{ d.mode_label }}</span>{% else %}单次{% endif %}</td>
                         <td>{{ d.shift_type }}</td>
                         <td>{{ d.start_text }}</td>
                         <td>{{ d.end_text }}</td>
@@ -80,5 +81,5 @@
 
         <div class="card">
             <h3>排班说明</h3>
-            <p class="empty-tip">白班 / 夜班取值与建表约束一致；同一医生同一时段不能排两个有效班次（停诊记录不占号）。患者端夜间咨询按这里的排班分流给当班医生，因此夜班需覆盖 22:00 - 次日 8:00。</p>
+            <p class="empty-tip">白班 / 夜班取值与建表约束一致；同一医生同一时段（循环班为同一星期几）不能排两个有效班次（停诊记录不占号）。「每周循环」模板排好后每周自动重复当班，也可另排单次班覆盖某天。患者端夜间咨询按这里的排班分流给当班医生，因此夜班需覆盖 22:00 - 次日 8:00。</p>
         </div>{% endblock %}

@@ -50,7 +50,17 @@
                         </select>
                     </div>
                 </div>
-                <div class="form-row">
+
+                <div class="form-group">
+                    <label>排班方式</label>
+                    <select name="mode" id="modeSelect">
+                        <option value="once" {% if form.mode != 'weekly' %}selected{% endif %}>单次手动排班（指定某一天）</option>
+                        <option value="weekly" {% if form.mode == 'weekly' %}selected{% endif %}>每周循环（排好一周，后续每周重复）</option>
+                    </select>
+                </div>
+
+                {# ===== 单次手动排班：指定具体日期时间 ===== #}
+                <div class="form-row" id="onceBlock">
                     <div class="form-group">
                         <label>开始时间</label>
                         {% include 'adminpanel/_datetime_field.html' with field_name="start_time" field_value=form.start_time %}
@@ -60,6 +70,27 @@
                         {% include 'adminpanel/_datetime_field.html' with field_name="end_time" field_value=form.end_time %}
                     </div>
                 </div>
+
+                {# ===== 每周循环：选星期几 + 班次时刻 ===== #}
+                <div class="form-row" id="weeklyBlock" hidden>
+                    <div class="form-group">
+                        <label>循环星期</label>
+                        <select name="weekday" id="weekdaySelect">
+                            {% for w in weekdays %}
+                            <option value="{{ forloop.counter0 }}" {% if form.weekday == forloop.counter0|stringformat:"s" %}selected{% endif %}>{{ w }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>开始时刻</label>
+                        <input type="time" name="start_time" value="{{ form.start_time }}">
+                    </div>
+                    <div class="form-group">
+                        <label>结束时刻</label>
+                        <input type="time" name="end_time" value="{{ form.end_time }}">
+                    </div>
+                </div>
+
                 <div class="form-actions">
                     <button class="btn-primary" type="submit">保存</button>
                     <a class="btn-secondary" href="{% url 'adminpanel:duty_list' %}">取消</a>
@@ -69,5 +100,24 @@
 
         <div class="card">
             <h3>填写提示</h3>
-            <p class="empty-tip">白班建议 08:00 - 22:00，夜班 22:00 - 次日 08:00；状态选"停诊"时该班次不参与患者端分流，也不会占用时段。创建人自动记为当前管理员账号。</p>
-        </div>{% endblock %}
+            <p class="empty-tip">白班建议 08:00 - 22:00，夜班 22:00 - 次日 08:00；「每周循环」只需选星期几与班次时刻，之后每周该天自动当班，管理员仍可随时新增单次班或修改循环模板。状态选"停诊"时该班次不参与患者端分流，也不会占用时段。创建人自动记为当前管理员账号。</p>
+        </div>
+
+<script>
+(function () {
+    var modeSelect = document.getElementById('modeSelect');
+    var onceBlock = document.getElementById('onceBlock');
+    var weeklyBlock = document.getElementById('weeklyBlock');
+
+    function toggle() {
+        var weekly = modeSelect.value === 'weekly';
+        onceBlock.hidden = weekly;
+        weeklyBlock.hidden = !weekly;
+        // 非活动区块的输入禁用，避免两套时间字段同时提交
+        onceBlock.querySelectorAll('input,select').forEach(function (el) { el.disabled = weekly; });
+        weeklyBlock.querySelectorAll('input,select').forEach(function (el) { el.disabled = !weekly; });
+    }
+    modeSelect.addEventListener('change', toggle);
+    toggle();
+})();
+</script>{% endblock %}

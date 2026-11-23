@@ -40,6 +40,8 @@ TARGET_CN = {
 }
 SHIFT_TYPES = ['白班', '夜班']
 DUTY_STATUS = ['正常', '调班', '停诊']
+# 星期几：索引与 Python date.weekday() 对齐，0=周一
+WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 # 取药方式枚举（与患者端选择口径一致）
 PICKUP_METHOD = {0: '院药房取药', 1: '社会药店购药'}
 
@@ -131,6 +133,27 @@ def _day_range(day):
     return start, start + timedelta(days=1)
 
 
+def _parse_time(value):
+    """解析 HH:MM 时刻；非法返回 None。"""
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value.strip(), '%H:%M').time()
+    except ValueError:
+        return None
+
+
+def _weekly_base(weekday, start_t, end_t):
+    """循环班次基准时间：以本周对应星期几拼开始时刻；夜班跨天结束日顺延一天。"""
+    today = timezone.localdate()
+    base = today + timedelta(days=weekday - today.weekday())
+    tz = timezone.get_current_timezone()
+    start = timezone.make_aware(datetime.combine(base, start_t), tz)
+    end_date = base if end_t > start_t else base + timedelta(days=1)
+    end = timezone.make_aware(datetime.combine(end_date, end_t), tz)
+    return start, end
+
+
 # --------------------------------------------------------------------------
 # 首页概览：真实统计
 # --------------------------------------------------------------------------
@@ -138,12 +161,21 @@ def _day_range(day):
 def dashboard(request):
     today = timezone.localdate()
     day_start, day_end = _day_range(today)
-    duties = list(DutySchedule.objects.filter(
-        start_time__gte=day_start, start_time__lt=day_end, status__in=['正常', '调班']
-    ).order_by('start_time')[:10])
+    today_wd = today.weekday()
+    valid_status = ['正常', '调班']
+    # 今日当班 = 当天单次班次 + 今日星期几命中的每周循环模板
+    once_today = DutySchedule.objects.filter(
+        weekday__isnull=True, start_time__gte=day_start, start_time__lt=day_end,
+        status__in=valid_status)
+    weekly_today = DutySchedule.objects.filter(
+        weekday=today_wd, status__in=valid_status)
+    today_query = once_today | weekly_today
+    duties = list(today_query.order_by('start_time')[:10])
     names = _names({d.doctor_id for d in duties})
     for d in duties:
         d.doctor_name = names.get(d.doctor_id, '未知医生')
+        d.is_weekly = d.weekday is not None
+        d.weekday_label = WEEKDAYS[d.weekday] if d.is_weekly else ''
         d.start_text = _fmt_show(d.start_time)[-5:]
         d.end_text = _fmt_show(d.end_time)[-5:]
 
@@ -157,7 +189,7 @@ def dashboard(request):
     ctx.update({
         'drug_total': Drug.objects.count(),
         'low_stock': Drug.objects.filter(stock_qty__lt=LOW_STOCK_THRESHOLD).count(),
-        'today_duty': DutySchedule.objects.filter(start_time__gte=day_start, start_time__lt=day_end, status__in=['正常', '调班']).count(),
+        'today_duty': today_query.count(),
         'active_consult': Consultation.objects.filter(status='进行中').count(),
         'pending_prescription': Prescription.objects.filter(status='待审核').count(),
         'today_log': OperationLog.objects.filter(created_at__gte=day_start, created_at__lt=day_end).count(),
@@ -361,26 +393,40 @@ def duty_list(request):
     date_value = parse_date(date_raw) if date_raw else None
 
     order = ('start_time', 'duty_code') if sort == 'time_asc' else ('-start_time', '-duty_code')
-    duties = DutySchedule.objects.all().order_by(*order)
+    base = DutySchedule.objects.all()
     if department:
         dept_doctor_ids = list(
             Doctor.objects.filter(department=department).values_list('doctor_id', flat=True)
         )
-        duties = duties.filter(doctor_id__in=dept_doctor_ids)
+        base = base.filter(doctor_id__in=dept_doctor_ids)
     if doctor_id.isdigit():
-        duties = duties.filter(doctor_id=int(doctor_id))
+        base = base.filter(doctor_id=int(doctor_id))
     if status:
-        duties = duties.filter(status=status)
+        base = base.filter(status=status)
     if date_value:
         day_start, day_end = _day_range(date_value)
-        duties = duties.filter(start_time__gte=day_start, start_time__lt=day_end)
+        # 日期筛选只约束单次班次；每周循环模板不受具体日期限制，始终保留
+        once = base.filter(weekday__isnull=True, start_time__gte=day_start, start_time__lt=day_end)
+        weekly = base.filter(weekday__isnull=False)
+        duties = (once | weekly).order_by(*order)
+    else:
+        duties = base.order_by(*order)
 
     rows = list(duties[:300])
     names = _names({d.doctor_id for d in rows})
     for d in rows:
         d.doctor_name = names.get(d.doctor_id, '未知医生')
-        d.start_text = _fmt_show(d.start_time)
-        d.end_text = _fmt_show(d.end_time)
+        d.is_weekly = d.weekday is not None
+        if d.is_weekly:
+            d.weekday_label = WEEKDAYS[d.weekday]
+            d.mode_label = '每周·' + WEEKDAYS[d.weekday]
+            d.start_text = _fmt_show(d.start_time)[-5:]
+            d.end_text = _fmt_show(d.end_time)[-5:]
+        else:
+            d.weekday_label = ''
+            d.mode_label = '单次'
+            d.start_text = _fmt_show(d.start_time)
+            d.end_text = _fmt_show(d.end_time)
 
     departments = sorted(
         {d for d in Doctor.objects.values_list('department', flat=True) if d}
@@ -405,13 +451,18 @@ def duty_list(request):
 
 
 def _read_duty_form(post):
-    """校验排班表单，返回 (数据字典, 错误列表)。"""
+    """校验排班表单，返回 (数据字典, 错误列表)。
+
+    mode=once：单次手动排班，按具体日期时间；mode=weekly：每周循环模板，按星期几 + 时刻。
+    """
     errors = []
     doctor_id = post.get('doctor_id', '').strip()
     shift_type = post.get('shift_type', '').strip()
     status = post.get('status', '').strip() or '正常'
-    start_time = _parse_dt(post.get('start_time', '').strip())
-    end_time = _parse_dt(post.get('end_time', '').strip())
+    mode = 'weekly' if post.get('mode') == 'weekly' else 'once'
+
+    start_time = end_time = None
+    weekday = None
 
     if not doctor_id.isdigit():
         errors.append('请选择值班医生')
@@ -419,12 +470,30 @@ def _read_duty_form(post):
         errors.append('值班类型只能是白班或夜班')
     if status not in DUTY_STATUS:
         errors.append('状态只能是正常、调班或停诊')
-    if post.get('start_time') and start_time is None:
-        errors.append('开始时间格式不正确')
-    if post.get('end_time') and end_time is None:
-        errors.append('结束时间格式不正确')
-    if start_time and end_time and end_time <= start_time:
-        errors.append('结束时间必须晚于开始时间')
+
+    if mode == 'weekly':
+        weekday_raw = post.get('weekday', '').strip()
+        if not weekday_raw.isdigit() or int(weekday_raw) not in range(7):
+            errors.append('每周循环请选择循环的星期几')
+        else:
+            weekday = int(weekday_raw)
+        start_t = _parse_time(post.get('start_time', '').strip())
+        end_t = _parse_time(post.get('end_time', '').strip())
+        if post.get('start_time') and start_t is None:
+            errors.append('开始时刻格式不正确')
+        if post.get('end_time') and end_t is None:
+            errors.append('结束时刻格式不正确')
+        if start_t and end_t and weekday is not None:
+            start_time, end_time = _weekly_base(weekday, start_t, end_t)
+    else:
+        start_time = _parse_dt(post.get('start_time', '').strip())
+        end_time = _parse_dt(post.get('end_time', '').strip())
+        if post.get('start_time') and start_time is None:
+            errors.append('开始时间格式不正确')
+        if post.get('end_time') and end_time is None:
+            errors.append('结束时间格式不正确')
+        if start_time and end_time and end_time <= start_time:
+            errors.append('结束时间必须晚于开始时间')
 
     return {
         'doctor_id': int(doctor_id) if doctor_id.isdigit() else None,
@@ -432,6 +501,8 @@ def _read_duty_form(post):
         'start_time': start_time,
         'end_time': end_time,
         'status': status,
+        'mode': mode,
+        'weekday': weekday,
     }, errors
 
 
@@ -449,19 +520,31 @@ def duty_form(request, duty_code=None):
             'start_time': request.POST.get('start_time', ''),
             'end_time': request.POST.get('end_time', ''),
             'status': request.POST.get('status', '正常'),
+            'mode': data['mode'],
+            'weekday': str(data['weekday']) if data['weekday'] is not None else '',
         }
 
-        # 同一医生同一时段不允许排两个有效班次（停诊记录不占号）
+        # 同一医生不允许排两个有效班次（停诊记录不占号）：单次按时段，循环按星期几
         if not errors and data['status'] != '停诊':
-            overlap = DutySchedule.objects.filter(
-                doctor_id=data['doctor_id'],
-                start_time__lt=data['end_time'],
-                end_time__gt=data['start_time'],
-            ).exclude(status='停诊')
-            if duty:
-                overlap = overlap.exclude(pk=duty.pk)
-            if overlap.exists():
-                errors.append('该医生在此时间段已有排班，请调整时间或先修改原班次')
+            if data['mode'] == 'weekly':
+                overlap = DutySchedule.objects.filter(
+                    doctor_id=data['doctor_id'], weekday=data['weekday'],
+                ).exclude(status='停诊')
+                if duty:
+                    overlap = overlap.exclude(pk=duty.pk)
+                if overlap.exists():
+                    errors.append('该医生每周%s已有循环排班，请先修改原班次' % WEEKDAYS[data['weekday']])
+            else:
+                # 单次班只与其他单次班按时段比对；循环模板是每周基准时刻，不参与时段重叠判定
+                overlap = DutySchedule.objects.filter(
+                    doctor_id=data['doctor_id'], weekday__isnull=True,
+                    start_time__lt=data['end_time'],
+                    end_time__gt=data['start_time'],
+                ).exclude(status='停诊')
+                if duty:
+                    overlap = overlap.exclude(pk=duty.pk)
+                if overlap.exists():
+                    errors.append('该医生在此时间段已有排班，请调整时间或先修改原班次')
 
         if not errors:
             try:
@@ -473,6 +556,7 @@ def duty_form(request, duty_code=None):
                             start_time=data['start_time'],
                             end_time=data['end_time'],
                             status=data['status'],
+                            weekday=data['weekday'],
                             created_by=request.admin_profile.admin_id,
                             updated_at=timezone.now(),
                         )
@@ -483,6 +567,7 @@ def duty_form(request, duty_code=None):
                         duty.start_time = data['start_time']
                         duty.end_time = data['end_time']
                         duty.status = data['status']
+                        duty.weekday = data['weekday']
                         duty.updated_at = timezone.now()
                         duty.save()
                         action = '调整排班'
@@ -493,15 +578,19 @@ def duty_form(request, duty_code=None):
                 return redirect(reverse('adminpanel:duty_list') + '?ok=saved')
     else:
         if duty:
+            is_weekly = duty.weekday is not None
             form = {
                 'doctor_id': str(duty.doctor_id),
                 'shift_type': duty.shift_type,
-                'start_time': _fmt(duty.start_time),
-                'end_time': _fmt(duty.end_time),
                 'status': duty.status,
+                'mode': 'weekly' if is_weekly else 'once',
+                'weekday': str(duty.weekday) if is_weekly else '',
+                'start_time': _fmt(duty.start_time)[-5:] if is_weekly else _fmt(duty.start_time),
+                'end_time': _fmt(duty.end_time)[-5:] if is_weekly else _fmt(duty.end_time),
             }
         else:
-            form = {'doctor_id': '', 'shift_type': '白班', 'start_time': '', 'end_time': '', 'status': '正常'}
+            form = {'doctor_id': '', 'shift_type': '白班', 'start_time': '', 'end_time': '',
+                    'status': '正常', 'mode': 'once', 'weekday': ''}
 
     ctx = _common(request, 'duties')
     ctx.update({
@@ -511,6 +600,7 @@ def duty_form(request, duty_code=None):
         'doctors': _doctor_options(),
         'shift_types': SHIFT_TYPES,
         'status_options': DUTY_STATUS,
+        'weekdays': WEEKDAYS,
     })
     return render(request, 'adminpanel/duty_form.html', ctx)
 
@@ -574,10 +664,19 @@ def _target_detail(log):
         obj = DutySchedule.objects.filter(pk=log.target_id).first()
         if obj:
             names = _names({obj.doctor_id})
+            if obj.weekday is not None:
+                mode_label = '每周·' + WEEKDAYS[obj.weekday]
+                start_show = _fmt_show(obj.start_time)[-5:]
+                end_show = _fmt_show(obj.end_time)[-5:]
+            else:
+                mode_label = '单次'
+                start_show = _fmt_show(obj.start_time)
+                end_show = _fmt_show(obj.end_time)
             return [('值班医生', names.get(obj.doctor_id, '未知')),
+                    ('排班方式', mode_label),
                     ('班次类型', obj.shift_type),
-                    ('开始时间', _fmt_show(obj.start_time)),
-                    ('结束时间', _fmt_show(obj.end_time)),
+                    ('开始时间', start_show),
+                    ('结束时间', end_show),
                     ('状态', obj.status)]
     elif log.target_type == 'consultation':
         obj = Consultation.objects.filter(pk=log.target_id).first()
