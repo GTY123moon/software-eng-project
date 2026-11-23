@@ -691,6 +691,8 @@ def consult_assess_view(request, consult_id):
             'content': m.content or '',
             'time': _format_time(m.send_time),
             'mine': m.sender_role == '患者',
+            'msg_type': m.msg_type or 'text',
+            'media_url': m.media_url or '',
         } for m in msgs],
     })
 

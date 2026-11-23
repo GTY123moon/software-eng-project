@@ -27,7 +27,14 @@
         <div class="msg-row {% if m.mine %}mine{% endif %}">
             <div class="msg-bubble">
                 <div class="msg-role">{% if m.role == 'AI' %}AI 助手{% else %}我{% endif %}</div>
+                {% if m.msg_type == 'image' %}
+                <img class="msg-image" src="{{ m.media_url }}" alt="图片消息">
+                {% if m.content %}<div class="msg-content">{{ m.content }}</div>{% endif %}
+                {% elif m.msg_type == 'video' %}
+                <div class="msg-content">[视频消息]</div>
+                {% else %}
                 <div class="msg-content">{{ m.content }}</div>
+                {% endif %}
                 <div class="msg-time">{{ m.time }}</div>
             </div>
         </div>
@@ -38,6 +45,9 @@
 
     <form class="chat-input" method="post" action="{% url 'accounts:consult_assess' consult.id %}">
         {% csrf_token %}
+        {# 视频消息入口：课设占位，暂不接入媒体上传与转码，预留后续接口位 #}
+        <button class="img-upload" type="button" title="视频消息（课设占位）"
+                onclick="alert('视频消息发送为课设占位，需接入媒体上传与转码服务。')">视频</button>
         <textarea name="answer" rows="2" placeholder="根据 AI 助手的提问回答…" required></textarea>
         <button class="btn-primary" type="submit">发送</button>
     </form>
