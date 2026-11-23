@@ -103,3 +103,77 @@
 .advice-option input { width: auto; margin-top: 4px; }
 .advice-title { font-weight: 600; color: #22304a; margin-bottom: 4px; }
 .advice-desc { font-size: 13px; color: #5a6478; line-height: 1.6; }
+
+/* ===== 医生工作台：左侧患者队列 + 右侧诊疗主区（参考图4） ===== */
+.workbench-layout {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.patient-panel {
+    width: 300px;
+    flex-shrink: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 14px;
+}
+
+.queue-search {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    box-sizing: border-box;
+    margin-bottom: 12px;
+    font-family: inherit;
+}
+
+.queue-group-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-2);
+    margin: 10px 0 6px;
+}
+
+.queue-group-title .queue-count {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--primary);
+}
+
+.queue-item {
+    display: block;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    color: var(--text);
+    border: 1px solid transparent;
+    margin: 4px 0;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.queue-item:hover { background: var(--primary-light); border-color: var(--primary-light); }
+
+.queue-item .q-patient { font-weight: 600; font-size: 14px; }
+.queue-item .q-meta { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+.queue-item .q-chief {
+    font-size: 12px; color: var(--text-2); margin-top: 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.workbench-main { flex: 1; min-width: 0; }
+
+.empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text-muted);
+}
+
+.empty-state .empty-box { font-size: 40px; margin-bottom: 10px; }

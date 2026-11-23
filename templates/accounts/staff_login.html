@@ -6,10 +6,14 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/accounts.css' %}">
 
-<div class="login-wrap">
+<div class="login-wrap split">
+    <div class="login-side">
+        <div class="login-logo">智慧医疗在线问诊与处方流转平台</div>
+        <div class="login-slogan">医生诊疗 · 药师审核配药 · 后台管理维护，面向职工的内部工作入口。</div>
+    </div>
     <div class="login-card login-card-narrow">
-        <h1>智慧医疗在线问诊与处方流转平台</h1>
-        <p class="sub">{{ role_cn }}端 · 职工内部登录</p>
+        <h1>{{ role_cn }}端登录</h1>
+        <p class="sub">职工内部登录</p>
 
         {% if error %}
         <div class="form-error">{{ error }}</div>

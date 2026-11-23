@@ -13,7 +13,7 @@
         <div class="topbar">
             <div>
                 <h2>您好，{{ staff_name }}</h2>
-                <span class="user-info">后台账号：{{ staff_account }}</span>
+                <span class="user-info">今天是 {% now "Y年n月j日" %}，后台账号：{{ staff_account }}</span>
             </div>
             <div class="head-actions">
                 <a class="btn-secondary" href="{% url 'adminpanel:drug_add' %}">新增药品</a>

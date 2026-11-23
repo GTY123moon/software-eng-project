@@ -48,6 +48,58 @@
     width: 380px;
 }
 
+/* 参考图9：深蓝科技背景 + 右侧白色圆角卡片，左侧为品牌标语装饰区 */
+.login-wrap.split {
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: stretch;
+    gap: 0;
+    background:
+        radial-gradient(circle at 18% 22%, rgba(64, 156, 224, 0.35) 0, transparent 34%),
+        radial-gradient(circle at 78% 78%, rgba(31, 115, 132, 0.30) 0, transparent 36%),
+        linear-gradient(135deg, #123a63 0%, #1f6fa8 55%, #14505f 100%);
+}
+
+.login-side {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 16px;
+    padding: 48px 56px;
+    color: #fff;
+}
+
+.login-side .login-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.login-side .login-logo::before {
+    content: "";
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.16);
+    box-shadow: inset 0 0 0 8px rgba(255, 255, 255, 0.10);
+}
+
+.login-side .login-slogan {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.82);
+    max-width: 420px;
+    line-height: 1.9;
+}
+
+.login-wrap.split .login-card {
+    align-self: center;
+    margin: 0 9% 0 0;
+}
+
 .form-row {
     display: flex;
     gap: 14px;
@@ -189,6 +241,45 @@
     border-color: var(--primary);
 }
 
+/* 参考 HIS 操作列：绿修改 / 红删除（主操作仍用 btn-primary 蓝） */
+.btn-green {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 88px;
+    padding: 8px 16px;
+    background: var(--green);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    text-decoration: none;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: background 0.2s;
+}
+
+.btn-green:hover { background: #269c57; }
+
+.btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 88px;
+    padding: 8px 16px;
+    background: #fff;
+    color: var(--red);
+    border: 1px solid #f0b4b6;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    text-decoration: none;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-danger:hover { background: var(--red-light); border-color: var(--red); }
+
 .form-actions {
     margin-top: 8px;
     display: flex;
@@ -210,6 +301,16 @@
     text-decoration: underline;
 }
 
+.link-danger {
+    color: var(--red);
+    font-size: 13px;
+    text-decoration: none;
+}
+
+.link-danger:hover {
+    text-decoration: underline;
+}
+
 /* ===== 工作台布局：Tabler 浅色侧边栏 + 主内容 ===== */
 .dash-layout {
     display: flex;
@@ -219,8 +320,8 @@
 
 .side {
     width: 216px;
-    background: var(--sidebar-bg);
-    border: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--his-side) 0%, var(--his-side-deep) 100%);
+    border: none;
     border-radius: var(--radius);
     padding: 14px 10px;
     flex-shrink: 0;
@@ -231,15 +332,15 @@
     padding: 6px 12px 14px;
     font-size: 14px;
     font-weight: 600;
-    color: var(--text);
-    border-bottom: 1px solid var(--border);
+    color: #fff;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
     margin-bottom: 8px;
 }
 
 .side-item {
     display: block;
     padding: 10px 12px;
-    color: var(--text-2);
+    color: var(--his-side-text);
     font-size: 14px;
     text-decoration: none;
     border-radius: var(--radius-sm);
@@ -248,13 +349,13 @@
 }
 
 .side-item:hover {
-    background: var(--bg);
-    color: var(--primary);
+    background: rgba(255, 255, 255, 0.10);
+    color: #fff;
 }
 
 .side-item.active {
-    background: var(--primary-light);
-    color: var(--primary);
+    background: var(--his-side-active);
+    color: #fff;
     font-weight: 600;
 }
 
@@ -562,7 +663,8 @@
 }
 
 .presc-table th {
-    color: var(--text-muted);
+    background: var(--his-head);
+    color: var(--his-head-text);
     font-weight: 600;
 }
 

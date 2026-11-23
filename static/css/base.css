@@ -25,6 +25,13 @@
     --red: #e5484d;
     --red-light: #fdecec;
     --sidebar-bg: #ffffff;
+    /* ===== 参考 HIS 截图补充色：深青侧栏 / 浅青表头（仅在对应类使用，不替换医疗蓝主色） ===== */
+    --his-side: #14505f;
+    --his-side-deep: #0f3d49;
+    --his-side-text: #d7eef1;
+    --his-side-active: #1f7384;
+    --his-head: #d8f0ea;
+    --his-head-text: #1c5c52;
 }
 
 * {

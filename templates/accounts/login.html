@@ -6,10 +6,14 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/accounts.css' %}">
 
-<div class="login-wrap">
+<div class="login-wrap split">
+    <div class="login-side">
+        <div class="login-logo">智慧医疗在线问诊与处方流转平台</div>
+        <div class="login-slogan">在线问诊 · 电子处方 · 药师审核 · 处方流转，诊疗全流程留痕可追溯。</div>
+    </div>
     <div class="login-card login-card-narrow">
-        <h1>智慧医疗在线问诊与处方流转平台</h1>
-        <p class="sub">患者端登录</p>
+        <h1>患者端登录</h1>
+        <p class="sub">手机号 / 账号登录，发起线上问诊、查看处方</p>
 
         {% if error %}
         <div class="form-error">{{ error }}</div>

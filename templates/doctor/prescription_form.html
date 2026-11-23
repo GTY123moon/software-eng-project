@@ -85,7 +85,7 @@
                 <td><input type="number" name="qty" min="1" value="{{ r.qty|default:1 }}" onchange="recalc()"></td>
                 <td><input type="text" name="dosage" value="{{ r.dosage|default:'' }}" placeholder="如：1 粒/次，每日 3 次"></td>
                 <td class="subtotal">￥0.00</td>
-                <td>{% if editable %}<button type="button" class="link-btn" onclick="removeRow(this)">删除</button>{% else %}—{% endif %}</td>
+                <td>{% if editable %}<button type="button" class="link-danger" onclick="removeRow(this)">删除</button>{% else %}—{% endif %}</td>
             </tr>
             {% endfor %}
             </tbody>
@@ -130,7 +130,7 @@
         <td><input type="number" name="qty" min="1" value="1" onchange="recalc()"></td>
         <td><input type="text" name="dosage" placeholder="如：1 粒/次，每日 3 次"></td>
         <td class="subtotal">￥0.00</td>
-        <td><button type="button" class="link-btn" onclick="removeRow(this)">删除</button></td>
+        <td><button type="button" class="link-danger" onclick="removeRow(this)">删除</button></td>
     </tr>
 </template>
 
