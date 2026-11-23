@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}{{ page_title|default:'药师工作台' }} · 智慧医疗在线问诊与处方流转平台{% endblock %}
+{% block title %}{% if page_title and page_title != '药师工作台' %}{{ page_title }} · 药师工作台{% else %}药师工作台 · 智慧医疗在线问诊与处方流转平台{% endif %}{% endblock %}
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/accounts.css' %}">
