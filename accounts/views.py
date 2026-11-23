@@ -10,8 +10,9 @@ import uuid
 from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Q
 from django.shortcuts import render, redirect
+from django.http import JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 
@@ -74,30 +75,33 @@ def _doctor_dept(uid):
 
 
 def _doctor_options(current_dept=''):
-    """组装医生列表：实时按进行中问诊推导忙碌态，附排队人数与可接诊标记。
+    """组装医生列表：实时按进行中问诊推导在岗与排队情况。
 
-    可接诊条件：非离线、未被置忙碌、当前没有进行中的问诊（一医一患）。
+    单接待口径：一名医生同一时刻只接诊一位（accepted=1 进行中），
+    其余选定该医生的患者进入排队（accepted=0 进行中）；离线医生不可选，
+    在线 / 接诊中的医生都允许挂号排队。
     """
     qs = Doctor.objects.all()
     if current_dept:
         qs = qs.filter(department=current_dept)
-    active_map = {
-        r['doctor_id']: r['n']
-        for r in Consultation.objects.filter(status='进行中')
-        .values('doctor_id').annotate(n=Count('doctor_id'))
-    }
+    active_map, wait_map = {}, {}
+    for r in Consultation.objects.filter(status='进行中'):
+        if r.accepted == 1:
+            active_map[r.doctor_id] = active_map.get(r.doctor_id, 0) + 1
+        else:
+            wait_map[r.doctor_id] = wait_map.get(r.doctor_id, 0) + 1
     options = []
     for d in qs:
         active = active_map.get(d.doctor_id, 0)
+        waiting = wait_map.get(d.doctor_id, 0)
         offline = d.work_status == 0
-        busy = active > 0 or d.work_status == 2
-        available = not offline and not busy
+        available = not offline
         if offline:
             label, badge = '离线', 'badge-gray'
         elif active > 0:
-            label, badge = '忙碌', 'badge-orange'
-        elif d.work_status == 2:
-            label, badge = '忙碌', 'badge-orange'
+            label, badge = '接诊中', 'badge-orange'
+        elif waiting > 0:
+            label, badge = '排队中', 'badge-blue'
         else:
             label, badge = '在线', 'badge-green'
         options.append({
@@ -108,9 +112,24 @@ def _doctor_options(current_dept=''):
             'status': label,
             'badge': badge,
             'available': available,
-            'queue': active,
+            'queue': waiting,
         })
     return options
+
+
+def _queue_ahead(consult):
+    """排队前方人数：医生正在接诊的 1 人 + 同队早于本条的排队人数；非排队态返回 0。"""
+    if consult.status != '进行中' or consult.accepted == 1:
+        return 0
+    earlier = Consultation.objects.filter(
+        doctor_id=consult.doctor_id, status='进行中', accepted=0,
+    ).filter(
+        Q(start_time__lt=consult.start_time)
+        | Q(start_time=consult.start_time, consult_id__lt=consult.consult_id)
+    ).count()
+    active = Consultation.objects.filter(
+        doctor_id=consult.doctor_id, status='进行中', accepted=1).count()
+    return earlier + active
 
 
 def _presc_brief(p):
@@ -343,6 +362,8 @@ def dashboard_view(request):
         'doctor': _user_name(c.doctor_id),
         'department': _doctor_dept(c.doctor_id),
         'status': c.status,
+        'accepted': c.accepted,
+        'ahead': _queue_ahead(c),
         'time': _format_time(c.start_time),
         'assessed': AiPreAssessment.objects.filter(consultation_id=c.consult_id).exists(),
     } for c in consults]
@@ -484,16 +505,10 @@ def consult_create_view(request):
 
         doctor_id = request.POST.get('doctor', '').strip()
         doc = Doctor.objects.filter(doctor_id=doctor_id).first() if doctor_id else None
-        queue = Consultation.objects.filter(
-            doctor_id=doctor_id, status='进行中').count() if doc else 0
 
-        unavailable = (
-            not doc or doc.work_status == 0 or doc.work_status == 2 or queue > 0)
-        if unavailable:
-            if doc and doc.work_status == 0:
-                error = '该医生当前离线，请选择其他在线医生。'
-            else:
-                error = f'该医生正在接诊，前方还有 {queue} 位患者等待，请选择其他在线医生。'
+        # 仅离线医生不可选；在线 / 接诊中的医生都可挂号，其余患者进入排队
+        if not doc or doc.work_status == 0:
+            error = '该医生当前离线，请选择其他在线医生。'
             return render(request, 'accounts/consult_create.html', {
                 'active_consult': active,
                 'active_doctor': _user_name(active.doctor_id) if active else '',
@@ -503,12 +518,12 @@ def consult_create_view(request):
                 'error': error,
             })
 
-        # 占号：先建立问诊记录，医生置忙碌；病情采集与风险分级在 AI 评估页完成
+        # 进入排队：先建立问诊记录（accepted=0），病情采集与风险分级在 AI 评估页完成；
+        # 医生手动接诊后才置 accepted=1 进入对话，不在挂号时占用医生忙碌态
         consult = Consultation.objects.create(
             patient_id=patient.patient_id, doctor_id=doc.doctor_id,
-            record_content='待 AI 预问诊采集', status='进行中',
+            record_content='待 AI 预问诊采集', status='进行中', accepted=0,
             start_time=timezone.now())
-        Doctor.objects.filter(doctor_id=doc.doctor_id).update(work_status=2)
 
         write_log(patient.patient_id, '患者', '发起挂号',
                   target_type='consultation', target_id=consult.consult_id)
@@ -536,9 +551,11 @@ def consult_assess_view(request, consult_id):
     if not consult:
         return redirect('accounts:messages')
 
-    # 已完成评估的问诊直接进入对话
+    # 已完成评估：已接诊进对话，仍在排队则回工作台等待叫号
     if AiPreAssessment.objects.filter(consultation_id=consult.consult_id).exists():
-        return redirect('accounts:consult_chat', consult.consult_id)
+        if consult.accepted == 1:
+            return redirect('accounts:consult_chat', consult.consult_id)
+        return redirect('accounts:dashboard')
 
     MAX_ROUNDS = len(GUIDE_TOPICS)
 
@@ -563,7 +580,10 @@ def consult_assess_view(request, consult_id):
             created_at=timezone.now())
         write_log(patient.patient_id, '患者', 'AI预问诊评估',
                   target_type='consultation', target_id=consult.consult_id)
-        return redirect('accounts:consult_chat', consult.consult_id)
+        # 排队期间完成预问诊：尚未接诊则回工作台等待叫号；已接诊才进入医患对话
+        if consult.accepted == 1:
+            return redirect('accounts:consult_chat', consult.consult_id)
+        return redirect('accounts:dashboard')
 
     if request.method == 'POST':
         # 同一问诊只保留一条 AI 评估，重复提交不再重复插入
@@ -720,6 +740,32 @@ def prescription_pickup_view(request, presc_id):
 
 
 # ---------------------------------------------------------------------------
+# 排队状态轮询接口
+# ---------------------------------------------------------------------------
+
+def consult_status_view(request, consult_id):
+    """供患者等待页定时刷新：返回前方人数、是否已接诊叫号、可否进入对话。"""
+    patient = _current_patient(request)
+    if not patient:
+        return JsonResponse({'error': 'unauthorized'}, status=401)
+    consult = Consultation.objects.filter(
+        consult_id=consult_id, patient_id=patient.patient_id).first()
+    if not consult:
+        return JsonResponse({'error': 'not_found'}, status=404)
+    assessed = AiPreAssessment.objects.filter(
+        consultation_id=consult.consult_id).exists()
+    can_enter = consult.status == '进行中' and consult.accepted == 1 and assessed
+    return JsonResponse({
+        'status': consult.status,
+        'accepted': consult.accepted,
+        'queuing': consult.status == '进行中' and consult.accepted == 0,
+        'ahead': _queue_ahead(consult),
+        'assessed': assessed,
+        'can_enter': can_enter,
+    })
+
+
+# ---------------------------------------------------------------------------
 # 消息记录
 # ---------------------------------------------------------------------------
 
@@ -751,6 +797,8 @@ def messages_view(request):
             'doctor': _user_name(c.doctor_id),
             'department': _doctor_dept(c.doctor_id),
             'status': c.status,
+            'accepted': c.accepted,
+            'ahead': _queue_ahead(c),
             'time': _format_time(c.start_time),
             'preview': preview,
             'unread': unread,
@@ -779,6 +827,27 @@ def consult_chat_view(request, consult_id):
     if not ai:
         return redirect('accounts:consult_assess', consult.consult_id)
 
+    # 排队中：尚未被医生接诊，只展示排队等待与前方人数，不开放对话 / 发言
+    if consult.status == '进行中' and consult.accepted == 0:
+        if request.method == 'POST':
+            return redirect('accounts:consult_chat', consult.consult_id)
+        return render(request, 'accounts/consult_chat.html', {
+            'consult': {
+                'id': consult.consult_id,
+                'doctor': _user_name(consult.doctor_id),
+                'department': _doctor_dept(consult.doctor_id),
+                'status': '排队中',
+                'time': _format_time(consult.start_time),
+            },
+            'queuing': True,
+            'ahead': _queue_ahead(consult),
+            'assessed': True,
+            'messages': [],
+            'ai': {'risk_level': ai.risk_level, 'summary': ai.ai_summary,
+                   'keyword': ai.matched_keyword, 'consent': ai.risk_consent,
+                   'time': _format_time(ai.created_at)},
+        })
+
     # 高危且尚未签署知情同意：先弹出风险告知，确认后才允许发言
     need_consent = (ai.risk_level == '高危' and ai.risk_consent == 0
                     and consult.status == '进行中')
@@ -799,10 +868,10 @@ def consult_chat_view(request, consult_id):
             consult.status = '已结束'
             consult.end_time = timezone.now()
             consult.save()
-            # 释放医生接诊状态：该医生无其他进行中问诊时恢复在线
+            # 释放医生接诊状态：该医生无其他已接诊问诊时恢复在线
             if consult.doctor_id:
                 other_active = Consultation.objects.filter(
-                    doctor_id=consult.doctor_id, status='进行中'
+                    doctor_id=consult.doctor_id, status='进行中', accepted=1
                 ).exclude(consult_id=consult.consult_id).count()
                 if other_active == 0:
                     Doctor.objects.filter(doctor_id=consult.doctor_id).update(work_status=1)

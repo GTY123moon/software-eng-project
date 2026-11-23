@@ -24,12 +24,20 @@
 
         <div class="queue-group-title">待接诊 <span class="queue-count">{{ counts.pool }}</span></div>
         {% for c in pool %}
-        <a class="queue-item" href="{% url 'doctor:consult_detail' c.id %}"
-           data-patient="{{ c.patient }}" data-chief="{{ c.chief }}">
-            <div class="q-patient">{{ c.patient }}</div>
-            <div class="q-meta">发起时间：{{ c.time }}</div>
-            <div class="q-chief">{{ c.chief }}</div>
-        </a>
+        <div class="queue-item">
+            <a class="queue-link" href="{% url 'doctor:consult_detail' c.id %}"
+               data-patient="{{ c.patient }}" data-chief="{{ c.chief }}">
+                <div class="q-patient">{{ c.patient }}{% if c.gender %} · {{ c.gender }}{% endif %}{% if c.age %} · {{ c.age }} 岁{% endif %}
+                    <span class="queue-no">第 {{ c.queue_no }} 位</span>
+                </div>
+                <div class="q-meta">发起时间：{{ c.time }}</div>
+                <div class="q-chief">{{ c.chief }}</div>
+            </a>
+            <form method="post" action="{% url 'doctor:consult_accept' c.id %}" class="accept-form">
+                {% csrf_token %}
+                <button class="btn-primary btn-sm" type="submit">接诊</button>
+            </form>
+        </div>
         {% empty %}
         <p class="empty-tip">暂无待接诊的问诊。</p>
         {% endfor %}

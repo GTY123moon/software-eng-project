@@ -1213,6 +1213,57 @@
     margin-bottom: 16px;
 }
 
+/* ===== 排队等待面板 / 叫号弹窗 ===== */
+.queue-tip {
+    margin: 8px 0;
+    color: var(--text-2);
+    font-size: 13px;
+    line-height: 1.7;
+}
+.queue-tip b { color: var(--primary); }
+
+.queue-panel {
+    text-align: center;
+    padding: 36px 24px;
+}
+.queue-avatar { font-size: 40px; margin-bottom: 12px; }
+.queue-panel h3 { font-size: 17px; margin-bottom: 8px; }
+.queue-panel .queue-tip { margin-bottom: 16px; }
+.queue-count { font-size: 15px; color: var(--text); margin-bottom: 10px; }
+.queue-count b { color: var(--primary); font-size: 20px; }
+
+.queue-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 1000;
+}
+.queue-modal {
+    background: #fff;
+    border-radius: 16px;
+    max-width: 420px;
+    width: 100%;
+    padding: 26px 28px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+.queue-modal-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--green);
+    margin-bottom: 12px;
+}
+.queue-modal p {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.7;
+    margin-bottom: 16px;
+}
+
 @media (max-width: 768px) {
     .dash-layout {
         flex-direction: column;

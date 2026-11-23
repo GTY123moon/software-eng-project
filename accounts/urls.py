@@ -27,6 +27,8 @@ urlpatterns = [
     path('messages/', views.messages_view, name='messages'),
     # 问诊聊天
     path('consult/<int:consult_id>/', views.consult_chat_view, name='consult_chat'),
+    # 排队状态轮询（JSON）
+    path('consult/<int:consult_id>/status/', views.consult_status_view, name='consult_status'),
     # 我的处方
     path('prescriptions/', views.prescription_list_view, name='prescription_list'),
     # 处方详情

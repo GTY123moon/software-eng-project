@@ -545,6 +545,8 @@ def build_business():
         lines.append("-- 9. 医生接诊状态：进行中问诊对应的医生置忙碌(2)")
         lines.append("UPDATE doctor SET work_status=2 WHERE doctor_id IN ("
                      + ", ".join(str(d) for d in busy_docs) + ");")
+        lines.append("-- 9.1 已绑定医生的进行中问诊标记为已接诊(accepted=1)；未分配医生的留在队列(0)")
+        lines.append("UPDATE consultation SET accepted=1 WHERE status='进行中' AND doctor_id IS NOT NULL;")
         lines.append("")
 
     lines.append("SET FOREIGN_KEY_CHECKS = 1;")

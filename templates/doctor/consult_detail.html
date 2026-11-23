@@ -17,7 +17,7 @@
     <div class="info-actions">
         <span class="badge {{ consult.badge }}">{{ consult.status }}</span>
         <span class="badge {{ consult.review_badge }}">AI {{ consult.review_status }}</span>
-        {% if consult.is_mine %}
+        {% if consult.is_mine and consult.accepted %}
         <a class="btn-secondary" href="{% url 'doctor:dashboard' %}">返回接诊台</a>
         {% else %}
         <form method="post" action="{% url 'doctor:consult_accept' consult.id %}">
@@ -81,7 +81,7 @@
     </div>
     {% endif %}
 
-    {% if consult.is_mine and consult.status == '进行中' %}
+    {% if consult.is_mine and consult.accepted and consult.status == '进行中' %}
     <div class="ai-help-row">
         <span>AI 辅助：</span>
         <form method="post" action="{% url 'doctor:ai_suggest' consult.id %}" class="form-inline">
@@ -123,7 +123,7 @@
 
 <div class="card">
     <h3>下一步</h3>
-    {% if consult.is_mine %}
+    {% if consult.is_mine and consult.accepted %}
         {% if consult.status == '进行中' %}
         <div class="form-actions">
             <a class="btn-primary" href="{% url 'doctor:consult_chat' consult.id %}">进入图文沟通</a>

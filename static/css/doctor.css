@@ -148,12 +148,14 @@
     color: var(--primary);
 }
 
+/* 待接诊条目：信息链接 + 接诊按钮左右排布 */
 .queue-item {
-    display: block;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
     padding: 10px 12px;
     border-radius: var(--radius-sm);
-    text-decoration: none;
-    color: var(--text);
     border: 1px solid transparent;
     margin: 4px 0;
     transition: background 0.15s, border-color 0.15s;
@@ -166,6 +168,25 @@
 .queue-item .q-chief {
     font-size: 12px; color: var(--text-2); margin-top: 3px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.queue-link {
+    flex: 1;
+    min-width: 0;
+    display: block;
+    color: var(--text);
+    text-decoration: none;
+}
+.accept-form { flex-shrink: 0; align-self: center; }
+.queue-no {
+    margin-left: 8px;
+    font-size: 12px;
+    color: var(--primary);
+    font-weight: 600;
+}
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+    border-radius: var(--radius-sm);
 }
 
 .workbench-main { flex: 1; min-width: 0; }

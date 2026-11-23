@@ -15,6 +15,7 @@ from functools import wraps
 from django.conf import settings
 from django.contrib import messages as flash
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import render, redirect, reverse
 from django.utils import timezone
 
@@ -150,12 +151,18 @@ def workbench(request):
 
     work_status = getattr(doctor, 'work_status', 0)
 
-    # 待接诊：进行中且尚未分配医生的问诊（患者在发起时未指定医生的情形）
-    pool = Consultation.objects.filter(status='进行中', doctor_id__isnull=True) \
-        .select_related('patient').order_by('-start_time')
+    # 接诊中：本人名下已接诊(accepted=1)的进行中问诊，同一时刻至多一条
+    mine = Consultation.objects.filter(
+        status='进行中', accepted=1, doctor_id=doctor.doctor_id
+    ).select_related('patient').order_by('-start_time')
 
-    mine = Consultation.objects.filter(status='进行中', doctor_id=doctor.doctor_id) \
-        .select_related('patient').order_by('-start_time')
+    # 待接诊队列：本人名下排队中(accepted=0)的问诊，按发起时间先到先得；
+    # 兼容历史未分配医生(doctor_id 为空)的公共待分配记录
+    pool = Consultation.objects.filter(
+        status='进行中', accepted=0
+    ).filter(
+        Q(doctor_id=doctor.doctor_id) | Q(doctor_id__isnull=True)
+    ).select_related('patient').order_by('start_time', 'consult_id')
 
     # 待复核 AI 摘要：尚未复核且属于我进行中的问诊
     pending_ai = AiPreAssessment.objects.filter(
@@ -188,6 +195,7 @@ def workbench(request):
         },
         'pool': [{
             'id': c.consult_id,
+            'queue_no': idx + 1,
             'patient': _user_name(c.patient_id),
             'gender': c.patient.gender or '',
             'age': c.patient.age if c.patient.age is not None else '',
@@ -195,7 +203,7 @@ def workbench(request):
             'badge': CONSULT_BADGE.get(c.status, 'badge-gray'),
             'time': _fmt_time(c.start_time),
             'chief': (c.record_content or '').split('\n')[0],
-        } for c in pool],
+        } for idx, c in enumerate(pool)],
         'mine': [{
             'id': c.consult_id,
             'patient': _user_name(c.patient_id),
@@ -266,11 +274,19 @@ def consult_accept(request, cid):
         flash.error(request, '该问诊状态为「%s」，不能接诊。' % consult.status)
         return redirect('doctor:dashboard')
 
+    # 单接待：同一时刻只允许接诊一位，已有进行中接诊时须先结束
+    busy = Consultation.objects.filter(
+        doctor_id=doctor.doctor_id, status='进行中', accepted=1).exists()
+    if busy:
+        flash.error(request, '您当前已有一位接诊中的患者，请先结束后再接诊下一位。')
+        return redirect('doctor:dashboard')
+
     with transaction.atomic():
         if not consult.doctor_id:
             consult.doctor_id = doctor.doctor_id
-            consult.save(update_fields=['doctor_id'])
-        # 一医一患：接诊即占号，把医生置为忙碌（2）
+        consult.accepted = 1
+        consult.save(update_fields=['doctor_id', 'accepted'])
+        # 接诊即占号，把医生置为忙碌（2）
         Doctor.objects.filter(doctor_id=doctor.doctor_id).update(work_status=2)
         write_log(doctor.doctor_id, '医生', '接诊',
                   target_type='consultation', target_id=consult.consult_id)
@@ -312,6 +328,7 @@ def consult_detail(request, cid):
             'review_opinion': consult.doctor_review_opinion or '',
             'final_diagnosis': consult.final_diagnosis or '',
             'is_mine': consult.doctor_id == doctor.doctor_id,
+            'accepted': consult.accepted,
         },
         'patient': _patient_card(consult.patient),
         'ai': {
@@ -353,6 +370,7 @@ def consult_chat_view(request, cid):
                                         status='草稿').first()
     can_chat = (consult.status == '进行中'
                 and consult.doctor_id == doctor.doctor_id
+                and consult.accepted == 1
                 and not consent_blocked)
 
     context = {
@@ -365,6 +383,7 @@ def consult_chat_view(request, cid):
             'record': consult.record_content or '',
             'final_diagnosis': consult.final_diagnosis or '',
             'is_mine': consult.doctor_id == doctor.doctor_id,
+            'accepted': consult.accepted,
         },
         'patient': _patient_card(consult.patient),
         'ai': {'risk_level': ai.risk_level} if ai else None,
@@ -471,8 +490,8 @@ def send_message(request, cid):
     if not consult:
         flash.error(request, '无权在该问诊中发言。')
         return redirect('doctor:dashboard')
-    if consult.status != '进行中':
-        flash.error(request, '问诊已「%s」，无法继续发送消息。' % consult.status)
+    if consult.status != '进行中' or consult.accepted != 1:
+        flash.error(request, '该问诊尚未接诊或已结束，无法继续发送消息。')
         return redirect('doctor:consult_chat', cid=cid)
 
     ai = AiPreAssessment.objects.filter(consultation_id=consult.consult_id).first()

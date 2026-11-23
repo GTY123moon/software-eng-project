@@ -16,13 +16,30 @@
 
 {% if active %}
 <div class="card active-consult">
-    <h3>当前问诊</h3>
+    <h3>当前问诊
+        {% if active.accepted %}
+        <span class="badge badge-blue">接诊中</span>
+        {% else %}
+        <span class="badge badge-orange">排队中</span>
+        {% endif %}
+    </h3>
     <div class="presc-meta">与 {{ active.doctor }} · {{ active.department }} · {{ active.time }}</div>
+    {% if not active.accepted %}
+    <div class="queue-tip">
+        {% if active.ahead > 0 %}
+        正在排队，前方还有 <b>{{ active.ahead }}</b> 位患者，请耐心等待；叫号后将自动提醒您进入对话。
+        {% else %}
+        已排到您的前面一位，医生即将接诊，请稍候。
+        {% endif %}
+    </div>
+    {% endif %}
     <div class="form-actions">
-        {% if active.assessed %}
+        {% if not active.assessed %}
+        <a class="btn-primary" href="{% url 'accounts:consult_assess' active.id %}">继续 AI 预问诊</a>
+        {% elif active.accepted %}
         <a class="btn-primary" href="{% url 'accounts:consult_chat' active.id %}">进入对话 / 视频</a>
         {% else %}
-        <a class="btn-primary" href="{% url 'accounts:consult_assess' active.id %}">继续 AI 预问诊</a>
+        <a class="btn-secondary" href="{% url 'accounts:consult_chat' active.id %}">查看排队进度</a>
         {% endif %}
     </div>
 </div>

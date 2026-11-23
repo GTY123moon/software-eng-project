@@ -127,6 +127,8 @@ class Consultation(models.Model):
     final_diagnosis = models.TextField(null=True, blank=True)
     advice_type = models.CharField(max_length=20, null=True, blank=True,
                                     help_text='结束建议：无需用药/需开处方')
+    accepted = models.SmallIntegerField(default=0,
+                                        help_text='接诊标记：0=排队中，1=已接诊（status 仍为进行中）')
     start_time = models.DateTimeField()
     end_time = models.DateTimeField(null=True, blank=True)
 

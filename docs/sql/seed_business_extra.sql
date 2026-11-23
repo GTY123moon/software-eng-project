@@ -763,5 +763,7 @@ INSERT INTO operation_log (operator_id, operator_type, action, target_type, targ
 
 -- 9. 医生接诊状态：进行中问诊对应的医生置忙碌(2)
 UPDATE doctor SET work_status=2 WHERE doctor_id IN (103, 107, 121, 123, 126, 128, 138, 147, 149, 161);
+-- 9.1 已绑定医生的进行中问诊标记为已接诊(accepted=1)；未分配医生的留在队列(0)
+UPDATE consultation SET accepted=1 WHERE status='进行中' AND doctor_id IS NOT NULL;
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -13,7 +13,7 @@
     <span class="his-info-field">{{ consult.department }}</span>
     <span class="his-info-field">开始：<b>{{ consult.time }}</b></span>
     <div class="info-actions">
-        <span class="badge badge-blue">{{ consult.status }}</span>
+        <span class="badge {% if queuing %}badge-orange{% else %}badge-blue{% endif %}">{{ consult.status }}</span>
         {% if can_chat %}
         <button class="btn-secondary" id="openVoice" type="button"
                 onclick="alert('语音通话为课设占位，需接入实时音视频服务。')">语音通话</button>
@@ -21,6 +21,55 @@
         {% endif %}
     </div>
 </div>
+
+{% if queuing %}
+{# ===== 排队等待态：不开放对话，展示前方人数并轮询叫号 ===== #}
+<div class="card queue-panel">
+    <div class="queue-avatar">🩺</div>
+    <h3>正在排队等待接诊</h3>
+    <p class="queue-tip">您已完成 AI 预问诊，医生按挂号顺序依次接诊，请耐心等待。</p>
+    <div class="queue-count">前方还有 <b id="queueAhead">{{ ahead }}</b> 位患者</div>
+    <p class="empty-tip" id="queueHint">轮到您时将自动弹出提示，点击即可进入对话。</p>
+</div>
+
+{# 叫号弹窗：轮询到已接诊后弹出 #}
+<div class="queue-mask" id="callMask" hidden>
+    <div class="queue-modal">
+        <div class="queue-modal-title">✅ 轮到您了</div>
+        <p>医生已接诊您的问诊，点击下方按钮进入图文对话。</p>
+        <a class="btn-primary" href="{% url 'accounts:consult_chat' consult.id %}">进入对话</a>
+    </div>
+</div>
+
+<script>
+(function () {
+    var statusUrl = "{% url 'accounts:consult_status' consult.id %}";
+    var mask = document.getElementById('callMask');
+    var aheadEl = document.getElementById('queueAhead');
+    var hintEl = document.getElementById('queueHint');
+
+    function poll() {
+        fetch(statusUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.can_enter) {
+                    mask.hidden = false;
+                    return;
+                }
+                if (typeof data.ahead === 'number' && aheadEl) {
+                    aheadEl.textContent = data.ahead;
+                    if (data.ahead === 0 && hintEl) {
+                        hintEl.textContent = '已排到您前面一位，医生即将接诊，请稍候。';
+                    }
+                }
+                setTimeout(poll, 5000);
+            })
+            .catch(function () { setTimeout(poll, 8000); });
+    }
+    setTimeout(poll, 3000);
+})();
+</script>
+{% else %}
 
 {% if ai %}
 <div class="card ai-card">
@@ -140,4 +189,5 @@
 </div>
 
 <script src="{% static 'js/video_call.js' %}"></script>
+{% endif %}
 {% endblock %}

@@ -32,7 +32,11 @@
                 <span class="badge badge-red">未读 {{ t.unread }}</span>
                 {% endif %}
                 {% if t.status == '进行中' %}
-                <span class="badge badge-blue">{{ t.status }}</span>
+                    {% if t.accepted %}
+                    <span class="badge badge-blue">接诊中</span>
+                    {% else %}
+                    <span class="badge badge-orange">排队中 · 前 {{ t.ahead }}</span>
+                    {% endif %}
                 {% elif t.status == '已转诊' %}
                 <span class="badge badge-orange">{{ t.status }}</span>
                 {% elif t.status == '已取消' %}
