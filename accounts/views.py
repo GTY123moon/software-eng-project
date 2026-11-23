@@ -851,12 +851,12 @@ def consult_messages_view(request, consult_id):
         consult_id=consult_id, patient_id=patient.patient_id).first()
     if not consult:
         return JsonResponse({'error': 'not_found'}, status=404)
-    messages = _serialize_chat_messages(consult, '患者')
+    chat_messages = _serialize_chat_messages(consult, '患者')
     # 轮询到医生新消息时顺带标记已读，未读角标随之清零
     ConsultationMessage.objects.filter(
         consultation_id=consult.consult_id, sender_role='医生', read_status=0
     ).update(read_status=1)
-    return JsonResponse({'count': len(messages), 'messages': messages})
+    return JsonResponse({'count': len(chat_messages), 'messages': chat_messages})
 
 
 # ---------------------------------------------------------------------------
@@ -1020,7 +1020,7 @@ def consult_chat_view(request, consult_id):
                   target_type='consultation', target_id=consult.consult_id)
         return redirect('accounts:consult_chat', consult.consult_id)
 
-    messages = _serialize_chat_messages(consult, '患者')
+    chat_messages = _serialize_chat_messages(consult, '患者')
 
     # 进入会话即把医生发来的未读消息标记为已读，工作台未读数与列表未读角标随之清零
     ConsultationMessage.objects.filter(
@@ -1038,7 +1038,7 @@ def consult_chat_view(request, consult_id):
         'can_chat': can_chat,
         'need_consent': need_consent,
         'end_request': consult.end_request,
-        'messages': messages,
+        'messages': chat_messages,
         'ai': {
             'risk_level': ai.risk_level,
             'summary': ai.ai_summary,
