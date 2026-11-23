@@ -20,6 +20,8 @@
         {% endif %}
         <a class="btn-secondary" href="{% url 'doctor:consult_detail' consult.id %}">返回预问诊</a>
         {% if can_chat %}
+        <button class="btn-secondary" id="openVoice" type="button"
+                onclick="alert('语音通话为课设占位，需接入实时音视频服务。')">语音通话</button>
         <button class="btn-secondary" id="openVideo" type="button">视频通话</button>
         {% endif %}
     </div>
