@@ -98,7 +98,7 @@
     flex-direction: column;
     justify-content: center;
     gap: 18px;
-    padding: 48px 56px;
+    padding: 48px 40px;
     color: #fff;
     max-width: 600px;
 }
@@ -163,7 +163,7 @@
 
 .login-wrap.split .login-card {
     align-self: center;
-    margin: 0 9% 0 0;
+    margin: 0 12% 0 0;
 }
 
 /* 登录卡片内控件：主按钮渐变 + 输入框浅蓝底 */
