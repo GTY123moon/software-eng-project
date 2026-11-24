@@ -82,23 +82,42 @@ def _doctor_dept(uid):
     return d.department if d else ''
 
 
-def _on_duty_doctor_ids():
-    """今日有值班的医生 ID 集合：单次班次落在今天 + 每周循环模板命中今天星期几。
+def _on_duty_doctor_ids(now=None):
+    """当前处于值班时间窗内的医生 ID 集合。
 
-    只统计「正常 / 调班」班次，停诊班次不算值班；
-    与后台首页「今日有效排班」口径保持一致。
+    - 单次班次：start_time <= now < end_time 即视为当班；
+    - 每周循环模板：把 weekday 换算到本周对应日期，再判断 now 是否落在窗口内；
+      夜班跨天（结束时刻小于开始时刻），需同时检查“昨天”的夜班是否延续到今晨。
+    只统计「正常 / 调班」班次，停诊班次不算值班。
     """
-    today = timezone.localdate()
-    day_start = timezone.make_aware(
-        datetime.combine(today, time.min), timezone.get_current_timezone())
-    day_end = day_start + timedelta(days=1)
+    now = now or timezone.now()
+    tz = timezone.get_current_timezone()
+    today = timezone.localdate(now)
     valid_status = ['正常', '调班']
+
     ids = set(DutySchedule.objects.filter(
-        weekday__isnull=True, start_time__gte=day_start, start_time__lt=day_end,
-        status__in=valid_status).values_list('doctor_id', flat=True))
-    ids |= set(DutySchedule.objects.filter(
-        weekday=today.weekday(), status__in=valid_status
+        weekday__isnull=True, status__in=valid_status,
+        start_time__lte=now, end_time__gt=now,
     ).values_list('doctor_id', flat=True))
+
+    weekly = DutySchedule.objects.filter(
+        weekday__isnull=False, status__in=valid_status
+    ).values_list('doctor_id', 'weekday', 'start_time', 'end_time')
+    for doctor_id, weekday, start_time, end_time in weekly:
+        t_start = timezone.localtime(start_time).time()
+        t_end = timezone.localtime(end_time).time()
+        overnight = t_end <= t_start  # 夜班：跨到次日
+        # offset 0 = 今天；-1 = 昨天（昨夜夜班延续到今晨）
+        for offset in (0, -1):
+            base = today + timedelta(days=offset)
+            if base.weekday() != weekday:
+                continue
+            start = timezone.make_aware(datetime.combine(base, t_start), tz)
+            end_date = base + timedelta(days=1) if overnight else base
+            end = timezone.make_aware(datetime.combine(end_date, t_end), tz)
+            if start <= now < end:
+                ids.add(doctor_id)
+                break
     return ids
 
 
@@ -108,7 +127,7 @@ def _doctor_options(current_dept=''):
     单接待口径：一名医生同一时刻只接诊一位（accepted=1 进行中），
     其余选定该医生的患者进入排队（accepted=0 进行中）；离线医生不可选，
     在线 / 接诊中的医生都允许挂号排队。
-    **仅展示今日有值班（含每周循环班次）的医生**，不值班的医生不进入候选。
+    **仅展示此刻正在值班的医生**（白班/夜班循环班次 + 单次班次），不值班的医生不进入候选。
     """
     qs = Doctor.objects.all()
     on_duty = _on_duty_doctor_ids()
