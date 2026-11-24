@@ -106,20 +106,6 @@
         </div>
 
         <div class="card">
-            <h3>删除账号</h3>
-            {% if refs %}
-            <div class="form-error">
-                <div>该账号仍被以下业务数据引用，数据库不允许物理删除，请改用“停用”：</div>
-                {% for label, count in refs %}<div>{{ label }}：{{ count }} 条</div>{% endfor %}
-            </div>
-            <p class="empty-tip">删除会破坏问诊、处方、排班与审计日志的完整性，因此这里只提供停用。</p>
-            {% else %}
-            <p class="empty-tip">该账号暂无任何业务数据，可以物理删除（sys_user 与档案记录一并删除），删除后不可恢复。</p>
-            <form method="post" action=""
-                  onsubmit="return confirm('确定永久删除账号 {{ target.name }}（{{ target.phone }}）吗？此操作不可恢复。');">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="delete">
-                <button class="btn-danger" type="submit">删除账号</button>
-            </form>
-            {% endif %}
+            <h3>说明</h3>
+            <p class="empty-tip">管理员对账号只能执行“启用 / 停用”。停用后该账号无法登录，医生同时置为离线，不再出现在患者端可选医生中；恢复使用时点“启用账号”即可，账号档案与历史数据都保留。</p>
         </div>{% endblock %}

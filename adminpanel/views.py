@@ -9,7 +9,6 @@ from decimal import Decimal, InvalidOperation
 from functools import wraps
 
 from django.db import IntegrityError, transaction
-from django.db.models import ProtectedError
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -972,19 +971,6 @@ def _apply_account_status(user, new_status):
     return new_status == 1
 
 
-def _account_references(user):
-    """统计该账号被哪些业务数据引用：有引用则数据库禁止物理删除。"""
-    refs = []
-    if user.role_type == ROLE_DOCTOR:
-        refs.append(('值班排班', DutySchedule.objects.filter(doctor_id=user.user_id).count()))
-        refs.append(('问诊记录', Consultation.objects.filter(doctor_id=user.user_id).count()))
-        refs.append(('处方', Prescription.objects.filter(doctor_id=user.user_id).count()))
-    else:
-        refs.append(('审核发药处方', Prescription.objects.filter(pharmacist_id=user.user_id).count()))
-    refs.append(('操作日志', OperationLog.objects.filter(operator_id=user.user_id).count()))
-    return [(label, count) for label, count in refs if count]
-
-
 def _read_account_edit(post, user):
     """校验账号编辑表单（工作账号 8 位、首位区分角色）。"""
     errors = []
@@ -1043,26 +1029,7 @@ def account_edit(request, user_id):
             write_log(request.admin_profile.admin_id, '管理员',
                       '启用账号' if enabled else '停用账号', 'sys_user', user.user_id)
             return redirect(reverse('adminpanel:account_edit', args=[user.user_id]) + '?ok=toggled')
-        if action == 'delete':
-            refs = _account_references(user)
-            if refs:
-                errors.append('该账号仍被业务数据引用（%s），数据库不允许物理删除，请改用“停用”。'
-                              % '、'.join('%s %d 条' % r for r in refs))
-            else:
-                try:
-                    with transaction.atomic():
-                        if is_doctor:
-                            Doctor.objects.filter(pk=user_id).delete()
-                        else:
-                            Pharmacist.objects.filter(pk=user_id).delete()
-                        user.delete()
-                        write_log(request.admin_profile.admin_id, '管理员', '删除账号',
-                                  'sys_user', user_id)
-                except (IntegrityError, ProtectedError):
-                    errors.append('删除失败：该账号仍有关联数据，请改用“停用”。')
-                else:
-                    return redirect(reverse('adminpanel:account_list') + '?ok=deleted')
-        else:
+        elif action == 'save':
             data, errors = _read_account_edit(request.POST, user)
             if not errors:
                 with transaction.atomic():
@@ -1106,7 +1073,6 @@ def account_edit(request, user_id):
             'pharmacist_type': request.POST.get('pharmacist_type', form['pharmacist_type']),
         })
 
-    refs = _account_references(user)
     ctx = _common(request, 'accounts')
     ctx.update({
         'target': user,
@@ -1114,7 +1080,6 @@ def account_edit(request, user_id):
         'form': form,
         'errors': errors,
         'ok': ok,
-        'refs': refs,
         'role_cn': ROLE_CN.get(user.role_type, ''),
         'work_status': (profile.work_status if is_doctor and profile else
                         (profile.pharmacist_status if profile else None)),
