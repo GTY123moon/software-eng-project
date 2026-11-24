@@ -27,5 +27,6 @@ urlpatterns = [
     # 账号管理
     path('accounts/', views.account_list, name='account_list'),
     path('accounts/add/', views.account_form, name='account_add'),
+    path('accounts/<int:user_id>/edit/', views.account_edit, name='account_edit'),
     path('accounts/<int:user_id>/toggle/', views.account_toggle, name='account_toggle'),
 ]

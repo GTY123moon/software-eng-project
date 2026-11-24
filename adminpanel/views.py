@@ -9,6 +9,7 @@ from decimal import Decimal, InvalidOperation
 from functools import wraps
 
 from django.db import IntegrityError, transaction
+from django.db.models import ProtectedError
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -956,14 +957,8 @@ def account_form(request):
     return render(request, 'adminpanel/account_form.html', ctx)
 
 
-@admin_required
-def account_toggle(request, user_id):
-    """停用 / 启用职工账号（仅医生、药师）。"""
-    user = get_object_or_404(SysUser, pk=user_id, role_type__in=[ROLE_DOCTOR, ROLE_PHARMACIST])
-    if request.method != 'POST':
-        return redirect(reverse('adminpanel:account_list'))
-
-    new_status = 0 if user.status == 1 else 1
+def _apply_account_status(user, new_status):
+    """改 sys_user.status 并同步档案表在岗状态，返回是否启用。"""
     user.status = new_status
     user.save(update_fields=['status'])
     # 同步在岗状态：停用账号置离线，启用账号恢复在线，
@@ -974,6 +969,167 @@ def account_toggle(request, user_id):
     elif user.role_type == ROLE_PHARMACIST:
         Pharmacist.objects.filter(pharmacist_id=user.user_id).update(
             pharmacist_status=1 if new_status == 1 else 0)
+    return new_status == 1
+
+
+def _account_references(user):
+    """统计该账号被哪些业务数据引用：有引用则数据库禁止物理删除。"""
+    refs = []
+    if user.role_type == ROLE_DOCTOR:
+        refs.append(('值班排班', DutySchedule.objects.filter(doctor_id=user.user_id).count()))
+        refs.append(('问诊记录', Consultation.objects.filter(doctor_id=user.user_id).count()))
+        refs.append(('处方', Prescription.objects.filter(doctor_id=user.user_id).count()))
+    else:
+        refs.append(('审核发药处方', Prescription.objects.filter(pharmacist_id=user.user_id).count()))
+    refs.append(('操作日志', OperationLog.objects.filter(operator_id=user.user_id).count()))
+    return [(label, count) for label, count in refs if count]
+
+
+def _read_account_edit(post, user):
+    """校验账号编辑表单（工作账号 8 位、首位区分角色）。"""
+    errors = []
+    name = post.get('name', '').strip()
+    phone = post.get('phone', '').strip()
+    password = post.get('password', '').strip()
+    gender = post.get('gender', '').strip()
+    department = post.get('department', '').strip()
+    title = post.get('title', '').strip()
+    skill = post.get('skill', '').strip()
+    pharmacist_type = post.get('pharmacist_type', '').strip()
+
+    if not name:
+        errors.append('姓名不能为空')
+    if not (phone.isdigit() and len(phone) == 8):
+        errors.append('工作账号必须是 8 位数字（首位区分角色：患者 1、医生 2、药师 3、管理员 4）')
+    elif user.role_type == ROLE_DOCTOR and not phone.startswith('2'):
+        errors.append('医生账号首位必须是 2，例如 20000015')
+    elif user.role_type == ROLE_PHARMACIST and not phone.startswith('3'):
+        errors.append('药师账号首位必须是 3，例如 30000015')
+    if password and len(password) < 6:
+        errors.append('内部密钥至少 6 位；留空表示不修改')
+    if SysUser.objects.filter(phone=phone).exclude(user_id=user.user_id).exists():
+        errors.append('工作账号 %s 已被其他账号占用' % phone)
+    if user.role_type == ROLE_DOCTOR and not department:
+        errors.append('医生必须填写所属科室')
+
+    return {
+        'name': name,
+        'phone': phone,
+        'password': password,
+        'gender': gender or None,
+        'department': department,
+        'title': title or None,
+        'skill': skill or None,
+        'pharmacist_type': pharmacist_type or None,
+    }, errors
+
+
+@admin_required
+def account_edit(request, user_id):
+    """账号编辑页：改资料、停用/启用、删除（有业务数据时禁止物理删除）。"""
+    user = get_object_or_404(SysUser, pk=user_id,
+                             role_type__in=[ROLE_DOCTOR, ROLE_PHARMACIST])
+    is_doctor = user.role_type == ROLE_DOCTOR
+    profile = (Doctor.objects.filter(pk=user_id).first() if is_doctor
+               else Pharmacist.objects.filter(pk=user_id).first())
+
+    errors = []
+    ok = request.GET.get('ok', '')
+
+    if request.method == 'POST':
+        action = request.POST.get('action', 'save')
+        if action == 'toggle':
+            enabled = _apply_account_status(user, 0 if user.status == 1 else 1)
+            write_log(request.admin_profile.admin_id, '管理员',
+                      '启用账号' if enabled else '停用账号', 'sys_user', user.user_id)
+            return redirect(reverse('adminpanel:account_edit', args=[user.user_id]) + '?ok=toggled')
+        if action == 'delete':
+            refs = _account_references(user)
+            if refs:
+                errors.append('该账号仍被业务数据引用（%s），数据库不允许物理删除，请改用“停用”。'
+                              % '、'.join('%s %d 条' % r for r in refs))
+            else:
+                try:
+                    with transaction.atomic():
+                        if is_doctor:
+                            Doctor.objects.filter(pk=user_id).delete()
+                        else:
+                            Pharmacist.objects.filter(pk=user_id).delete()
+                        user.delete()
+                        write_log(request.admin_profile.admin_id, '管理员', '删除账号',
+                                  'sys_user', user_id)
+                except (IntegrityError, ProtectedError):
+                    errors.append('删除失败：该账号仍有关联数据，请改用“停用”。')
+                else:
+                    return redirect(reverse('adminpanel:account_list') + '?ok=deleted')
+        else:
+            data, errors = _read_account_edit(request.POST, user)
+            if not errors:
+                with transaction.atomic():
+                    user.name = data['name']
+                    user.phone = data['phone']
+                    if data['password']:
+                        user.password = data['password']
+                    user.save(update_fields=['name', 'phone', 'password'])
+                    if is_doctor:
+                        if profile:
+                            profile.department = data['department']
+                            profile.title = data['title']
+                            profile.skill = data['skill']
+                            profile.gender = data['gender']
+                            profile.save(update_fields=['department', 'title', 'skill', 'gender'])
+                    elif profile:
+                        profile.pharmacist_type = data['pharmacist_type']
+                        profile.gender = data['gender']
+                        profile.save(update_fields=['pharmacist_type', 'gender'])
+                    write_log(request.admin_profile.admin_id, '管理员', '修改账号资料',
+                              'sys_user', user.user_id)
+                return redirect(reverse('adminpanel:account_edit', args=[user.user_id]) + '?ok=saved')
+
+    form = {
+        'name': user.name,
+        'phone': user.phone,
+        'gender': (profile.gender if profile else '') or '',
+        'department': (profile.department if is_doctor and profile else '') or '',
+        'title': (profile.title if is_doctor and profile else '') or '',
+        'skill': (profile.skill if is_doctor and profile else '') or '',
+        'pharmacist_type': (profile.pharmacist_type if (not is_doctor and profile) else '') or '',
+    }
+    if request.method == 'POST':
+        form.update({
+            'name': request.POST.get('name', form['name']),
+            'phone': request.POST.get('phone', form['phone']),
+            'gender': request.POST.get('gender', form['gender']),
+            'department': request.POST.get('department', form['department']),
+            'title': request.POST.get('title', form['title']),
+            'skill': request.POST.get('skill', form['skill']),
+            'pharmacist_type': request.POST.get('pharmacist_type', form['pharmacist_type']),
+        })
+
+    refs = _account_references(user)
+    ctx = _common(request, 'accounts')
+    ctx.update({
+        'target': user,
+        'is_doctor': is_doctor,
+        'form': form,
+        'errors': errors,
+        'ok': ok,
+        'refs': refs,
+        'role_cn': ROLE_CN.get(user.role_type, ''),
+        'work_status': (profile.work_status if is_doctor and profile else
+                        (profile.pharmacist_status if profile else None)),
+    })
+    return render(request, 'adminpanel/account_edit.html', ctx)
+
+
+@admin_required
+def account_toggle(request, user_id):
+    """停用 / 启用职工账号（仅医生、药师）。保留旧入口，列表页已改为跳“编辑”页。"""
+    user = get_object_or_404(SysUser, pk=user_id, role_type__in=[ROLE_DOCTOR, ROLE_PHARMACIST])
+    if request.method != 'POST':
+        return redirect(reverse('adminpanel:account_list'))
+
+    enabled = _apply_account_status(user, 0 if user.status == 1 else 1)
     write_log(request.admin_profile.admin_id, '管理员',
-              '启用账号' if new_status == 1 else '停用账号', 'sys_user', user.user_id)
+              '启用账号' if enabled else '停用账号', 'sys_user', user.user_id)
     return redirect(reverse('adminpanel:account_list') + '?ok=toggled')

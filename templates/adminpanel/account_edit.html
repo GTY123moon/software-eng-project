@@ -1,0 +1,125 @@
+{% extends 'adminpanel/base.html' %}
+{% load static %}
+
+{% block title %}编辑账号 · 管理员工作台{% endblock %}
+{% block menu_accounts_active %}active{% endblock %}
+{% block crumb %}账号管理{% endblock %}
+{% block tab %}账号{% endblock %}
+
+{% block main %}
+
+
+        <div class="topbar">
+            <div>
+                <h2>编辑账号 · {{ target.name }}</h2>
+                <span class="user-info">用户ID {{ target.user_id }} · {{ role_cn }} · 工作账号 {{ target.phone }}</span>
+            </div>
+            <div class="head-actions">
+                <a class="btn-secondary" href="{% url 'adminpanel:account_list' %}">返回账号列表</a>
+            </div>
+        </div>
+
+        {% if ok == 'saved' %}<div class="form-success">账号资料已保存，并已写入操作日志。</div>{% endif %}
+        {% if ok == 'toggled' %}<div class="form-success">账号状态已更新，并已写入操作日志。</div>{% endif %}
+        {% if errors %}
+        <div class="form-error">
+            {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <h3>账号状态</h3>
+            <p class="empty-tip">
+                当前状态：{% if target.status == 1 %}<span class="badge badge-green">启用</span>{% else %}<span class="badge badge-gray">停用</span>{% endif %}
+                &nbsp;·&nbsp;
+                {% if is_doctor %}在岗状态：{% if work_status == 1 %}在线{% elif work_status == 2 %}忙碌{% else %}离线{% endif %}
+                {% else %}药师状态：{% if work_status == 1 %}在岗{% else %}停用{% endif %}{% endif %}
+            </p>
+            <form method="post" action="" style="display:inline"
+                  onsubmit="return confirm('确定{% if target.status == 1 %}停用{% else %}启用{% endif %}账号 {{ target.name }} 吗？');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle">
+                <button class="{% if target.status == 1 %}btn-danger{% else %}btn-primary{% endif %}" type="submit">
+                    {% if target.status == 1 %}停用账号{% else %}启用账号{% endif %}
+                </button>
+            </form>
+            <span class="empty-tip">停用后该账号无法登录，医生同时置为离线，不再出现在患者端可选医生中。</span>
+        </div>
+
+        <div class="card">
+            <h3>账号资料</h3>
+            <form method="post" action="">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>姓名</label>
+                        <input type="text" name="name" value="{{ form.name }}" placeholder="真实姓名" required>
+                    </div>
+                    <div class="form-group">
+                        <label>工作账号（登录账号）</label>
+                        <input type="text" name="phone" value="{{ form.phone }}" placeholder="8 位数字，医生 2 开头 / 药师 3 开头" required maxlength="8">
+                    </div>
+                    <div class="form-group">
+                        <label>性别</label>
+                        <select name="gender">
+                            <option value="" {% if not form.gender %}selected{% endif %}>未填写</option>
+                            <option value="男" {% if form.gender == '男' %}selected{% endif %}>男</option>
+                            <option value="女" {% if form.gender == '女' %}selected{% endif %}>女</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>内部密钥（登录密码）</label>
+                        <input type="password" name="password" value="" placeholder="留空表示不修改，至少 6 位" autocomplete="new-password">
+                    </div>
+                    {% if is_doctor %}
+                    <div class="form-group">
+                        <label>职称</label>
+                        <input type="text" name="title" value="{{ form.title }}" placeholder="如 主治医师">
+                    </div>
+                    {% else %}
+                    <div class="form-group">
+                        <label>药师类型</label>
+                        <input type="text" name="pharmacist_type" value="{{ form.pharmacist_type }}" placeholder="如 审方药师 / 配药药师">
+                    </div>
+                    {% endif %}
+                </div>
+                {% if is_doctor %}
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>所属科室</label>
+                        <input type="text" name="department" value="{{ form.department }}" placeholder="如 内科" required>
+                    </div>
+                    <div class="form-group">
+                        <label>擅长</label>
+                        <input type="text" name="skill" value="{{ form.skill }}" placeholder="如 高血压、糖尿病随访">
+                    </div>
+                </div>
+                {% endif %}
+                <div class="form-actions">
+                    <button class="btn-primary" type="submit">保存修改</button>
+                    <a class="btn-secondary" href="{% url 'adminpanel:account_list' %}">取消</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="card">
+            <h3>删除账号</h3>
+            {% if refs %}
+            <div class="form-error">
+                <div>该账号仍被以下业务数据引用，数据库不允许物理删除，请改用“停用”：</div>
+                {% for label, count in refs %}<div>{{ label }}：{{ count }} 条</div>{% endfor %}
+            </div>
+            <p class="empty-tip">删除会破坏问诊、处方、排班与审计日志的完整性，因此这里只提供停用。</p>
+            {% else %}
+            <p class="empty-tip">该账号暂无任何业务数据，可以物理删除（sys_user 与档案记录一并删除），删除后不可恢复。</p>
+            <form method="post" action=""
+                  onsubmit="return confirm('确定永久删除账号 {{ target.name }}（{{ target.phone }}）吗？此操作不可恢复。');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete">
+                <button class="btn-danger" type="submit">删除账号</button>
+            </form>
+            {% endif %}
+        </div>{% endblock %}

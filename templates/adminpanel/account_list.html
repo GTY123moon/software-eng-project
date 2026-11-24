@@ -21,6 +21,7 @@
 
         {% if ok == 'created' %}<div class="form-success">账号已开通，档案已建立，并已写入操作日志。</div>{% endif %}
         {% if ok == 'toggled' %}<div class="form-success">账号状态已更新，并已写入操作日志。</div>{% endif %}
+        {% if ok == 'deleted' %}<div class="form-success">账号及其档案已删除。</div>{% endif %}
 
         <div class="card">
             <form class="form-inline" method="get" action="">
@@ -57,11 +58,7 @@
                             {% else %}<span class="badge badge-gray">停用</span>{% endif %}
                         </td>
                         <td>
-                            <form method="post" action="{% url 'adminpanel:account_toggle' u.user_id %}" style="display:inline"
-                                  onsubmit="return confirm('确定{% if u.status == 1 %}停用{% else %}启用{% endif %}账号 {{ u.name }} 吗？');">
-                                {% csrf_token %}
-                                <button class="link-btn" type="submit">{% if u.status == 1 %}停用{% else %}启用{% endif %}</button>
-                            </form>
+                            <a class="link-btn" href="{% url 'adminpanel:account_edit' u.user_id %}">编辑</a>
                         </td>
                     </tr>
                     {% endfor %}
