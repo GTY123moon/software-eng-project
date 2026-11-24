@@ -1505,12 +1505,26 @@ body:has(.login-wrap) .footer {
     line-height: 1.6;
 }
 
-/* 药师审核：通过 / 驳回按钮等大 */
+/* 药师审核：通过 / 驳回按钮等大、垂直对齐 */
+.audit-btn-row {
+    align-items: center;
+}
+
+/* form 不生成盒子，使内部按钮与裸按钮同处一层 flex，避免被压缩变窄 */
+.audit-btn-row .pharmacist-action-form {
+    display: contents;
+}
+
 .audit-btn-row .btn-primary,
 .audit-btn-row .btn-secondary {
+    flex: 0 0 140px;
+    width: 140px;
     min-width: 140px;
     height: 42px;
     padding: 10px 20px;
+    margin: 0;
+    box-sizing: border-box;
+    border-radius: var(--radius-sm);
 }
 
 .reject-modal {

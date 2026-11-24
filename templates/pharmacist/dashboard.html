@@ -18,7 +18,7 @@
         <p class="pharmacist-hint">本人审核及后续流转记录</p><span class="pharmacist-stat-link">查看本人记录 →</span>
     </a>
 </div>
-<details class="pharmacist-explanation"><summary>统计范围说明</summary><p>待审核、待配药包含未分配或分配给本人的对应处方。“本人已处理”包含本人名下已通过、已驳回、待配药、已完成记录，与待配药数量可能重叠；统计未限定日期。</p></details>
+<div class="his-info-bar"><span>认领规则：待审核、待配药为共享待办，先处理者自动认领；完成审核或发药后，系统记录处理药师并归入本人记录，未处理处方对全体药师可见。</span></div>
 <section class="pharmacist-panel" aria-labelledby="recent-title">
     <div class="pharmacist-section-head"><div><h2 id="recent-title">最近处方</h2><p class="pharmacist-hint">共享待办及本人记录，按开方时间展示最近 5 条</p></div><a class="link-btn" href="{% url 'pharmacist:prescription_list' %}">查看全部处方 →</a></div>
     {% if data_error %}<p class="empty-tip">处方列表暂不可用，请稍后刷新。</p>

@@ -34,6 +34,12 @@
     </section>
     {% if can_approve %}
     <section class="pharmacist-detail-section"><h3>药师审核</h3>
+        <style>
+        .audit-btn-row { display: flex; align-items: center; gap: 10px; }
+        .audit-btn-row .pharmacist-action-form { display: flex; width: 140px; margin: 0; }
+        .audit-btn-row .btn-primary,
+        .audit-btn-row .btn-secondary { flex: 0 0 140px; width: 140px; height: 42px; margin: 0; box-sizing: border-box; }
+        </style>
         <div class="form-actions audit-btn-row">
             <form class="pharmacist-action-form" method="post" action="{% url 'pharmacist:prescription_audit' prescription.presc_id %}">
                 {% csrf_token %}<input type="hidden" name="version" value="{{ audit_token }}"><input type="hidden" name="decision" value="approve">

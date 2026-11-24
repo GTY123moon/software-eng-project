@@ -89,14 +89,14 @@ class DashboardTests(SimpleTestCase):
         response = self.render_dashboard(
             counts={'pending_review': 7, 'pending_dispense': 3, 'processed': 2},
             recent=[{'presc_id': 42, 'status': '待审核', 'badge': 'badge-orange',
-                     'assignment': '待分配', 'created_at': datetime(2026, 11, 19, 12, 0)}],
+                     'assignment': '未处理', 'created_at': datetime(2026, 11, 19, 12, 0)}],
         )
         self.assertContains(response, '>7</div>')
         self.assertContains(response, '>3</div>')
         self.assertContains(response, '>2</div>')
         self.assertContains(response, '#42')
         self.assertContains(response, 'badge badge-orange')
-        self.assertContains(response, '待分配')
+        self.assertContains(response, '未处理')
         self.assertContains(response, '2026-11-19 12:00')
         self.assertNotContains(response, '暂无处方数据')
         self.assertNotContains(response, '<form')
@@ -143,7 +143,7 @@ class DashboardTests(SimpleTestCase):
 
     def test_home_preview_is_short_and_links_to_real_detail(self):
         rows = [{'presc_id': i, 'status': '待审核', 'badge': 'badge-orange',
-                 'assignment': '待分配', 'created_at': datetime(2026, 11, 19)}
+                 'assignment': '未处理', 'created_at': datetime(2026, 11, 19)}
                 for i in range(10)]
         response = self.render_dashboard(recent=rows)
         self.assertContains(response, 'aria-label="查看处方', count=5)
@@ -255,7 +255,7 @@ class DashboardTests(SimpleTestCase):
             ai_check_comment='供参考', doctor_confirm=1, audit_conclusion=None,
             audit_time=None, pickup_status=0, dispensed_at=None)
         data = {'prescription': prescription, 'patient_name': '测试患者', 'doctor_name': '测试医生',
-                'pharmacist_name': '待分配', 'badge': 'badge-orange', 'pickup_text': '尚未选择',
+                'pharmacist_name': '未处理', 'badge': 'badge-orange', 'pickup_text': '尚未选择',
                 'total': Decimal('24.60'), 'items': [{'drug_name': '测试药品',
                 'drug__specification': '10片', 'qty': 2, 'dosage': '遵医嘱',
                 'unit_price': Decimal('12.30'), 'subtotal': Decimal('24.60'), 'is_decoction': 0}]}
@@ -316,7 +316,7 @@ class WorkbenchQueryTests(SimpleTestCase):
         counts, recent = self.query_data(rows)
         self.assertEqual(counts, {'pending_review': 2, 'pending_dispense': 2, 'processed': 4})
         self.assertEqual({row['presc_id'] for row in recent}, {1, 4, 11, 12, 13, 14, 15})
-        self.assertEqual({row['assignment'] for row in recent}, {'待分配', '本人'})
+        self.assertEqual({row['assignment'] for row in recent}, {'未处理', '本人'})
         for row in recent:
             self.assertEqual(row['badge'], views.STATUS_BADGES[row['status']])
 

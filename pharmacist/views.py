@@ -65,10 +65,17 @@ def _visible_prescriptions(pharmacist_id):
     )
 
 
-def _decorate_rows(rows):
+def _decorate_rows(rows, current_id):
+    """认领制：未处理的共享处方对全员可见，处理后归属落本人记录。"""
     for row in rows:
         row['badge'] = STATUS_BADGES.get(row['status'], 'badge-gray')
-        row['assignment'] = '待分配' if row['pharmacist_id'] is None else '本人'
+        owner = row['pharmacist_id']
+        if owner is None:
+            row['assignment'] = '未处理'
+        elif owner == current_id:
+            row['assignment'] = '本人'
+        else:
+            row['assignment'] = '其他药师'
     return rows
 
 
@@ -83,7 +90,7 @@ def _workbench_data(pharmacist_id):
     recent = list(visible.order_by('-created_at', '-presc_id').values(
         'presc_id', 'status', 'pharmacist_id', 'created_at',
     )[:RECENT_LIMIT])
-    return counts, _decorate_rows(recent)
+    return counts, _decorate_rows(recent, pharmacist_id)
 
 
 def pharmacist_required(view):
@@ -157,7 +164,7 @@ def _list_data(pharmacist_id, state):
     rows = _filtered_prescriptions(pharmacist_id, state).values(
         'presc_id', 'status', 'pharmacist_id', 'created_at')
     page = Paginator(rows, PAGE_SIZE).get_page(state['page'])
-    page.object_list = _decorate_rows(list(page.object_list))
+    page.object_list = _decorate_rows(list(page.object_list), pharmacist_id)
     return page
 
 
@@ -226,7 +233,7 @@ def _detail_data(pharmacist_id, presc_id):
         'total': sum((item['subtotal'] for item in items), Decimal('0.00')),
         'patient_name': names.get(prescription.patient_id, '未提供'),
         'doctor_name': names.get(prescription.doctor_id, '未提供'),
-        'pharmacist_name': names.get(prescription.pharmacist_id, '待分配'),
+        'pharmacist_name': names.get(prescription.pharmacist_id, '未处理'),
         'badge': STATUS_BADGES[prescription.status],
         'pickup_text': {0: '院药房取药', 1: '社会药店购药'}.get(
             prescription.pickup_method, '尚未选择'),
