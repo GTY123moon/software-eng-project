@@ -933,12 +933,17 @@ def account_form(request):
                             title=data['title'],
                             skill=data['skill'],
                             gender=data['gender'],
+                            # 在岗状态：0 离线 / 1 在线 / 2 忙碌。新开通的医生默认在线，
+                            # 否则患者端挂号列表会一直显示“离线”且不可选（与排班无关）
+                            work_status=1,
                         )
                     else:
                         Pharmacist.objects.create(
                             pharmacist_id=user.user_id,
                             pharmacist_type=data['pharmacist_type'],
                             gender=data['gender'],
+                            # 药师在岗状态：0 停用 / 1 在岗
+                            pharmacist_status=1,
                         )
                     write_log(request.admin_profile.admin_id, '管理员', '开通账号', 'sys_user', user.user_id)
             except IntegrityError:
@@ -961,6 +966,14 @@ def account_toggle(request, user_id):
     new_status = 0 if user.status == 1 else 1
     user.status = new_status
     user.save(update_fields=['status'])
+    # 同步在岗状态：停用账号置离线，启用账号恢复在线，
+    # 避免患者端挂号列表出现“已停用但显示在线”的医生
+    if user.role_type == ROLE_DOCTOR:
+        Doctor.objects.filter(doctor_id=user.user_id).update(
+            work_status=1 if new_status == 1 else 0)
+    elif user.role_type == ROLE_PHARMACIST:
+        Pharmacist.objects.filter(pharmacist_id=user.user_id).update(
+            pharmacist_status=1 if new_status == 1 else 0)
     write_log(request.admin_profile.admin_id, '管理员',
               '启用账号' if new_status == 1 else '停用账号', 'sys_user', user.user_id)
     return redirect(reverse('adminpanel:account_list') + '?ok=toggled')

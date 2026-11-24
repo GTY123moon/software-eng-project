@@ -6,6 +6,7 @@
 
 import os
 import uuid
+from datetime import datetime, time, timedelta
 
 from django.conf import settings
 from django.contrib import messages
@@ -19,6 +20,7 @@ from django.utils import timezone
 from core.models import (
     SysUser, Patient, Doctor, Pharmacist, Admin, Consultation,
     ConsultationMessage, Prescription, PrescriptionItem, AiPreAssessment,
+    DutySchedule,
 )
 from core.ai_service import assess_risk, next_guide_question, guide_history_text, GUIDE_TOPICS, _local_guide_next
 from core.log_service import write_log
@@ -80,14 +82,56 @@ def _doctor_dept(uid):
     return d.department if d else ''
 
 
+def _on_duty_doctor_ids(now=None):
+    """当前处于值班时间窗内的医生 ID 集合。
+
+    - 单次班次：start_time <= now < end_time 即视为当班；
+    - 每周循环模板：把 weekday 换算到本周对应日期，再判断 now 是否落在窗口内；
+      夜班跨天（结束时刻小于开始时刻），需同时检查“昨天”的夜班是否延续到今晨。
+    只统计「正常 / 调班」班次，停诊班次不算值班。
+    """
+    now = now or timezone.now()
+    tz = timezone.get_current_timezone()
+    today = timezone.localdate(now)
+    valid_status = ['正常', '调班']
+
+    ids = set(DutySchedule.objects.filter(
+        weekday__isnull=True, status__in=valid_status,
+        start_time__lte=now, end_time__gt=now,
+    ).values_list('doctor_id', flat=True))
+
+    weekly = DutySchedule.objects.filter(
+        weekday__isnull=False, status__in=valid_status
+    ).values_list('doctor_id', 'weekday', 'start_time', 'end_time')
+    for doctor_id, weekday, start_time, end_time in weekly:
+        t_start = timezone.localtime(start_time).time()
+        t_end = timezone.localtime(end_time).time()
+        overnight = t_end <= t_start  # 夜班：跨到次日
+        # offset 0 = 今天；-1 = 昨天（昨夜夜班延续到今晨）
+        for offset in (0, -1):
+            base = today + timedelta(days=offset)
+            if base.weekday() != weekday:
+                continue
+            start = timezone.make_aware(datetime.combine(base, t_start), tz)
+            end_date = base + timedelta(days=1) if overnight else base
+            end = timezone.make_aware(datetime.combine(end_date, t_end), tz)
+            if start <= now < end:
+                ids.add(doctor_id)
+                break
+    return ids
+
+
 def _doctor_options(current_dept=''):
     """组装医生列表：实时按进行中问诊推导在岗与排队情况。
 
     单接待口径：一名医生同一时刻只接诊一位（accepted=1 进行中），
     其余选定该医生的患者进入排队（accepted=0 进行中）；离线医生不可选，
     在线 / 接诊中的医生都允许挂号排队。
+    **仅展示此刻正在值班的医生**（白班/夜班循环班次 + 单次班次），不值班的医生不进入候选。
     """
     qs = Doctor.objects.all()
+    on_duty = _on_duty_doctor_ids()
+    qs = qs.filter(doctor_id__in=on_duty)
     if current_dept:
         qs = qs.filter(department=current_dept)
     active_map, wait_map = {}, {}
@@ -545,9 +589,19 @@ def consult_create_view(request):
         doctor_id = request.POST.get('doctor', '').strip()
         doc = Doctor.objects.filter(doctor_id=doctor_id).first() if doctor_id else None
 
-        # 仅离线医生不可选；在线 / 接诊中的医生都可挂号，其余患者进入排队
+        # 仅离线医生不可选；同时必须是今日有值班的医生（在线 / 接诊中都可挂号排队）
         if not doc or doc.work_status == 0:
             error = '该医生当前离线，请选择其他在线医生。'
+            return render(request, 'accounts/consult_create.html', {
+                'active_consult': active,
+                'active_doctor': _user_name(active.doctor_id) if active else '',
+                'active_dept': _doctor_dept(active.doctor_id) if active else '',
+                'active_time': _format_time(active.start_time) if active else '',
+                'doctors': doctors, 'departments': departments, 'current_dept': current_dept,
+                'error': error,
+            })
+        if doc.doctor_id not in _on_duty_doctor_ids():
+            error = '该医生今日没有值班班次，请选择今日值班的医生。'
             return render(request, 'accounts/consult_create.html', {
                 'active_consult': active,
                 'active_doctor': _user_name(active.doctor_id) if active else '',
