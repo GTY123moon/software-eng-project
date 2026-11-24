@@ -123,6 +123,7 @@ def _message_list(consult_id):
         .exclude(sender_role='AI').exclude(msg_type='pre') \
         .order_by('send_time', 'msg_id')
     return [{
+        'id': m.msg_id,
         'role': m.sender_role,
         'content': m.content or '',
         'msg_type': m.msg_type,
@@ -526,23 +527,29 @@ def send_message(request, cid):
         return redirect('doctor:consult_chat', cid=cid)
 
     content = request.POST.get('content', '').strip()
-    image = request.FILES.get('image')
-    msg_type, media_url = 'text', None
-
-    if image:
-        media_url = _save_image(image)
-        msg_type = 'image'
-    elif not content:
-        flash.error(request, '请输入回复内容或选择一张图片。')
+    images = [f for f in request.FILES.getlist('image') if f]
+    if not images and not content:
+        flash.error(request, '请输入回复内容或选择图片。')
         return redirect('doctor:consult_chat', cid=cid)
     if len(content) > 2000:
         content = content[:2000]
 
-    ConsultationMessage.objects.create(
-        consultation_id=consult.consult_id, sender_role='医生',
-        sender_id=doctor.doctor_id, msg_type=msg_type,
-        content=content or None, media_url=media_url,
-        send_time=timezone.now(), read_status=0)
+    now = timezone.now()
+    if images:
+        # 多图上传：每张图单独一条图片消息，正文只挂在第一张，避免语义被拆散
+        for idx, image in enumerate(images[:9]):
+            ConsultationMessage.objects.create(
+                consultation_id=consult.consult_id, sender_role='医生',
+                sender_id=doctor.doctor_id, msg_type='image',
+                content=(content or None) if idx == 0 else None,
+                media_url=_save_image(image),
+                send_time=now, read_status=0)
+    else:
+        ConsultationMessage.objects.create(
+            consultation_id=consult.consult_id, sender_role='医生',
+            sender_id=doctor.doctor_id, msg_type='text',
+            content=content, media_url=None,
+            send_time=now, read_status=0)
     write_log(doctor.doctor_id, '医生', '回复消息',
               target_type='consultation', target_id=consult.consult_id)
 

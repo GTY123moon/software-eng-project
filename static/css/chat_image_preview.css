@@ -1,0 +1,113 @@
+/* 聊天图片选中预览（多图）：医生端 / 患者端共用
+ * 结构见 templates/**/consult_chat.html 中 data-chat-image-* 标记
+ * 行为见 static/js/chat_image_preview.js
+ */
+
+.chat-compose {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border, #dbe3ee);
+}
+
+.chat-compose .chat-input {
+    margin-top: 0;
+    padding-top: 10px;
+    border-top: none;
+}
+
+/* 图片按钮上的数量角标 */
+.img-upload-count {
+    font-style: normal;
+    font-size: 12px;
+    color: var(--primary, #206bc4);
+    margin-left: 2px;
+}
+
+/* 预览区：横向可换行的小卡片列表 */
+.chat-preview {
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    border: 1px solid var(--primary, #206bc4);
+    border-radius: var(--radius-sm, 8px);
+    background: var(--primary-light, #eef5ff);
+}
+
+.chat-preview[hidden] {
+    display: none;
+}
+
+.chat-preview-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.chat-preview-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    background: #fff;
+    border: 1px solid var(--border, #dbe3ee);
+    border-radius: 6px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.chat-preview-thumb {
+    width: 48px;
+    height: 48px;
+    flex: none;
+    border-radius: 4px;
+    object-fit: cover;
+    background: #fff;
+    box-shadow: 0 0 0 1px var(--border, #dbe3ee);
+}
+
+.chat-preview-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    max-width: 180px;
+}
+
+.chat-preview-name {
+    font-size: 13px;
+    color: var(--text, #243b53);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-preview-tip {
+    font-size: 12px;
+    color: var(--text-muted, #78849b);
+}
+
+.chat-preview-clear {
+    flex: none;
+    padding: 3px 8px;
+    font-size: 12px;
+    color: var(--primary, #206bc4);
+    background: #fff;
+    border: 1px solid var(--primary, #206bc4);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.chat-preview-clear:hover {
+    background: var(--primary, #206bc4);
+    color: #fff;
+}
+
+@media (max-width: 640px) {
+    .chat-preview-item {
+        width: 100%;
+    }
+
+    .chat-preview-meta {
+        max-width: none;
+        flex: 1;
+    }
+}

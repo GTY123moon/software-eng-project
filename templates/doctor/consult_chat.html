@@ -7,6 +7,7 @@
 {% block tab %}沟通{% endblock %}
 
 {% block main %}
+<link rel="stylesheet" href="{% static 'css/chat_image_preview.css' %}">
 <div class="his-info-bar">
     <span class="info-arrow">›</span>
     <span class="info-label">当前病人</span>
@@ -80,7 +81,7 @@
 
     <div class="msg-list" id="msgList">
         {% for m in chats %}
-        <div class="msg-row {% if m.mine %}mine{% endif %}" data-key="{{ m.role }}|{{ m.time }}|{{ m.content }}">
+        <div class="msg-row {% if m.mine %}mine{% endif %}" data-key="{{ m.id }}">
             <div class="msg-bubble">
                 <div class="msg-role">{{ m.role }}</div>
                 {% if m.msg_type == 'image' %}
@@ -100,14 +101,21 @@
     </div>
 
     {% if can_chat %}
-    <form class="chat-input" method="post" enctype="multipart/form-data"
-          action="{% url 'doctor:send_message' consult.id %}">
+    <form class="chat-compose" method="post" enctype="multipart/form-data"
+          action="{% url 'doctor:send_message' consult.id %}" data-chat-image-form>
         {% csrf_token %}
-        <label class="img-upload" for="imageInput">图片
-            <input type="file" id="imageInput" name="image" accept="image/*" hidden>
-        </label>
-        <textarea name="content" rows="2" placeholder="回复患者：解释病情、交代注意事项…"></textarea>
-        <button class="btn-primary" type="submit">发送</button>
+        <div class="chat-preview" data-chat-image-preview hidden>
+            <div class="chat-preview-list" data-chat-image-list></div>
+        </div>
+        <div class="chat-input">
+            <label class="img-upload" for="imageInput">图片<em class="img-upload-count"
+                   data-chat-image-count></em>
+                <input type="file" id="imageInput" name="image" accept="image/*" multiple
+                       data-chat-image-input hidden>
+            </label>
+            <textarea name="content" rows="2" placeholder="回复患者：解释病情、交代注意事项…"></textarea>
+            <button class="btn-primary" type="submit">发送</button>
+        </div>
     </form>
     {% elif consult.is_mine %}
     <p class="empty-tip">本次问诊{{ consult.status }}，不能再发送消息。</p>
@@ -165,6 +173,7 @@
 })();
 </script>
 <script src="{% static 'js/video_call.js' %}"></script>
+<script src="{% static 'js/chat_image_preview.js' %}"></script>
 
 {% if can_chat %}
 <script>
@@ -181,7 +190,8 @@
     function renderOne(m) {
         var row = document.createElement('div');
         row.className = 'msg-row' + (m.mine ? ' mine' : '');
-        row.setAttribute('data-key', m.role + '|' + m.time + '|' + m.content);
+        row.setAttribute('data-key', m.id ? String(m.id)
+            : (m.role + '|' + m.time + '|' + m.content));
         var bubble = document.createElement('div');
         bubble.className = 'msg-bubble';
 
@@ -232,7 +242,9 @@
             .then(function (data) {
                 if (data.messages) {
                     data.messages.forEach(function (m) {
-                        var key = m.role + '|' + m.time + '|' + m.content;
+                        // 去重键用消息 id：同一秒发出的多张图也能各自独立追加
+                        var key = m.id ? String(m.id)
+                            : (m.role + '|' + m.time + '|' + m.content);
                         if (!known[key]) { known[key] = true; renderOne(m); }
                     });
                 }

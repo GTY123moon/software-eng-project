@@ -816,8 +816,9 @@ def prescription_pickup_view(request, presc_id):
 def _serialize_chat_messages(consult, mine_role):
     """正式医患对话消息：过滤 AI 预问诊引导，按时间排序并标注本方气泡。"""
     rows = ConsultationMessage.objects.filter(consultation_id=consult.consult_id) \
-        .exclude(sender_role='AI').exclude(msg_type='pre').order_by('send_time')
+        .exclude(sender_role='AI').exclude(msg_type='pre').order_by('send_time', 'msg_id')
     return [{
+        'id': m.msg_id,
         'role': m.sender_role,
         'content': m.content or '',
         'msg_type': m.msg_type,
@@ -825,6 +826,21 @@ def _serialize_chat_messages(consult, mine_role):
         'time': _format_time(m.send_time),
         'mine': m.sender_role == mine_role,
     } for m in rows]
+
+
+def _save_chat_image(image):
+    """聊天图片落 media/chat/，与医生端保持同一目录与命名习惯。"""
+    ext = os.path.splitext(image.name)[1].lower()
+    if ext not in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
+        ext = '.jpg'
+    fname = 'chat_%s_%s%s' % (timezone.now().strftime('%Y%m%d%H%M%S'),
+                             uuid.uuid4().hex[:8], ext)
+    save_dir = os.path.join(settings.MEDIA_ROOT, 'chat')
+    os.makedirs(save_dir, exist_ok=True)
+    with open(os.path.join(save_dir, fname), 'wb') as f:
+        for chunk in image.chunks():
+            f.write(chunk)
+    return '/' + settings.MEDIA_URL.lstrip('/') + 'chat/' + fname
 
 
 def consult_status_view(request, consult_id):
@@ -999,30 +1015,26 @@ def consult_chat_view(request, consult_id):
             return redirect('accounts:consult_chat', consult.consult_id)
 
         content = request.POST.get('content', '').strip()
-        image = request.FILES.get('image')
-        msg_type = 'text'
-        media_url = None
-
-        if image:
-            ext = os.path.splitext(image.name)[1].lower()
-            if ext not in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
-                ext = '.jpg'
-            fname = f"chat_{timezone.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}{ext}"
-            save_dir = os.path.join(settings.MEDIA_ROOT, 'chat')
-            os.makedirs(save_dir, exist_ok=True)
-            with open(os.path.join(save_dir, fname), 'wb') as f:
-                for chunk in image.chunks():
-                    f.write(chunk)
-            media_url = '/' + settings.MEDIA_URL.lstrip('/') + 'chat/' + fname
-            msg_type = 'image'
-        elif not content:
+        images = [f for f in request.FILES.getlist('image') if f]
+        if not images and not content:
             return redirect('accounts:consult_chat', consult.consult_id)
 
-        ConsultationMessage.objects.create(
-            consultation_id=consult.consult_id, sender_role='患者',
-            sender_id=patient.patient_id, msg_type=msg_type,
-            content=content or None, media_url=media_url,
-            send_time=timezone.now(), read_status=1)
+        now = timezone.now()
+        if images:
+            # 多图上传：每张图单独一条图片消息，正文只挂在第一张
+            for idx, image in enumerate(images[:9]):
+                ConsultationMessage.objects.create(
+                    consultation_id=consult.consult_id, sender_role='患者',
+                    sender_id=patient.patient_id, msg_type='image',
+                    content=(content or None) if idx == 0 else None,
+                    media_url=_save_chat_image(image),
+                    send_time=now, read_status=1)
+        else:
+            ConsultationMessage.objects.create(
+                consultation_id=consult.consult_id, sender_role='患者',
+                sender_id=patient.patient_id, msg_type='text',
+                content=content, media_url=None,
+                send_time=now, read_status=1)
         write_log(patient.patient_id, '患者', '发送消息',
                   target_type='consultation', target_id=consult.consult_id)
         return redirect('accounts:consult_chat', consult.consult_id)
