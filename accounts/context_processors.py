@@ -12,6 +12,12 @@ def pending_receives(request):
     if not isinstance(patient_id, int):
         return {'pending_receives': []}
 
+    # 患者已经点进处方详情，正在看的可能就是这条待查收处方，
+    # 此时全局弹窗会遮住详情内容，因此详情页不再弹（回到列表页仍会提示）
+    match = getattr(request, 'resolver_match', None)
+    if match is not None and match.url_name == 'prescription_detail':
+        return {'pending_receives': []}
+
     qs = Prescription.objects.filter(
         patient_id=patient_id, status='已通过', pickup_method__isnull=True
     ).select_related('doctor').order_by('-created_at')
