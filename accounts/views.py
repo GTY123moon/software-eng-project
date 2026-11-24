@@ -6,6 +6,7 @@
 
 import os
 import uuid
+from datetime import datetime, time, timedelta
 
 from django.conf import settings
 from django.contrib import messages
@@ -19,6 +20,7 @@ from django.utils import timezone
 from core.models import (
     SysUser, Patient, Doctor, Pharmacist, Admin, Consultation,
     ConsultationMessage, Prescription, PrescriptionItem, AiPreAssessment,
+    DutySchedule,
 )
 from core.ai_service import assess_risk, next_guide_question, guide_history_text, GUIDE_TOPICS, _local_guide_next
 from core.log_service import write_log
@@ -80,14 +82,37 @@ def _doctor_dept(uid):
     return d.department if d else ''
 
 
+def _on_duty_doctor_ids():
+    """今日有值班的医生 ID 集合：单次班次落在今天 + 每周循环模板命中今天星期几。
+
+    只统计「正常 / 调班」班次，停诊班次不算值班；
+    与后台首页「今日有效排班」口径保持一致。
+    """
+    today = timezone.localdate()
+    day_start = timezone.make_aware(
+        datetime.combine(today, time.min), timezone.get_current_timezone())
+    day_end = day_start + timedelta(days=1)
+    valid_status = ['正常', '调班']
+    ids = set(DutySchedule.objects.filter(
+        weekday__isnull=True, start_time__gte=day_start, start_time__lt=day_end,
+        status__in=valid_status).values_list('doctor_id', flat=True))
+    ids |= set(DutySchedule.objects.filter(
+        weekday=today.weekday(), status__in=valid_status
+    ).values_list('doctor_id', flat=True))
+    return ids
+
+
 def _doctor_options(current_dept=''):
     """组装医生列表：实时按进行中问诊推导在岗与排队情况。
 
     单接待口径：一名医生同一时刻只接诊一位（accepted=1 进行中），
     其余选定该医生的患者进入排队（accepted=0 进行中）；离线医生不可选，
     在线 / 接诊中的医生都允许挂号排队。
+    **仅展示今日有值班（含每周循环班次）的医生**，不值班的医生不进入候选。
     """
     qs = Doctor.objects.all()
+    on_duty = _on_duty_doctor_ids()
+    qs = qs.filter(doctor_id__in=on_duty)
     if current_dept:
         qs = qs.filter(department=current_dept)
     active_map, wait_map = {}, {}
@@ -545,9 +570,19 @@ def consult_create_view(request):
         doctor_id = request.POST.get('doctor', '').strip()
         doc = Doctor.objects.filter(doctor_id=doctor_id).first() if doctor_id else None
 
-        # 仅离线医生不可选；在线 / 接诊中的医生都可挂号，其余患者进入排队
+        # 仅离线医生不可选；同时必须是今日有值班的医生（在线 / 接诊中都可挂号排队）
         if not doc or doc.work_status == 0:
             error = '该医生当前离线，请选择其他在线医生。'
+            return render(request, 'accounts/consult_create.html', {
+                'active_consult': active,
+                'active_doctor': _user_name(active.doctor_id) if active else '',
+                'active_dept': _doctor_dept(active.doctor_id) if active else '',
+                'active_time': _format_time(active.start_time) if active else '',
+                'doctors': doctors, 'departments': departments, 'current_dept': current_dept,
+                'error': error,
+            })
+        if doc.doctor_id not in _on_duty_doctor_ids():
+            error = '该医生今日没有值班班次，请选择今日值班的医生。'
             return render(request, 'accounts/consult_create.html', {
                 'active_consult': active,
                 'active_doctor': _user_name(active.doctor_id) if active else '',
