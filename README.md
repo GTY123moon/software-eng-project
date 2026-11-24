@@ -156,12 +156,11 @@ python manage.py runserver
 
 系统通过平台无关的 OpenAI 兼容接口接大模型，切换平台只改三个配置项，业务代码不动；未填 Key 或接口超时时，预问诊分级摘要、医生复核建议、处方预审三条链路自动降级本地规则，演示流程不报错。
 
-**选型建议（课设演示）**：首推智谱 `glm-4.7-flash`——永久免费、中文表现好、响应快，注册开放平台即可领取 Key；现有默认端点与模型 ID 已配好，只需填 Key。其余平台对照如下：
+**选型建议（课设演示）**：首推硅基流动 `Qwen/Qwen2.5-7B-Instruct`——免费档、非思考链响应快、中文表现好，在硅基流动控制台注册领取 `sk-` Key；现有默认端点与模型 ID 已配好，只需填 Key。其余平台对照如下：
 
 | 平台 | 模型 ID | 接口地址（chat/completions 完整路径） | 备注 |
 |---|---|---|---|
-| 智谱（默认） | `glm-4.7-flash` | `https://open.bigmodel.cn/api/paas/v4/chat/completions` | 永久免费，中文轻量，注册即给 Key |
-| 硅基流动 | `Qwen/Qwen2.5-7B-Instruct` | `https://api.siliconflow.cn/v1/chat/completions` | 免费档，非思考链响应快，国内站需实名 |
+| 硅基流动（默认） | `Qwen/Qwen2.5-7B-Instruct` | `https://api.siliconflow.cn/v1/chat/completions` | 免费档，非思考链响应快，国内站需实名 |
 | 阿里百炼 | `qwen-turbo` | `https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions` | 按量付费，稳定 |
 | 火山方舟 | `ep-xxxx`（接入点 ID） | `https://ark.cn-beijing.volces.com/api/v3/chat/completions` | 付费；fast 档位未开通时自动回退常规档 |
 
@@ -170,9 +169,9 @@ python manage.py runserver
 - 在 `medical_platform/local_settings.py` 写（该文件已被 `.gitignore` 排除，不进仓库）：
 
 ```python
-os.environ.setdefault('AI_BASE_URL', 'https://open.bigmodel.cn/api/paas/v4/chat/completions')
+os.environ.setdefault('AI_BASE_URL', 'https://api.siliconflow.cn/v1/chat/completions')
 os.environ.setdefault('AI_API_KEY', '你的密钥')
-os.environ.setdefault('AI_MODEL', 'glm-4.7-flash')
+os.environ.setdefault('AI_MODEL', 'Qwen/Qwen2.5-7B-Instruct')
 ```
 
 - 或在系统环境变量中设置同名 `AI_BASE_URL / AI_API_KEY / AI_MODEL`。

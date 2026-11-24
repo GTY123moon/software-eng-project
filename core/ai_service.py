@@ -2,7 +2,7 @@
 AI 风险分级服务（core）。
 
 接入说明：
-- 远程：走 core.ai_provider 的通用 OpenAI 兼容接口（火山方舟 / 智谱 / 硅基流动 /
+- 远程：走 core.ai_provider 的通用 OpenAI 兼容接口（火山方舟 / 硅基流动 /
   阿里百炼等均可）；API Key 与模型走环境变量或不进 Git 的 local_settings.py。
   未配置 Key / 模型，或接口超时、报错时，自动降级到本地关键词规则，保证课设离线可跑。
 - AI 仅做预问诊风险分级与病情摘要，不替代医生诊断；结果在 ai_pre_assessment 表留痕，

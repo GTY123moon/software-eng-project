@@ -1,7 +1,7 @@
 """通用 OpenAI 兼容大模型接入层（平台无关）。
 
 设计原则：
-- 任何提供 OpenAI ``/chat/completions`` 兼容接口的平台都能接（火山方舟、智谱、
+- 任何提供 OpenAI ``/chat/completions`` 兼容接口的平台都能接（火山方舟、
   硅基流动、阿里百炼等），切换平台只改配置，不改业务代码；
 - 凭据优先取环境变量，其次读 **不进 Git** 的 ``medical_platform/local_settings.py``；
   同时兼容旧的 ``ARK_API_KEY / ARK_MODEL`` 别名，便于从方舟平滑迁移；
@@ -64,8 +64,6 @@ def is_configured() -> bool:
 def provider_label() -> str:
     """按接口地址推断平台中文名，用于结果留痕的 source 字段。"""
     base_url, _, _ = get_provider()
-    if 'bigmodel.cn' in base_url or 'z.ai' in base_url:
-        return '智谱GLM'
     if 'siliconflow' in base_url:
         return '硅基流动'
     if 'dashscope' in base_url:
@@ -98,9 +96,6 @@ def chat_completion(messages: list[dict], temperature: float = 0.2,
     # service_tier 为方舟专有字段，仅方舟域名附带；其他兼容平台不发送
     if 'volces.com' in base_url:
         payload['service_tier'] = 'fast'
-    # 智谱 GLM-4.7 系列默认开启思维链，问诊/审方只需简短 JSON，关闭思考以降低延迟
-    if 'bigmodel.cn' in base_url or 'z.ai' in base_url:
-        payload['thinking'] = {'type': 'disabled'}
 
     def _open(pl: dict) -> dict:
         body = json.dumps(pl, ensure_ascii=False).encode('utf-8')
