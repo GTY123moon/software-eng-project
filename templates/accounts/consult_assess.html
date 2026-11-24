@@ -45,9 +45,6 @@
 
     <form class="chat-input" method="post" action="{% url 'accounts:consult_assess' consult.id %}">
         {% csrf_token %}
-        {# 视频消息入口：课设占位，暂不接入媒体上传与转码，预留后续接口位 #}
-        <button class="img-upload" type="button" title="视频消息（课设占位）"
-                onclick="alert('视频消息发送为课设占位，需接入媒体上传与转码服务。')">视频</button>
         <textarea name="answer" rows="2" placeholder="根据 AI 助手的提问回答…" required></textarea>
         <button class="btn-primary" type="submit">发送</button>
     </form>
