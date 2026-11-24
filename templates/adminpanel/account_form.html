@@ -55,27 +55,47 @@
                     </div>
                 </div>
 
-                {% if form.role == '3' %}
-                <div class="form-group">
+                {# 医生 / 药师字段分组：随“角色”下拉切换显示，药师表无科室字段，只填药师类型 #}
+                <div id="doctorFields">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>所属科室</label>
+                            <input type="text" name="department" value="{{ form.department }}" placeholder="如 内科">
+                        </div>
+                        <div class="form-group">
+                            <label>职称</label>
+                            <input type="text" name="title" value="{{ form.title }}" placeholder="如 主治医师">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>擅长</label>
+                        <input type="text" name="skill" value="{{ form.skill }}" placeholder="如 高血压、糖尿病随访">
+                    </div>
+                </div>
+
+                <div id="pharmacistFields" class="form-group">
                     <label>药师类型</label>
-                    <input type="text" name="pharmacist_type" value="{{ form.pharmacist_type }}" placeholder="如 审方药师 / 配药药师">
+                    <input type="text" name="pharmacist_type" value="{{ form.pharmacist_type }}" placeholder="如 主任药师 / 主管药师 / 药师">
                 </div>
-                {% else %}
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>所属科室</label>
-                        <input type="text" name="department" value="{{ form.department }}" placeholder="如 内科" required>
-                    </div>
-                    <div class="form-group">
-                        <label>职称</label>
-                        <input type="text" name="title" value="{{ form.title }}" placeholder="如 主治医师">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>擅长</label>
-                    <input type="text" name="skill" value="{{ form.skill }}" placeholder="如 高血压、糖尿病随访">
-                </div>
-                {% endif %}
+
+                <script>
+                (function () {
+                    var roleSel = document.querySelector('select[name="role"]');
+                    var doctorBox = document.getElementById('doctorFields');
+                    var pharmBox = document.getElementById('pharmacistFields');
+                    var deptInput = doctorBox.querySelector('input[name="department"]');
+                    function sync() {
+                        var isDoctor = roleSel.value === '2';
+                        doctorBox.style.display = isDoctor ? '' : 'none';
+                        pharmBox.style.display = isDoctor ? 'none' : '';
+                        // 只有可见的科室才参与必填校验，避免选“药师”时被科室挡住提交
+                        deptInput.required = isDoctor;
+                    }
+                    roleSel.addEventListener('change', sync);
+                    sync();
+                })();
+                </script>
+
 
                 <div class="form-actions">
                     <button class="btn-primary" type="submit">开通并建立档案</button>
