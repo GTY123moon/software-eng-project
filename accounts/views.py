@@ -4,6 +4,7 @@
 课设演示阶段密码与种子数据一致，按明文比对；生产环境应使用密码哈希。
 """
 
+import json
 import os
 import uuid
 from datetime import datetime, time, timedelta
@@ -16,12 +17,14 @@ from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_http_methods
 
 from core.models import (
     SysUser, Patient, Doctor, Pharmacist, Admin, Consultation,
     ConsultationMessage, Prescription, PrescriptionItem, AiPreAssessment,
     DutySchedule,
 )
+from core import call_signal
 from core.ai_service import assess_risk, next_guide_question, guide_history_text, GUIDE_TOPICS, _local_guide_next
 from core.log_service import write_log
 
@@ -934,6 +937,31 @@ def consult_messages_view(request, consult_id):
         consultation_id=consult.consult_id, sender_role='医生', read_status=0
     ).update(read_status=1)
     return JsonResponse({'count': len(chat_messages), 'messages': chat_messages})
+
+
+@require_http_methods(['GET', 'POST'])
+def call_signal_view(request, consult_id):
+    """音视频信令：GET 轮询房间信令，POST 上报 Offer/Answer/ICE/挂断。
+
+    仅当前问诊的参与双方可读写；角色由后端按患者身份固定为 patient。
+    """
+    patient = _current_patient(request)
+    if not patient:
+        return JsonResponse({'error': 'unauthorized'}, status=401)
+    consult = Consultation.objects.filter(
+        consult_id=consult_id, patient_id=patient.patient_id).first()
+    if not consult:
+        return JsonResponse({'error': 'not_found'}, status=404)
+
+    if request.method == 'POST':
+        try:
+            payload = json.loads(request.body or '{}')
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'bad_request'}, status=400)
+        call_signal.post(consult.consult_id, 'patient', payload)
+        return JsonResponse({'ok': True})
+
+    return JsonResponse(call_signal.poll(consult.consult_id, 'patient'))
 
 
 # ---------------------------------------------------------------------------

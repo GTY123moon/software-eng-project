@@ -31,6 +31,8 @@ urlpatterns = [
     path('consult/<int:consult_id>/status/', views.consult_status_view, name='consult_status'),
     # 对话态消息轮询（JSON，自动加载医生新回复）
     path('consult/<int:consult_id>/messages/', views.consult_messages_view, name='consult_messages'),
+    # 音视频通话信令轮询/上报（JSON）
+    path('consult/<int:consult_id>/call-signal/', views.call_signal_view, name='call_signal'),
     # 我的处方
     path('prescriptions/', views.prescription_list_view, name='prescription_list'),
     # 处方详情

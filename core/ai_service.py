@@ -196,12 +196,11 @@ def _remote_guide_next(qa: list[dict], timeout: int = 10) -> dict | None:
 
 
 def next_guide_question(qa: list[dict]) -> dict:
-    """逐轮下一问：默认走本地清单即时出题。
-
-    说明：早期接入点模型每轮生成引导问题需近 10 秒，实时阻塞会拖慢对话，
-    因此逐轮追问不调远程；远程模型保留在收尾阶段做风险分级与病情摘要
-    （见 assess_risk）。_remote_guide_next 保留备用，将来远程提速后可切回。
+    """逐轮下一问：优先远程模型动态追问，未配置/超时/解析异常时降级本地清单。
 
     返回：question / done / source
     """
+    remote = _remote_guide_next(qa)
+    if remote:
+        return remote
     return _local_guide_next(qa)

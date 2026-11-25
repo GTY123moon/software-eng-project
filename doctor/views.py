@@ -8,6 +8,7 @@
 - 关键动作统一通过 core.log_service.write_log 写入 operation_log。
 """
 
+import json
 import os
 import uuid
 from functools import wraps
@@ -19,7 +20,9 @@ from django.db.models import Q
 from django.shortcuts import render, redirect, reverse
 from django.http import JsonResponse
 from django.utils import timezone
+from django.views.decorators.http import require_http_methods
 
+from core import call_signal
 from core.log_service import write_log
 from core.models import (
     AiPreAssessment, Consultation, ConsultationMessage, Doctor, Drug,
@@ -415,6 +418,29 @@ def messages_poll(request, cid):
         return JsonResponse({'error': 'forbidden'}, status=403)
     messages = _message_list(consult.consult_id)
     return JsonResponse({'count': len(messages), 'messages': messages})
+
+
+@doctor_required
+@require_http_methods(['GET', 'POST'])
+def call_signal_view(request, cid):
+    """音视频信令：GET 轮询房间信令，POST 上报 Offer/Answer/ICE/挂断。
+
+    仅接诊该问诊的医生可读写；角色由后端固定为 doctor。
+    """
+    doctor = _current_doctor(request)
+    consult = Consultation.objects.filter(consult_id=cid).first()
+    if not consult or (consult.doctor_id and consult.doctor_id != doctor.doctor_id):
+        return JsonResponse({'error': 'forbidden'}, status=403)
+
+    if request.method == 'POST':
+        try:
+            payload = json.loads(request.body or '{}')
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'bad_request'}, status=400)
+        call_signal.post(consult.consult_id, 'doctor', payload)
+        return JsonResponse({'ok': True})
+
+    return JsonResponse(call_signal.poll(consult.consult_id, 'doctor'))
 
 
 @doctor_required

@@ -23,6 +23,7 @@ urlpatterns = [
     path('consult/<int:cid>/ai-suggest/', views.ai_suggest, name='ai_suggest'),
     path('consult/<int:cid>/message/', views.send_message, name='send_message'),
     path('consult/<int:cid>/messages/', views.messages_poll, name='messages_poll'),
+    path('consult/<int:cid>/call-signal/', views.call_signal_view, name='call_signal'),
     path('consult/<int:cid>/advice/', views.consult_advice, name='consult_advice'),
     path('consult/<int:cid>/end-request/', views.end_request_decide, name='end_request_decide'),
 

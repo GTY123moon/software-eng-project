@@ -1280,6 +1280,24 @@ body:has(.login-wrap) .footer {
     line-height: 1.6;
 }
 
+/* 语音模式：隐藏画面，仅保留麦克风音频播放与状态提示 */
+.video-panels.is-audio {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.video-panels.is-audio::before {
+    content: '🎧';
+    font-size: 56px;
+    opacity: 0.9;
+}
+
+.video-panels.is-audio #remoteVideo,
+.video-panels.is-audio #localVideo {
+    display: none;
+}
+
 /* ===== 高危风险告知 ===== */
 .risk-banner {
     background: var(--red-light);

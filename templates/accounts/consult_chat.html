@@ -16,8 +16,7 @@
     <div class="info-actions">
         <span class="badge {% if consult.status == '进行中' and queuing %}badge-orange{% elif consult.status == '进行中' %}badge-blue{% else %}badge-gray{% endif %}">{{ consult.status }}</span>
         {% if can_chat %}
-        <button class="btn-secondary" id="openVoice" type="button"
-                onclick="alert('语音通话为课设占位，需接入实时音视频服务。')">语音通话</button>
+        <button class="btn-secondary" id="openVoice" type="button">语音通话</button>
         <button class="btn-secondary" id="openVideo" type="button">视频通话</button>
         {% endif %}
     </div>
@@ -192,8 +191,10 @@
 </script>
 {% endif %}
 
-<!-- 视频问诊弹窗 -->
-<div class="video-mask" id="videoMask" hidden>
+<!-- 音视频问诊弹窗（语音 / 视频双模式，信令走后端轮询接口） -->
+<div class="video-mask" id="videoMask" hidden
+     data-signal-url="{% url 'accounts:call_signal' consult.id %}"
+     data-me="patient" data-peer="{{ consult.doctor }}">
     <div class="video-modal">
         <div class="video-modal-head">
             <span>视频问诊 · {{ consult.doctor }}</span>
@@ -208,7 +209,7 @@
             <button class="btn-primary" type="button" id="startVideo">发起呼叫</button>
             <button class="btn-secondary" type="button" id="hangupVideo">挂断</button>
         </div>
-        <p class="video-tip">课设演示：右下角小窗为本地摄像头预览；双方实时通话需另行部署信令服务器与 TURN 中继服务。</p>
+        <p class="video-tip">语音模式仅传输麦克风；视频模式收发摄像头与麦克风。双方实时媒体走 WebRTC，信令经本平台后端交换；跨对称网络时可能需 TURN 中继。</p>
     </div>
 </div>
 
