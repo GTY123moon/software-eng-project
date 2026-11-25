@@ -37,8 +37,14 @@
     if (!signalUrl || !me) return;
 
     var RING_TIMEOUT = 30000; // 主叫等待接通超时：30 秒
+    // 多个 STUN：国内公共节点优先，Google 作为海外兜底；只发现反射地址，不中继媒体。
     var RTC_CONFIG = {
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        iceServers: [
+            { urls: 'stun:stun.miwifi.com:3478' },
+            { urls: 'stun:stun.chat.bilibili.com:3478' },
+            { urls: 'stun:stun.qq.com:3478' },
+            { urls: 'stun:stun.l.google.com:19302' }
+        ]
     };
 
     var localStream = null;
@@ -54,6 +60,11 @@
     function csrfToken() {
         var m = document.cookie.match(/csrftoken=([^;]+)/);
         return m ? decodeURIComponent(m[1]) : '';
+    }
+
+    // 调试日志：复测时在两端 Console 按 [call] 前缀定位信令/打洞断点
+    function dbg(msg) {
+        if (window.console && console.log) { console.log('[call]', me, msg); }
     }
 
     function setStatus(text) {
@@ -136,7 +147,12 @@
                 'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify(payload)
-        }).catch(function () { /* 网络抖动由下一轮轮询自愈 */ });
+        }).then(function (r) {
+            if (!r.ok) { dbg('signal HTTP ' + r.status + ' 上报 ' + payload.type); }
+            return r;
+        }).catch(function (err) {
+            dbg('signal 上报失败 ' + payload.type + '：' + (err && err.message ? err.message : err));
+        });
     }
 
     function createPeerConnection() {
@@ -159,6 +175,7 @@
 
         pc.oniceconnectionstatechange = function () {
             if (!pc) return;
+            dbg('ICE 状态：' + pc.iceConnectionState);
             if (pc.iceConnectionState === 'failed') {
                 setStatus('打洞失败：跨网络可能需要 TURN 中继');
             } else if (pc.iceConnectionState === 'disconnected') {
@@ -214,11 +231,12 @@
             var offer = await peerConn.createOffer();
             await peerConn.setLocalDescription(offer);
             await postSignal({ type: 'offer', mode: mode, sdp: offer.sdp });
-
+            dbg('Offer 已上报，等待 Answer');
             state = 'calling';
             if (startBtn) startBtn.disabled = true;
             startRingTimer('呼叫中');
         } catch (err) {
+            console.error('[call] 发起呼叫失败：', err);
             alert(mediaErrorMessage(err));
             stopLocalStream();
         }
@@ -251,8 +269,10 @@
             var answer = await peerConn.createAnswer();
             await peerConn.setLocalDescription(answer);
             await postSignal({ type: 'answer', sdp: answer.sdp });
+            dbg('Answer 已上报');
             if (startBtn) startBtn.disabled = true;
         } catch (err) {
+            console.error('[call] 接听失败：', err);
             setStatus(mediaErrorMessage(err));
         }
     }
@@ -277,12 +297,15 @@
 
                 // 被叫：发现对端 Offer，进入来电态
                 if (data.offer && state === 'idle') {
+                    dbg('收到对端 Offer');
                     onIncoming(data);
                 }
                 // 主叫：收到 Answer
                 if (data.answer && peerConn && peerConn.signalingState !== 'stable') {
+                    dbg('收到对端 Answer，建立远端描述');
                     peerConn.setRemoteDescription(
-                        { type: 'answer', sdp: data.answer.sdp }).catch(function () {});
+                        { type: 'answer', sdp: data.answer.sdp })
+                        .catch(function (err) { console.error('[call] 设置远端 Answer 失败：', err); });
                 }
                 // ICE 增量交换
                 if (Array.isArray(data.ice) && data.ice.length > processedIce) {
