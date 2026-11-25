@@ -143,18 +143,31 @@
         if (panels) panels.classList.remove('has-local');
     }
 
-    // 挂载本地预览流：绑定 srcObject、显示小窗、显式 play（不依赖 autoplay），并记录视频轨状态便于排查。
+    // 挂载本地预览流：先显示小窗，再绑定 srcObject、显式 play（不依赖 autoplay），并记录视频轨状态便于排查。
     function attachLocalStream() {
         if (!localStream) return;
+        // 先把小窗切到可见，避免隐藏状态下 play 被浏览器挂起在暂停态
+        if (mode === 'video' && panels) panels.classList.add('has-local');
         if (localVideo) {
             localVideo.srcObject = localStream;
             localVideo.muted = true;
-            var playPromise = localVideo.play();
-            if (playPromise && playPromise.catch) {
-                playPromise.catch(function (err) { dbg('本地预览 play 被拦截：' + (err && err.message ? err.message : err)); });
-            }
+            var kickPlay = function () {
+                var p = localVideo.play();
+                if (p && p.catch) {
+                    p.catch(function (err) { dbg('本地预览 play 被拦截：' + (err && err.message ? err.message : err)); });
+                }
+            };
+            kickPlay();
+            // 首帧数据就绪后补播一次，防止元素停在暂停态不渲染
+            localVideo.addEventListener('loadeddata', function onLoaded() {
+                localVideo.removeEventListener('loadeddata', onLoaded);
+                kickPlay();
+            });
+            // 兜底：短暂延迟后若仍暂停，再补播一次
+            setTimeout(function () {
+                if (localVideo && localVideo.paused) kickPlay();
+            }, 400);
         }
-        if (mode === 'video' && panels) panels.classList.add('has-local');
         var videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack) {
             dbg('本地视频轨：' + videoTrack.label + ' state=' + videoTrack.readyState);
