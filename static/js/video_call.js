@@ -143,6 +143,29 @@
         if (panels) panels.classList.remove('has-local');
     }
 
+    // 挂载本地预览流：绑定 srcObject、显示小窗、显式 play（不依赖 autoplay），并记录视频轨状态便于排查。
+    function attachLocalStream() {
+        if (!localStream) return;
+        if (localVideo) {
+            localVideo.srcObject = localStream;
+            localVideo.muted = true;
+            var playPromise = localVideo.play();
+            if (playPromise && playPromise.catch) {
+                playPromise.catch(function (err) { dbg('本地预览 play 被拦截：' + (err && err.message ? err.message : err)); });
+            }
+        }
+        if (mode === 'video' && panels) panels.classList.add('has-local');
+        var videoTrack = localStream.getVideoTracks()[0];
+        if (videoTrack) {
+            dbg('本地视频轨：' + videoTrack.label + ' state=' + videoTrack.readyState);
+            videoTrack.onended = function () { dbg('本地视频轨已 ended'); };
+            videoTrack.onunmute = function () { dbg('本地视频轨 unmute（开始出帧）'); };
+            videoTrack.onmute = function () { dbg('本地视频轨 mute（暂停出帧）'); };
+        } else {
+            dbg('警告：本地流未包含视频轨（仅音频）');
+        }
+    }
+
     function postSignal(payload) {
         return fetch(signalUrl, {
             method: 'POST',
@@ -228,8 +251,7 @@
         if (state !== 'idle') return;
         try {
             localStream = await requestMedia(mediaConstraints());
-            if (localVideo) localVideo.srcObject = localStream;
-            if (mode === 'video' && panels) panels.classList.add('has-local');
+            attachLocalStream();
 
             peerConn = createPeerConnection();
             localStream.getTracks().forEach(function (track) {
@@ -261,8 +283,7 @@
         setStatus('接听中…');
         try {
             localStream = await requestMedia(mediaConstraints());
-            if (localVideo) localVideo.srcObject = localStream;
-            if (mode === 'video' && panels) panels.classList.add('has-local');
+            attachLocalStream();
 
             peerConn = createPeerConnection();
             localStream.getTracks().forEach(function (track) {
