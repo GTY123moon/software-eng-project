@@ -161,7 +161,7 @@
             videoTrack.onended = function () { dbg('本地视频轨已 ended'); };
             videoTrack.onunmute = function () { dbg('本地视频轨 unmute（开始出帧）'); };
             videoTrack.onmute = function () { dbg('本地视频轨 mute（暂停出帧）'); };
-        } else {
+        } else if (mode === 'video') {
             dbg('警告：本地流未包含视频轨（仅音频）');
         }
     }
