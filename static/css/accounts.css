@@ -4,37 +4,62 @@
  */
 
 /* ===== 登录 / 注册页 ===== */
+/* 背景铺满整个视口：底部不再留白条，深蓝科技底一直延伸到页面最下沿 */
+body:has(.login-wrap) {
+    background: #0c2a49;
+}
+
 .login-wrap {
     position: relative;
-    min-height: calc(100vh - 60px);
+    min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 24px;
     overflow: hidden;
-    /* 深蓝医疗科技底：左上冷蓝 → 中部主蓝 → 右下青蓝，多层径向高光叠加 */
+    /* 深蓝医疗科技底：左上冷蓝 → 中部主蓝 → 右下青蓝，三层径向光叠加，
+       背景尺寸放大到 140%~175% 并缓慢漂移，形成自然的水面光泽流动 */
     background:
-        radial-gradient(1200px 700px at 12% 8%, rgba(76, 164, 224, 0.28) 0, transparent 55%),
-        radial-gradient(1000px 640px at 88% 92%, rgba(38, 158, 168, 0.30) 0, transparent 55%),
+        radial-gradient(1200px 700px at 12% 8%, rgba(76, 164, 224, 0.32) 0, transparent 55%),
+        radial-gradient(1000px 640px at 88% 92%, rgba(38, 158, 168, 0.34) 0, transparent 55%),
+        radial-gradient(900px 600px at 50% 50%, rgba(74, 196, 214, 0.18) 0, transparent 60%),
         linear-gradient(135deg, #0c2a49 0%, #15557f 48%, #135a68 100%);
-    padding: 24px 16px;
+    background-size: 175% 175%, 165% 165%, 140% 140%, 100% 100%;
+    background-repeat: no-repeat;
+    animation: loginWaterSwell 30s ease-in-out infinite alternate;
+    padding: 24px 16px 76px; /* 底部留出免责小字的位置，小字浮在背景上 */
 }
 
-/* 科技感背景：光斑 + 散点点阵（纯 CSS，无图片） */
+/* 光流主体：冷蓝与青绿光斑缓慢起伏位移，节奏接近水波呼吸 */
+@keyframes loginWaterSwell {
+    0%   { background-position: 8% 12%, 92% 88%, 50% 50%, 0 0; }
+    50%  { background-position: 42% 34%, 58% 62%, 46% 56%, 0 0; }
+    100% { background-position: 78% 70%, 22% 26%, 54% 44%, 0 0; }
+}
+
+/* 水面波光：散点与光斑反向缓慢漂移，产生细碎的反光感（纯 CSS，无鼠标交互） */
 .login-wrap::before {
     content: "";
     position: absolute;
-    inset: 0;
+    inset: -10%;
     pointer-events: none;
     background:
         radial-gradient(circle at 20% 20%, rgba(96, 178, 236, 0.38) 0, transparent 32%),
         radial-gradient(circle at 76% 74%, rgba(46, 176, 189, 0.32) 0, transparent 34%),
         radial-gradient(rgba(255, 255, 255, 0.18) 1.5px, transparent 1.6px);
-    background-size: auto, auto, 32px 32px;
+    background-size: 120% 120%, 120% 120%, 32px 32px;
+    animation: loginRippleFlow 22s ease-in-out infinite alternate;
 }
 
-/* 底部网格：向上渐隐，叠加一层柔和地面光带 */
+@keyframes loginRippleFlow {
+    0%   { background-position: 0% 0%, 100% 100%, 0 0; }
+    50%  { background-position: 18% 14%, 82% 86%, 16px 8px; }
+    100% { background-position: 36% 28%, 64% 72%, 32px 16px; }
+}
+
+/* 底部网格：向上渐隐，叠加柔和地面光带，光带横向缓慢推移如潮汐 */
 .login-wrap::after {
     content: "";
     position: absolute;
@@ -44,16 +69,40 @@
     height: 42%;
     pointer-events: none;
     background:
-        radial-gradient(60% 60% at 50% 100%, rgba(127, 227, 208, 0.12) 0, transparent 70%),
+        radial-gradient(60% 60% at 50% 100%, rgba(127, 227, 208, 0.16) 0, transparent 70%),
         repeating-linear-gradient(90deg, rgba(143, 216, 255, 0.12) 0 1px, transparent 1px 46px),
         repeating-linear-gradient(0deg, rgba(143, 216, 255, 0.12) 0 1px, transparent 1px 46px);
+    background-size: 100% 100%, 46px 46px, 46px 46px;
     -webkit-mask-image: linear-gradient(transparent, #000 72%);
     mask-image: linear-gradient(transparent, #000 72%);
+    animation: loginTideShift 26s linear infinite;
 }
 
-/* 登录族页面底部免责小字适配深蓝背景 */
+@keyframes loginTideShift {
+    from { background-position: 50% 100%, 0 0, 0 0; }
+    to   { background-position: 50% 100%, 46px 0, 0 46px; }
+}
+
+/* 登录族页面：免责小字浮在背景底部，不再占据独立白条 */
 body:has(.login-wrap) .footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    padding: 12px 16px 14px;
+    background: transparent;
     color: rgba(226, 240, 252, 0.66);
+    pointer-events: none;
+}
+
+/* 尊重系统「减少动态效果」设置 */
+@media (prefers-reduced-motion: reduce) {
+    .login-wrap,
+    .login-wrap::before,
+    .login-wrap::after {
+        animation: none;
+    }
 }
 
 .login-card {
@@ -101,10 +150,11 @@ body:has(.login-wrap) .footer {
     width: 396px;
 }
 
-/* 参考图9：深蓝科技背景 + 右侧白色圆角卡片，左侧为品牌插画装饰区 */
+/* 参考图9：深蓝科技背景 + 白色圆角卡片，左侧为品牌插画装饰区；
+   左栏与卡片作为一组整体水平居中，避免重心偏右 */
 .login-wrap.split {
     flex-direction: row;
-    justify-content: flex-end;
+    justify-content: center;
     align-items: stretch;
     gap: 0;
 }
@@ -116,8 +166,8 @@ body:has(.login-wrap) .footer {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 18px;
-    padding: 48px 40px;
+    gap: 14px;
+    padding: 28px 34px;
     color: #fff;
     max-width: 600px;
 }
@@ -195,7 +245,7 @@ body:has(.login-wrap) .footer {
 
 .login-wrap.split .login-card {
     align-self: center;
-    margin: 0 12% 0 0;
+    margin: 0;
 }
 
 /* 登录卡片内控件：主按钮渐变 + 输入框浅蓝底 */
@@ -1595,4 +1645,55 @@ body:has(.login-wrap) .footer {
     .role-panel {
         width: 100%;
     }
+}
+
+
+/* ===== 身份选择：选择卡与登录卡同宽同位，左侧品牌块与登录页保持一致 ===== */
+.role-select-card {
+    width: 396px;
+}
+
+.role-select-card .sub {
+    margin-bottom: 4px;
+}
+
+.role-select-card .role-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.role-select-card .role-card {
+    gap: 12px;
+    padding: 14px 30px 14px 16px;
+    background: #f7f9fc;
+    border-color: #e2ebf6;
+    border-radius: 12px;
+}
+
+.role-select-card .role-card:hover {
+    transform: translateY(-2px);
+    background: #fff;
+}
+
+.role-select-card .role-card .entry-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    font-size: 15px;
+}
+
+.role-select-card .entry-title {
+    font-size: 15px;
+}
+
+.role-select-card .entry-desc {
+    font-size: 12px;
+    margin-top: 2px;
+    line-height: 1.6;
+}
+
+.role-select-card .role-card::after {
+    right: 12px;
+    font-size: 16px;
 }

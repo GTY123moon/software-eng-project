@@ -4,13 +4,21 @@
 {% block title %}{{ role_cn }}登录 · 智慧医疗在线问诊与处方流转平台{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/accounts.css' %}?v=2">
+<link rel="stylesheet" href="{% static 'css/accounts.css' %}?v=3">
+<link rel="stylesheet" href="{% static 'css/micro_slats_bg.css' %}?v=1">
 
 <div class="login-wrap split">
+    <div class="micro-slats-bg" data-micro-slats aria-hidden="true"
+         data-preset="swell" data-color="#1f65d8" data-glint-color="#5b87cc" data-background-color="#45b0b7"
+         data-slat-width="10" data-slat-height="25" data-gap="3" data-roundness="0.75"
+         data-interactive="true" data-cursor-strength="1" data-cursor-size="40"
+         data-swirl="0" data-trail="1.4" data-lean="0" data-intro="true"></div>
     <div class="login-side">
+        <div class="login-side-panel">
         <div class="login-logo">智慧医疗在线问诊与处方流转平台</div>
         <div class="login-slogan">医生诊疗 · 药师审核配药 · 后台管理维护，面向职工的内部工作入口。</div>
         {% include 'accounts/_login_art.html' %}
+        </div>
     </div>
     <div class="login-card login-card-narrow">
         <h1>{{ role_cn }}端登录</h1>
@@ -54,4 +62,5 @@
         <p class="login-tip">演示内部密钥：demo123456（账号由后台统一开通，不可自助注册）</p>
     </div>
 </div>
+<script type="module" src="{% static 'js/micro_slats_bg.js' %}"></script>
 {% endblock %}

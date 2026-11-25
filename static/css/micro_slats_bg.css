@@ -1,0 +1,72 @@
+/* MicroSlats 背景层：铺满登录页，压在内容之下（WebGL2 不可用时自动回落到原深蓝渐变） */
+.micro-slats-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* 背景改用着色器后，原 CSS 光斑与网格装饰让位，避免叠在一起 */
+.login-wrap:has(.micro-slats-bg)::before,
+.login-wrap:has(.micro-slats-bg)::after {
+    content: none;
+}
+
+/* 左栏：宽度收缩到内容宽度，垫板不再向右侧空出一大片；与卡片之间留出呼吸间距 */
+.login-wrap:has(.micro-slats-bg) .login-side {
+    flex: 0 1 auto;
+    width: auto;
+    min-width: 0;
+    max-width: 480px;
+    padding: 0;
+    margin-right: 22px;
+    text-shadow: 0 2px 12px rgba(6, 34, 48, 0.5);
+}
+
+/* 卡片保持原始宽度，窄屏时只让左栏收窄，避免卡片被压扁换行 */
+.login-wrap:has(.micro-slats-bg) .login-card {
+    flex: 0 0 auto;
+}
+
+/* 左侧整列垫板：一块半透明玻璃板把品牌、文案、插画、胶囊一起托住，浅色、贴近内容边界 */
+.login-wrap:has(.micro-slats-bg) .login-side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 26px 26px 28px;
+    border-radius: 26px;
+    background:
+        radial-gradient(120% 95% at 20% 16%, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.16) 62%, rgba(18, 70, 92, 0.06) 100%),
+        linear-gradient(160deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1));
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 18px 42px rgba(4, 28, 44, 0.24);
+}
+
+/* 板内的插画直接坐在大板上，不再单独垫底 */
+.login-wrap:has(.micro-slats-bg) .login-art {
+    width: min(350px, 100%);
+    margin-top: 2px;
+}
+
+/* 插画与四个特性胶囊在垫板内水平居中（平台名与副文案保持左对齐） */
+.login-wrap:has(.micro-slats-bg) .login-art {
+    margin-inline: auto;
+}
+
+.login-wrap:has(.micro-slats-bg) .login-features {
+    justify-content: center;
+}
+
+/* 顶部品牌行（十字徽标 + 平台名）与副文案也居中，和下方插画、胶囊形成同一条中轴 */
+.login-wrap:has(.micro-slats-bg) .login-logo {
+    justify-content: center;
+    text-align: center;
+}
+
+.login-wrap:has(.micro-slats-bg) .login-slogan {
+    margin-inline: auto;
+    text-align: center;
+}
