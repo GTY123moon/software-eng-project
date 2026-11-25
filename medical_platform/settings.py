@@ -21,13 +21,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-1103e!&9oxb4!%x=*4oij7s%ag_9-r%9hs(7&m&wl)1y5a!m0v'
+# 生产环境通过环境变量 DJANGO_SECRET_KEY 注入；本地开发回退到内置默认值。
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-1103e!&9oxb4!%x=*4oij7s%ag_9-r%9hs(7&m&wl)1y5a!m0v')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# 生产环境设 DJANGO_DEBUG=0 关闭；默认为 True 仅用于本地开发。
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes', 'on')
 
-# 课设本机演示：允许本机与测试客户端；部署时应收敛为正式域名
-ALLOWED_HOSTS = ['*']
+# 课设本机演示：允许本机与测试客户端；部署时用 DJANGO_ALLOWED_HOSTS 收敛为正式域名/IP。
+ALLOWED_HOSTS = [
+    h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',') if h.strip()
+]
 
 
 # Application definition
@@ -143,6 +149,9 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 STATICFILES_DIRS = [BASE_DIR / 'static']
+
+# 生产环境 collectstatic 收集目录（Nginx 直接托管该目录）；本地开发不影响
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # 用户上传的聊天图片等媒体文件（不进 Git，media/ 已在 .gitignore）
 MEDIA_URL = 'media/'

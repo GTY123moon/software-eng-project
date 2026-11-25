@@ -28,6 +28,9 @@ medical_platform/local_settings.py
 # 运行时上传的媒体文件
 media/
 
+# 生产静态文件收集目录（collectstatic 产物，不进仓库）
+staticfiles/
+
 # 系统文件
 Thumbs.db
 .DS_Store
