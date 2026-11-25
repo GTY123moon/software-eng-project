@@ -83,6 +83,31 @@
             : { video: true, audio: true };
     }
 
+    // 媒体采集：优先标准 mediaDevices，回退旧前缀；都不可用（非安全上下文）时标记 insecure。
+    function requestMedia(constraints) {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            return navigator.mediaDevices.getUserMedia(constraints);
+        }
+        var legacy = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+        if (legacy) {
+            return new Promise(function (resolve, reject) {
+                legacy.call(navigator, constraints, resolve, reject);
+            });
+        }
+        var err = new Error('当前环境禁止调用摄像头/麦克风（非安全上下文）');
+        err.insecure = true;
+        return Promise.reject(err);
+    }
+
+    function mediaErrorMessage(err) {
+        if (err && err.insecure) {
+            return '当前页面不是 HTTPS、也不是本机 localhost，浏览器禁止开启摄像头/麦克风。\n\n'
+                + '实测办法：在本机用 http://127.0.0.1:8000 访问（localhost 属于安全上下文）；'
+                + '若必须远程公网访问，需为服务器配置 HTTPS 证书后再试。';
+        }
+        return '无法开启摄像头/麦克风：' + (err && err.message ? err.message : '未知错误');
+    }
+
     function applyModeUi() {
         var audio = mode === 'audio';
         if (panels) panels.classList.toggle('is-audio', audio);
@@ -176,7 +201,7 @@
     async function startCall() {
         if (state !== 'idle') return;
         try {
-            localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints());
+            localStream = await requestMedia(mediaConstraints());
             if (localVideo) localVideo.srcObject = localStream;
             if (mode === 'video' && panels) panels.classList.add('has-local');
 
@@ -194,7 +219,7 @@
             if (startBtn) startBtn.disabled = true;
             startRingTimer('呼叫中');
         } catch (err) {
-            alert('无法开启摄像头/麦克风：' + err.message);
+            alert(mediaErrorMessage(err));
             stopLocalStream();
         }
     }
@@ -208,7 +233,7 @@
         applyModeUi();
         setStatus('接听中…');
         try {
-            localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints());
+            localStream = await requestMedia(mediaConstraints());
             if (localVideo) localVideo.srcObject = localStream;
             if (mode === 'video' && panels) panels.classList.add('has-local');
 
@@ -217,7 +242,7 @@
                 peerConn.addTrack(track, localStream);
             });
 
-            await peerConn.setRemoteDescription(new RTCSessionDescription(offer.sdp));
+            await peerConn.setRemoteDescription({ type: 'offer', sdp: offer.sdp });
             var cached = pendingIce; pendingIce = [];
             cached.forEach(function (c) {
                 peerConn.addIceCandidate(new RTCIceCandidate(c)).catch(function () {});
@@ -228,7 +253,7 @@
             await postSignal({ type: 'answer', sdp: answer.sdp });
             if (startBtn) startBtn.disabled = true;
         } catch (err) {
-            setStatus('无法开启麦克风/摄像头：' + err.message);
+            setStatus(mediaErrorMessage(err));
         }
     }
 
@@ -257,7 +282,7 @@
                 // 主叫：收到 Answer
                 if (data.answer && peerConn && peerConn.signalingState !== 'stable') {
                     peerConn.setRemoteDescription(
-                        new RTCSessionDescription(data.answer.sdp)).catch(function () {});
+                        { type: 'answer', sdp: data.answer.sdp }).catch(function () {});
                 }
                 // ICE 增量交换
                 if (Array.isArray(data.ice) && data.ice.length > processedIce) {
