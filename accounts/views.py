@@ -959,6 +959,7 @@ def call_signal_view(request, consult_id):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'bad_request'}, status=400)
         call_signal.post(consult.consult_id, 'patient', payload)
+        print('[call_signal] patient post:', payload.get('type'), flush=True)
         return JsonResponse({'ok': True})
 
     return JsonResponse(call_signal.poll(consult.consult_id, 'patient'))
