@@ -4,9 +4,7 @@
  * 课设单机部署不引入 WebSocket / Redis：SDP Offer/Answer 与 ICE Candidate 经
  * 后端信令接口（按问诊会话隔离）轮询交换，媒体流仍走浏览器 WebRTC P2P。
  *
- * 双模式：
- *  - video：本地/远端收发摄像头 + 麦克风（画中画）；
- *  - audio：仅收发麦克风，弹窗隐藏画面，保留音频播放。
+ * 视频问诊：本地/远端收发摄像头 + 麦克风（画中画）。
  *
  * 弹窗容器需通过 data 属性提供：
  *  - data-signal-url：信令接口地址（GET 轮询 / POST 上报）；
@@ -25,7 +23,6 @@
     var remoteVideo = document.getElementById('remoteVideo');
     var statusEl = document.getElementById('videoStatus');
     var openVideoBtn = document.getElementById('openVideo');
-    var openVoiceBtn = document.getElementById('openVoice');
     var closeBtn = document.getElementById('closeVideo');
     var startBtn = document.getElementById('startVideo');
     var hangupBtn = document.getElementById('hangupVideo');
@@ -55,7 +52,6 @@
     var localStream = null;
     var peerConn = null;
     var state = 'idle'; // idle | incoming | calling | connecting | connected
-    var mode = 'video'; // video | audio
     var incomingOffer = null;
     var ringTimer = null;
     var pollTimer = null;
@@ -115,7 +111,6 @@
     }
 
     async function mediaConstraints() {
-        if (mode === 'audio') return { video: false, audio: true };
         var deviceId = await pickVideoDevice();
         var video = deviceId
             ? { deviceId: { ideal: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
@@ -149,9 +144,7 @@
     }
 
     function applyModeUi() {
-        var audio = mode === 'audio';
-        if (panels) panels.classList.toggle('is-audio', audio);
-        if (titleEl) titleEl.textContent = (audio ? '语音问诊' : '视频问诊') + ' · ' + peerLabel;
+        if (titleEl) titleEl.textContent = '视频问诊 · ' + peerLabel;
         if (startBtn) {
             startBtn.textContent = state === 'incoming' ? '接听' : '发起呼叫';
         }
@@ -171,7 +164,7 @@
     function attachLocalStream() {
         if (!localStream) return;
         // 先把小窗切到可见，避免隐藏状态下 play 被浏览器挂起在暂停态
-        if (mode === 'video' && panels) panels.classList.add('has-local');
+        if (panels) panels.classList.add('has-local');
         if (localVideo) {
             localVideo.srcObject = localStream;
             localVideo.muted = true;
@@ -198,8 +191,8 @@
             videoTrack.onended = function () { dbg('本地视频轨已 ended'); };
             videoTrack.onunmute = function () { dbg('本地视频轨 unmute（开始出帧）'); };
             videoTrack.onmute = function () { dbg('本地视频轨 mute（暂停出帧）'); };
-        } else if (mode === 'video') {
-            dbg('警告：本地流未包含视频轨（仅音频）');
+        } else {
+            dbg('警告：本地流未包含视频轨');
         }
     }
 
@@ -275,9 +268,8 @@
         if (startBtn) startBtn.disabled = false;
     }
 
-    function openModal(openMode) {
+    function openModal() {
         resetCall();
-        mode = openMode || mode;
         applyModeUi();
         setStatus('等待发起呼叫');
         mask.hidden = false;
@@ -295,10 +287,10 @@
                 peerConn.addTrack(track, localStream);
             });
 
-            await postSignal({ type: 'call', mode: mode });
+            await postSignal({ type: 'call' });
             var offer = await peerConn.createOffer();
             await peerConn.setLocalDescription(offer);
-            await postSignal({ type: 'offer', mode: mode, sdp: offer.sdp });
+            await postSignal({ type: 'offer', sdp: offer.sdp });
             dbg('Offer 已上报，等待 Answer');
             state = 'calling';
             if (startBtn) startBtn.disabled = true;
@@ -314,7 +306,6 @@
     async function acceptCall(data) {
         var offer = data.offer;
         if (!offer) return;
-        mode = data.mode || mode;
         state = 'ringing';
         applyModeUi();
         setStatus('接听中…');
@@ -348,7 +339,6 @@
     function onIncoming(data) {
         incomingOffer = data;
         state = 'incoming';
-        mode = data.mode || mode;
         applyModeUi();
         setStatus('对方呼叫中…');
         mask.hidden = false;
@@ -415,8 +405,7 @@
         }
     }
 
-    if (openVideoBtn) openVideoBtn.addEventListener('click', function () { openModal('video'); });
-    if (openVoiceBtn) openVoiceBtn.addEventListener('click', function () { openModal('audio'); });
+    if (openVideoBtn) openVideoBtn.addEventListener('click', function () { openModal(); });
     if (closeBtn) closeBtn.addEventListener('click', function () { hangup(); });
     if (hangupBtn) hangupBtn.addEventListener('click', function () { hangup(); });
     if (startBtn) startBtn.addEventListener('click', function () {

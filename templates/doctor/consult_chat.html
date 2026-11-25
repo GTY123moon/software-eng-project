@@ -21,7 +21,6 @@
         {% endif %}
         <a class="btn-secondary" href="{% url 'doctor:consult_detail' consult.id %}">返回预问诊</a>
         {% if can_chat %}
-        <button class="btn-secondary" id="openVoice" type="button">语音通话</button>
         <button class="btn-secondary" id="openVideo" type="button">视频通话</button>
         {% endif %}
     </div>
@@ -159,7 +158,7 @@
             <button class="btn-primary" type="button" id="startVideo">发起呼叫</button>
             <button class="btn-secondary" type="button" id="hangupVideo">挂断</button>
         </div>
-        <p class="video-tip">语音模式仅传输麦克风；视频模式收发摄像头与麦克风。双方实时媒体走 WebRTC，信令经本平台后端交换；跨对称网络时可能需 TURN 中继。</p>
+        <p class="video-tip">视频模式收发摄像头与麦克风。双方实时媒体走 WebRTC，信令经本平台后端交换；跨对称网络时可能需 TURN 中继。</p>
     </div>
 </div>
 
