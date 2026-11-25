@@ -37,13 +37,18 @@
     if (!signalUrl || !me) return;
 
     var RING_TIMEOUT = 30000; // 主叫等待接通超时：30 秒
-    // 多个 STUN：国内公共节点优先，Google 作为海外兜底；只发现反射地址，不中继媒体。
+    // STUN 发现反射地址；TURN 在对称 NAT 下中继媒体兜底（课设演示长期凭据）。
     var RTC_CONFIG = {
         iceServers: [
             { urls: 'stun:stun.miwifi.com:3478' },
             { urls: 'stun:stun.chat.bilibili.com:3478' },
             { urls: 'stun:stun.qq.com:3478' },
-            { urls: 'stun:stun.l.google.com:19302' }
+            { urls: 'stun:stun.l.google.com:19302' },
+            {
+                urls: 'turn:47.93.133.228:3478',
+                username: 'medical',
+                credential: 'Sqw5f37OPg8cDMs9T0Rdc7iJ'
+            }
         ]
     };
 
@@ -165,7 +170,11 @@
         };
 
         pc.ontrack = function (event) {
-            if (remoteVideo) remoteVideo.srcObject = event.streams[0];
+            if (remoteVideo) {
+                remoteVideo.srcObject = event.streams[0];
+                var p = remoteVideo.play();
+                if (p && p.catch) p.catch(function () {});
+            }
             if (state !== 'connected') {
                 state = 'connected';
                 clearRingTimer();
@@ -238,7 +247,7 @@
         } catch (err) {
             console.error('[call] 发起呼叫失败：', err);
             alert(mediaErrorMessage(err));
-            stopLocalStream();
+            resetCall();
         }
     }
 
@@ -273,6 +282,7 @@
             if (startBtn) startBtn.disabled = true;
         } catch (err) {
             console.error('[call] 接听失败：', err);
+            resetCall();
             setStatus(mediaErrorMessage(err));
         }
     }
