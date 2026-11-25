@@ -93,10 +93,34 @@
         }, 1000);
     }
 
-    function mediaConstraints() {
-        return mode === 'audio'
-            ? { video: false, audio: true }
-            : { video: true, audio: true };
+    // 挑选优先使用的真实摄像头：内置/USB 优先，虚拟/协同/投屏类摄像头降权；选不出明确偏好则不指定设备。
+    async function pickVideoDevice() {
+        try {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return null;
+            var devices = await navigator.mediaDevices.enumerateDevices();
+            var cams = devices.filter(function (d) { return d.kind === 'videoinput' && d.deviceId; });
+            if (cams.length <= 1) return null;
+            var preferred = /integrated|内置|realtek|usb|hd camera|webcam|笔记本/i;
+            var virtual = /smart connect|ready\s*for|motorola|virtual|obs|manycam|splitcam|droidcam|scrcpy|投屏|协同/i;
+            var best = null, bestScore = 0;
+            cams.forEach(function (cam) {
+                var label = cam.label || '';
+                var score = 0;
+                if (preferred.test(label)) score += 2;
+                if (virtual.test(label)) score -= 2;
+                if (score > bestScore) { bestScore = score; best = cam.deviceId; }
+            });
+            return best;
+        } catch (e) { return null; }
+    }
+
+    async function mediaConstraints() {
+        if (mode === 'audio') return { video: false, audio: true };
+        var deviceId = await pickVideoDevice();
+        var video = deviceId
+            ? { deviceId: { ideal: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+            : true;
+        return { video: video, audio: true };
     }
 
     // 媒体采集：优先标准 mediaDevices，回退旧前缀；都不可用（非安全上下文）时标记 insecure。
@@ -263,7 +287,7 @@
     async function startCall() {
         if (state !== 'idle') return;
         try {
-            localStream = await requestMedia(mediaConstraints());
+            localStream = await requestMedia(await mediaConstraints());
             attachLocalStream();
 
             peerConn = createPeerConnection();
@@ -295,7 +319,7 @@
         applyModeUi();
         setStatus('接听中…');
         try {
-            localStream = await requestMedia(mediaConstraints());
+            localStream = await requestMedia(await mediaConstraints());
             attachLocalStream();
 
             peerConn = createPeerConnection();
