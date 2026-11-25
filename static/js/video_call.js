@@ -324,7 +324,11 @@
             .then(function (data) {
                 if (!data) return;
 
-                if (data.status === 'ended') { hangup('remote'); return; }
+                if (data.status === 'ended') {
+                    // 仅在已有通话时才视为对端挂断；空闲态忽略历史残留的 ended 房间
+                    if (state !== 'idle') hangup('remote');
+                    return;
+                }
 
                 // 被叫：发现对端 Offer，进入来电态
                 if (data.offer && state === 'idle') {
