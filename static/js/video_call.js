@@ -54,7 +54,7 @@
 
     var localStream = null;
     var peerConn = null;
-    var state = 'idle'; // idle | incoming | calling | connected
+    var state = 'idle'; // idle | incoming | calling | connecting | connected
     var mode = 'video'; // video | audio
     var incomingOffer = null;
     var ringTimer = null;
@@ -322,7 +322,7 @@
         fetch(signalUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(function (r) { return r.json(); })
             .then(function (data) {
-                if (!data) { schedule(3000); return; }
+                if (!data) return;
 
                 if (data.status === 'ended') { hangup('remote'); return; }
 
@@ -331,11 +331,18 @@
                     dbg('收到对端 Offer');
                     onIncoming(data);
                 }
-                // 主叫：收到 Answer
+                // 主叫：收到 Answer，SDP 交换完成即进入“连接中”，媒体轨到达后再转通话中
                 if (data.answer && peerConn && peerConn.signalingState !== 'stable') {
                     dbg('收到对端 Answer，建立远端描述');
                     peerConn.setRemoteDescription(
                         { type: 'answer', sdp: data.answer.sdp })
+                        .then(function () {
+                            if (state === 'calling') {
+                                state = 'connecting';
+                                clearRingTimer();
+                                setStatus('连接中…');
+                            }
+                        })
                         .catch(function (err) { console.error('[call] 设置远端 Answer 失败：', err); });
                 }
                 // ICE 增量交换
@@ -344,10 +351,10 @@
                     processedIce = data.ice.length;
                     addRemoteIce(fresh);
                 }
-
-                schedule(state === 'connected' ? 3000 : 1500);
             })
-            .catch(function () { schedule(3000); });
+            .catch(function (err) { dbg('信令轮询异常：' + (err && err.message ? err.message : err)); })
+            // 无论成功/异常都重排轮询，避免信令轮询静默停摆
+            .finally(function () { schedule(state === 'connected' ? 3000 : 1500); });
     }
 
     function schedule(delay) {
