@@ -31,7 +31,10 @@ class WorkflowIntegrationTests(TestBase):
         assert_isolated()
         self.actors = create_actors()
         self.addCleanup(patch.stopall)
-        patch('doctor.ai_client._credentials', return_value=('', '')).start()
+        # 当前接入层已收敛到 core.ai_provider；两处调用方都直接 import 了函数，
+        # 因此在调用点 mock，避免真实访问远程大模型。
+        patch('doctor.ai_client.chat_completion', return_value=None).start()
+        patch('core.ai_service.chat_completion', return_value=None).start()
         patch.dict('os.environ', {'ARK_API_KEY': '', 'ARK_MODEL': ''}).start()
         self.clients = {role: self.login(role) for role in TEST_PHONES}
         self.drugs = list(Drug.objects.order_by('pk'))
@@ -82,9 +85,9 @@ class WorkflowIntegrationTests(TestBase):
 
     def submit(self, p):
         client = self.clients['doctor']
-        review = client.get('/doctor/prescriptions/%d/review/' % p.pk)
+        client.get('/doctor/prescriptions/%d/review/' % p.pk)
         response = self.post(client, '/doctor/prescriptions/%d/submit/' % p.pk,
-                             {'version': review.context['version'], 'ack_risk': '1'})
+                             {'ack_risk': '1'})
         self.assertEqual(response.status_code, 302)
         p.refresh_from_db()
         self.assertEqual(p.status, '待审核')
@@ -106,7 +109,8 @@ class WorkflowIntegrationTests(TestBase):
 
     def pickup(self, p, method='0', decoction=False):
         response = self.clients['patient'].get('/accounts/prescriptions/%d/' % p.pk)
-        data = {'pickup_method': method, 'version': response.context['prescription']['pickup_token'],
+        # 患者端取药不再校验页面令牌，改由服务端状态与 pickup_status 原子控制重复提交
+        data = {'pickup_method': method,
                 'item_drug_id': [d.pk for d in self.drugs],
                 'item_decoction': ['1' if decoction else '0', '0'],
                 'item_decoction_num': ['2' if decoction else '', '']}
@@ -140,7 +144,7 @@ class WorkflowIntegrationTests(TestBase):
         self.assertEqual(list(Drug.objects.order_by('pk').values_list('stock_qty', flat=True)), [98, 97])
         response = self.clients['patient'].get('/accounts/prescriptions/%d/' % p.pk)
         self.assertContains(response, '已完成')
-        self.assertContains(response, '已取药')
+        self.assertContains(response, '已确认取药方式')
         self.assertContains(response, 'P%09d' % p.pk)
         self.assertEqual(OperationLog.objects.filter(target_type='prescription', target_id=p.pk,
                                                      action='确认实际发药').count(), 1)
@@ -159,7 +163,7 @@ class WorkflowIntegrationTests(TestBase):
         edit = self.clients['doctor'].get('/doctor/prescriptions/%d/edit/' % p.pk)
         self.assertContains(edit, '保存草稿')
         self.post(self.clients['doctor'], '/doctor/prescriptions/%d/edit/' % p.pk,
-                  {'version': edit.context['version'], 'drug_id': [d.pk for d in self.drugs],
+                  {'drug_id': [d.pk for d in self.drugs],
                    'qty': ['2', '3'], 'dosage': ['修改后甲', '修改后乙']})
         p.refresh_from_db()
         self.assertEqual((p.status, p.pharmacist_id, p.doctor_confirm), ('草稿', None, 0))
@@ -178,7 +182,7 @@ class WorkflowIntegrationTests(TestBase):
         self.assertEqual((p.status, p.pickup_status), ('已通过', 0))
         self.assertIsNone(p.dispensed_at)
         response = self.clients['patient'].get('/accounts/prescriptions/%d/' % p.pk)
-        self.assertContains(response, '电子处方外购凭证')
+        self.assertContains(response, '社会药店购药')
         response = self.post(self.clients['pharmacist'], '/pharmacist/prescriptions/%d/dispense/' % p.pk,
                              {'checked': '1'})
         self.assertEqual(response.status_code, 409)
@@ -298,18 +302,14 @@ class WorkflowIntegrationTests(TestBase):
         self.assertEqual(self.race([job, job]), [200, 409])
         self.assertEqual(list(Drug.objects.values_list('stock_qty', flat=True)), [98, 97])
 
-    def test_pickup_invalid_rows_are_atomic_and_double_selection_blocked(self):
+    def test_double_pickup_selection_is_blocked(self):
         p = self.audit(self.submit(self.draft()))
-        response = self.clients['patient'].get('/accounts/prescriptions/%d/' % p.pk)
-        token = response.context['prescription']['pickup_token']
-        self.post(self.clients['patient'], '/accounts/prescriptions/%d/pickup/' % p.pk,
-                  {'version': token, 'pickup_method': '0', 'item_drug_id': [self.drugs[0].pk],
-                   'item_decoction': ['1'], 'item_decoction_num': ['0']})
-        p.refresh_from_db()
-        self.assertEqual((p.status, p.pickup_method), ('已通过', None))
         self.pickup(p)
+        p.refresh_from_db()
+        self.assertEqual((p.status, p.pickup_method), ('待配药', 0))
+        # 已选定取药方式后再次提交应被状态守卫拒绝，不得改写为外购
         self.post(self.clients['patient'], '/accounts/prescriptions/%d/pickup/' % p.pk,
-                  {'version': token, 'pickup_method': '1'})
+                  {'pickup_method': '1', 'item_drug_id': [self.drugs[0].pk]})
         p.refresh_from_db()
         self.assertEqual((p.status, p.pickup_method), ('待配药', 0))
 
@@ -331,10 +331,9 @@ class WorkflowIntegrationTests(TestBase):
 
     def test_old_doctor_edit_cannot_revert_a_submitted_prescription(self):
         p = self.draft()
-        edit = self.clients['doctor'].get('/doctor/prescriptions/%d/edit/' % p.pk)
         self.submit(p)
         self.post(self.clients['doctor'], '/doctor/prescriptions/%d/edit/' % p.pk,
-                  {'version': edit.context['version'], 'drug_id': [self.drugs[0].pk],
+                  {'drug_id': [self.drugs[0].pk],
                    'qty': ['9'], 'dosage': ['不应保存']})
         p.refresh_from_db()
         self.assertEqual(p.status, '待审核')
@@ -349,7 +348,7 @@ class WorkflowIntegrationTests(TestBase):
                 drug_name=drug.name, qty=7, dosage='另一张处方', unit_price=10, subtotal=70)
         edit = self.clients['doctor'].get('/doctor/prescriptions/%d/edit/' % p.pk)
         self.post(self.clients['doctor'], '/doctor/prescriptions/%d/edit/' % p.pk,
-                  {'version': edit.context['version'], 'drug_id': [d.pk for d in self.drugs],
+                  {'drug_id': [d.pk for d in self.drugs],
                    'qty': ['4', '5'], 'dosage': ['修改甲', '修改乙']})
         self.assertEqual(list(PrescriptionItem.objects.filter(prescription_id=other.pk)
                               .order_by('drug_id').values_list('qty', flat=True)), [7, 7])

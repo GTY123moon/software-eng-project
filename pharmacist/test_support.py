@@ -2,6 +2,7 @@
 
 本模块不读取/复制业务数据，不向原库写入。所有清理先核实连接库名。
 """
+from datetime import timedelta
 from pathlib import Path
 import re
 
@@ -11,7 +12,7 @@ from django.db import connection
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
 
-from core.models import SysUser, Patient, Doctor, Pharmacist, Drug
+from core.models import SysUser, Patient, Doctor, Pharmacist, Drug, DutySchedule, Admin
 
 TEST_PASSWORD = 'LocalWorkflowDemo2026!'
 TEST_PHONES = {'patient': '13990000001', 'doctor': '13990000002',
@@ -86,6 +87,8 @@ def create_actors():
     # AI 引导消息沿用系统账号 ID=1，所有账号均为本轮合成测试数据。
     SysUser.objects.create(user_id=1, name='隔离测试系统', phone='13990000000',
                            password=TEST_PASSWORD, role_type=0, status=1)
+    # 排班表 created_by 外键指向 admin，测试库里补一条与系统账号同主键的管理员档案
+    Admin.objects.create(admin_id=1, account='isolated_admin', created_at=now)
     roles = {'patient': 1, 'doctor': 2, 'pharmacist': 3,
              'other_pharmacist': 3, 'other_patient': 1}
     actors = {}
@@ -101,6 +104,10 @@ def create_actors():
         elif roles[role] == 2:
             Doctor.objects.create(doctor_id=user.pk, department='测试内科', work_status=1,
                                   title='测试医生')
+            # 挂号现在要求医生处于今日值班时间窗内，测试数据补一条覆盖当前时刻的班次
+            DutySchedule.objects.create(
+                doctor_id=user.pk, shift_type='白班', status='正常', created_by=1,
+                start_time=now - timedelta(hours=1), end_time=now + timedelta(hours=2))
         else:
             Pharmacist.objects.create(pharmacist_id=user.pk, pharmacist_type='测试药师',
                                       pharmacist_status=1)

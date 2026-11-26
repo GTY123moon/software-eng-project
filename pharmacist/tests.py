@@ -21,8 +21,8 @@ from . import views
 class DashboardTests(SimpleTestCase):
     def setUp(self):
         self.factory = RequestFactory()
-        self.user = SimpleNamespace(name='测试药师')
-        self.pharmacist = SimpleNamespace(pharmacist_id=138, pharmacist_type='执业药师')
+        self.user = SimpleNamespace(name='测试药师', phone='13900000138')
+        self.pharmacist = SimpleNamespace(pharmacist_id=138, pharmacist_type='执业药师', gender='女')
 
     def request(self, session=None, method='get'):
         request = getattr(self.factory, method)('/pharmacist/')
@@ -79,7 +79,7 @@ class DashboardTests(SimpleTestCase):
 
     def test_empty_data_renders_zero_and_empty_state(self):
         response = self.render_dashboard()
-        self.assertContains(response, '您好，测试药师')
+        self.assertContains(response, '💊 药师')
         self.assertContains(response, '暂无处方数据')
         self.assertContains(response, '>0</div>', count=3)
         self.assertNotContains(response, 'role="alert"')
@@ -103,8 +103,13 @@ class DashboardTests(SimpleTestCase):
         self.assertNotContains(response, '<button')
 
     def test_staff_name_is_escaped(self):
+        # 工作台顶栏已改为固定“药师”标识，姓名不再展示；转而在个人中心
+        # 的表单回显里验证转义，避免 XSS 回归。
         self.user.name = '<script>alert(1)</script>'
-        response = self.render_dashboard()
+        request = self.factory.get('/pharmacist/profile/')
+        request.session = {}
+        with patch.object(views, '_current_pharmacist', return_value=(self.user, self.pharmacist)):
+            response = views.profile(request)
         self.assertContains(response, '&lt;script&gt;')
         self.assertNotContains(response, '<script>alert(1)</script>')
 
@@ -184,6 +189,7 @@ class DashboardTests(SimpleTestCase):
 
     def list_response(self, params=None, rows=None, error=None, section='all'):
         request = self.factory.get('/pharmacist/prescriptions/', params or {})
+        request.session = {}
         with patch.object(views, '_current_pharmacist', return_value=(self.user, self.pharmacist)):
             with patch.object(views, '_list_data', return_value=Paginator(rows or [], 20).get_page(1),
                               side_effect=error):
@@ -214,6 +220,7 @@ class DashboardTests(SimpleTestCase):
         rows = [{'presc_id': i, 'status': '已通过', 'badge': 'badge-green',
                  'assignment': '本人', 'created_at': datetime(2026, 11, 19)} for i in range(45)]
         request = self.factory.get('/pharmacist/prescriptions/', {'status': '已通过', 'sort': 'oldest'})
+        request.session = {}
         with patch.object(views, '_current_pharmacist', return_value=(self.user, self.pharmacist)):
             with patch.object(views, '_list_data', return_value=Paginator(rows, 20).get_page(2)):
                 response = views.prescription_list(request)
@@ -224,6 +231,7 @@ class DashboardTests(SimpleTestCase):
     def test_detail_handles_missing_and_failure_without_leaking_content(self):
         request = self.factory.get('/pharmacist/prescriptions/42/',
                                    {'from': '//outside.example', 'sort': 'oldest'})
+        request.session = {}
         with patch.object(views, '_current_pharmacist', return_value=(self.user, self.pharmacist)):
             with patch.object(views, '_detail_data', side_effect=Http404):
                 response = views.prescription_detail(request, 42)
